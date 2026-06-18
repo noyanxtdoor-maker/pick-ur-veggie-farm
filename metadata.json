@@ -1,0 +1,6 @@
+{
+  "name": "Pick Ur Veggie ERP",
+  "description": "All-in-One POS, Inventory, Accounting, Payroll, Calendar, and Project Management for Pick Ur Veggie Farm.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
