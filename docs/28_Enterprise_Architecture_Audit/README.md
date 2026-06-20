@@ -54,8 +54,9 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | [ODR-002](ODR_002_Multi_Currency_Strategy.md) | Owner Decision #2 — PHP-only V1, multi-currency-ready architecture (currency master, base currency, fixed-precision; FX deferred) | Approved | 2026-06-20 |
 | [ODR-003](ODR_003_Risk_Based_MFA_Security_Policy.md) | Owner Decision #3 — Risk-based MFA (mandatory for privileged/financial roles at V1; optional for operational; sensitive-action re-auth) | Approved | 2026-06-20 |
 | [ODR-004](ODR_004_Implementation_Precedence.md) | Owner Decision #4 — Dependency-driven implementation precedence (canonical 7-phase sequence; 18.05/27.03 primary; 08.02/16.03 historical) | Approved | 2026-06-20 |
+| [ODR-005](ODR_005_Progressive_Scaling_Strategy.md) | Owner Decision #5 — Enterprise-ready progressive scaling (design for scale; V1 foundations mandatory; hyperscale infra deferred) | Approved | 2026-06-20 |
 
-**Owner decisions (Phase 7 §6):** ① migrate vs fresh — **APPROVED (ODR-001)** · ② multi-currency scope — **APPROVED (ODR-002)** · ③ MFA scope — **APPROVED (ODR-003)** · ④ implementation precedence — **APPROVED (ODR-004)** · ⑤ v1 scale envelope — Open.
+**Owner decisions (Phase 7 §6):** ① migrate vs fresh — **APPROVED (ODR-001)** · ② multi-currency scope — **APPROVED (ODR-002)** · ③ MFA scope — **APPROVED (ODR-003)** · ④ implementation precedence — **APPROVED (ODR-004)** · ⑤ v1 scale envelope — **APPROVED (ODR-005)**. **All five approved.**
 
 ## Remediation log
 
