@@ -62,7 +62,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 
 | Stage | Title | Artifact | State |
 |---|---|---|---|
-| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **A1–A4, A6, A7 complete** (A4 via ODR-004); **A5 HELD** pending Owner Decision #5 |
+| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **COMPLETE** (A1–A7); all five owner decisions approved (ODR-001…005) |
 | B–E | Foundation specs → scaffolding → modules → pre-prod | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -141,7 +141,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P4.5-08 | Medium | Open | No concurrency/connection-pooling/caching/pagination strategy | 4.5 |
 | P4.5-09 | Improvement Opportunity | Open | Stress tests cover failure-correctness but not load/performance | 4.5 |
 | P5-01 | High | Open | Implemented code is the V2 prototype, architecturally divergent from canonical V3 | 5 |
-| P5-02 | High | Open | 13_Project_Status maturity stale; conflates prototype vs enterprise completeness | 5 |
+| P5-02 | High | Resolved (Stage A5) | 13_Project_Status maturity stale; conflates prototype vs enterprise completeness | 5 |
 | P5-03 | Medium | Open | Code violates ADR-001 (role-name auth, plaintext passwords) — do-not-port | 5 |
 | P5-04 | Medium | Open | Build sequences verified: 18.05 sound; 16.03/08.02/26.08 still conflict | 5 |
 | P5-05 | Medium | Open | Enterprise prerequisites not scaffolded (no Supabase/RLS/auth foundation) | 5 |
@@ -166,9 +166,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 41 |
+| Open | 40 |
 | Accepted (ADR / ODR) | 4 |
-| Resolved (Stage A / A4) | 13 |
+| Resolved (Stage A) | 14 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).

@@ -111,7 +111,7 @@ Per the instruction to "record the conflict and the remediation recommendation."
 | GC-1 | `16.01` (5 roles) vs `11.01`/`20.03` (9 roles) | Two incompatible role sets | `16.01` defers to `11.01`/`20.03` (canonical, data-driven) | P3-03 | **Reconciled (A3)** — 16.01 defers; controlled vocabulary added to 11.01 |
 | GC-2 | `13.02` vs `19.02` | Divergent "locked" lists | Single registry in `13.02`; `19.02` references it | P1-02 | **Reconciled (A2)** — 13.02 canonical; 19.02 references it |
 | GC-3 | `08.02`, `16.03`, `26.08` (priority order) | Conflicting/contradictory build sequences | Canonical = ODR-004 (`27.03`+`18.05`); fix `26.08`; redirect `08.02`/`16.03` | P2-02, P4-02 | **Reconciled (A4)** — ODR-004 canonical; 26.08 corrected; 08.02/16.03 redirected |
-| GC-4 | `13.01` | Status (90–95% "locked") misrepresents reality | Replace with Designed/Implemented/Verified; `27.01` = baseline | P5-02 | Pending (A5) |
+| GC-4 | `13.01` | Status (90–95% "locked") misrepresents reality | Replace with Designed/Implemented/Verified; `27.01` = baseline | P5-02 | **Reconciled (A5)** — 13.01 rebuilt with maturity stages; V2 % preserved as history; 27.01 = baseline |
 | GC-5 | `16.05` vs `19.10` | Two competing AI start prompts | Canonical = `19.10`; `16.05` references it | P1-04 | **Reconciled (A3)** — 16.05 defers to 19.10 |
 | GC-6 | `00.02`/`00.03`/`16.04` vs `09`/`19` | Duplicated/divergent system rules | Define each rule once at strongest formulation; others link | P1-03, P1-05 | Banner applied; consolidation pending |
 | GC-7 | `04`, `05.01`, `10.01` (foundation technical detail) | Foundation specs conflict with enterprise (22/20) | Re-scoped to summary (banner); enterprise canonical | P2-01 | Banner applied; demote-to-summary pending |
@@ -134,7 +134,9 @@ Per the instruction to "record the conflict and the remediation recommendation."
 - ✅ A2 — reconciled `13.02`⊕`19.02` into one locked-designs registry (`13.02` canonical; `19.02` references it).
 - ✅ A3 — role-vocabulary + canonical-prompt edits (`16.01`→defers to `11.01`/`20.03`; `16.05`→defers to `19.10`; controlled-vocabulary clause added to `11.01`).
 - ✅ A4 — canonical-sequence reconciliation (ODR-004): `26.08` priority order corrected & marked historical (dependency map retained); `08.02` and `16.03` redirected to ODR-004/`18.05`/`27.03` as historical. Closes P2-02, P4-02, P1-06.
-- ⏳ A5 — rebuild `13.01` as Designed/Implemented/Verified; mark `27.01` baseline of record. **HELD** — partly gated on Owner Decision #5.
+- ✅ A5 — rebuilt `13.01` with enterprise maturity stages (Architecture Designed → … → Production Ready), replacing misleading V2 percentages (preserved as history); `27.01` marked V2 baseline of record. Closes P5-02.
+
+**Stage A is COMPLETE** (A1–A7). All five owner decisions approved (ODR-001…005). Remaining audit findings flow into Stage B (foundation specs) per the [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md).
 - ✅ A6 — generated `docs/INDEX.md` from the tree; defined the [index & link-integrity strategy](Stage_A_Documentation_Index_Strategy.md); deprecated all 6 `MANIFEST.json` files; expanded the root `docs/README.md` with navigation.
 - ✅ A7 — structural cleanups: renamed `18_Project Build`→`18_Project_Build` (P0-03); fixed `18.01` escaped-markdown (P2-07); renamed `26.02–26.06` to descriptive ERM-layer names (P2-05); merged `23.04`→`23.20` (canonical; P2-06); labelled `14_UI_References` provenance (P0-06); regenerated `INDEX.md`. **Numbering gaps** (18.08, 19.04, 22.14, 23.23) recorded for owner confirmation (likely intentional retirements; P0-04). **`22.13` (P2-08): confirmed FALSE POSITIVE** — its "V2" means "Budget Version 2," not PickUrVeggie V2; no change made.
 
