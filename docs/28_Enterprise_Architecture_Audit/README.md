@@ -70,7 +70,8 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | B5 | Idempotent Transactions & Offline Sync | [Stage_B5_Idempotent_Transactions_and_Offline_Sync_Specification.md](Stage_B5_Idempotent_Transactions_and_Offline_Sync_Specification.md) | **Complete** — resolves P4-01, P4.5-05, P4.5-06 |
 | B6 | Audit Immutability & Integration Contracts | [Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md](Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md) | **Complete** — resolves P3-05, P4-03, P4-04 |
 | B7 | Authentication Hardening & Disaster Recovery | [Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md](Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md) | **Complete** — resolves P3-06, P3-07, P3.5-01…06 |
-| B8 | V2→V3 Data Migration Mapping | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
+| B8 | V2→V3 Master Data Migration Mapping | [Stage_B8_V2_to_V3_Migration_Mapping_Specification.md](Stage_B8_V2_to_V3_Migration_Mapping_Specification.md) | **Complete** — resolves P6-02 |
+| **Stage B** | **Enterprise Foundation Specifications (B1–B8)** | — | **COMPLETE** — next: Stage B Completion Review, then Stage C |
 | C–E | Scaffolding → modules → pre-prod | _pending_ | Not started |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -155,7 +156,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P5-05 | Medium | Open | Enterprise prerequisites not scaffolded (no Supabase/RLS/auth foundation) | 5 |
 | P5-06 | Improvement Opportunity | Open | Designate prototype as V2 behavioral reference (money.ts, CA logic) | 5 |
 | P6-01 | High | Open | Migration framed as in-place evolution but requires a foundation rebuild | 6 |
-| P6-02 | High | Accepted (ODR-001) | No actual data-migration mapping; migrate-vs-fresh decided (hybrid, master-only); mapping owed by Stage B/B8 | 6 |
+| P6-02 | High | Resolved (Stage B8) | No actual data-migration mapping; migrate-vs-fresh decided (hybrid, master-only); mapping authored | 6 |
 | P6-03 | Medium | Open | No coexistence/cutover/rollback strategy across Dexie<->Supabase boundary | 6 |
 | P6-04 | Medium | Open | Reconcile sequences to the sound ones (27.03 + 18.05); retire conflicts | 6 |
 | P6-05 | Low | Open | Foundation roadmap stubs 08.01/08.02 vestigial/superseded by 27 + 18.05 | 6 |
@@ -175,8 +176,8 @@ Single source of truth for every finding raised across all phases. Updated at th
 | Status | Count |
 |---|---|
 | Open | 19 |
-| Accepted (ADR / ODR) | 4 |
-| Resolved (Stage A / B) | 35 |
+| Accepted (ADR / ODR) | 3 |
+| Resolved (Stage A / B) | 36 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
