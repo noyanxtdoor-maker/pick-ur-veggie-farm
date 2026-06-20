@@ -55,10 +55,10 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 
 | Stage | Title | Artifact | State |
 |---|---|---|---|
-| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) | Precedence model established; foundation 00–08 re-scoped (additive banners); content reconciliation A2–A7 in progress |
+| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **A1–A3, A6, A7 complete** (decision-independent); **A4/A5 HELD** pending Owner Decisions #4/#5 |
 | B–E | Foundation specs → scaffolding → modules → pre-prod | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 
-**Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per governance concern). Added additive "Authority & Precedence" banners to foundation READMEs `00`–`08` and an authority pointer to `16`. The intra-enterprise precedence *order* and all five owner decisions remain **open** (Phase 7 §6). No finding marked Resolved yet — content edits A2–A7 pending. Conflicts register: see the [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
+**Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
 
 ## Phase index
 
@@ -85,26 +85,26 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | ID | Severity | Status | Title | Phase |
 |---|---|---|---|---|
-| P0-01 | High | Open | Root MANIFEST.json describes only 13% of the documentation corpus | 0 |
-| P0-02 | Medium | Open | Fragmented, inconsistent manifest strategy | 0 |
-| P0-03 | Medium | Open | Section directory name contains a space (`18_Project Build`) | 0 |
+| P0-01 | High | Resolved (Stage A) | Root MANIFEST.json describes only 13% of the documentation corpus | 0 |
+| P0-02 | Medium | Resolved (Stage A) | Fragmented, inconsistent manifest strategy | 0 |
+| P0-03 | Medium | Resolved (Stage A) | Section directory name contains a space (`18_Project Build`) | 0 |
 | P0-04 | Low | Open | Numbering gaps in four sections (18.08, 19.04, 22.14, 23.23) | 0 |
 | P0-05 | Low | Open | Two sections missing README; root README is a stub | 0 |
-| P0-06 | Improvement Opportunity | Open | `14_UI_References/Old_UI` provenance undefined | 0 |
+| P0-06 | Improvement Opportunity | Resolved (Stage A) | `14_UI_References/Old_UI` provenance undefined | 0 |
 | P1-01 | High | Accepted (ADR-001) | No precedence/conflict-resolution hierarchy among governing documents | 1 |
-| P1-02 | High | Accepted (ADR-001) | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
+| P1-02 | High | Resolved (Stage A) | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
 | P1-03 | Medium | Open | Duplicated/divergent system rules & design principles across corpus | 1 |
-| P1-04 | Medium | Open | Two competing Claude start prompts; fragmented AI onboarding | 1 |
+| P1-04 | Medium | Resolved (Stage A) | Two competing Claude start prompts; fragmented AI onboarding | 1 |
 | P1-05 | Medium | Open | Authority/completeness inversion — apex Constitution is thinnest | 1 |
 | P1-06 | Medium | Open | Multiple competing development-sequence authorities | 1 |
 | P2-01 | High | Accepted (ADR-001) | Dual-layer architectural duplication (foundation 00-08 vs enterprise 10-26) with undefined supersession | 2 |
 | P2-02 | High | Accepted (ADR-001) | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
-| P2-03 | Medium | Open | Uncontrolled RBAC role taxonomy (Admin/Administrator; system-role vs HR-title) | 2 |
+| P2-03 | Medium | Resolved (Stage A) | Uncontrolled RBAC role taxonomy (Admin/Administrator; system-role vs HR-title) | 2 |
 | P2-04 | Medium | Open | Near-total absence of internal cross-linking (3 links / 280 files) | 2 |
-| P2-05 | Low | Open | Non-descriptive duplicate filenames 26.02-26.06 | 2 |
+| P2-05 | Low | Resolved (Stage A) | Non-descriptive duplicate filenames 26.02-26.06 | 2 |
 | P2-06 | Low | Open | Duplicate-title specs (23.04/23.20) and cross-section functional overlap | 2 |
-| P2-07 | Low | Open | Escaped-markdown corruption isolated to 18.01 | 2 |
-| P2-08 | Low | Open | V2 legacy reference outside migration section (22.13) | 2 |
+| P2-07 | Low | Resolved (Stage A) | Escaped-markdown corruption isolated to 18.01 | 2 |
+| P2-08 | Low | Rejected (false positive) | V2 legacy reference outside migration section (22.13) — "V2" = Budget Version 2 | 2 |
 | P3-01 | High | Open | Monetary precision & currency unspecified at data layer (untyped money columns, no rounding, no FX on journal lines) | 3 |
 | P3-02 | High | Open | RLS named "final authority" but never specified (no policy design) | 3 |
 | P3-03 | High | Accepted (ADR-001) | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
@@ -123,7 +123,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P4-02 | Medium | Open | 26.08 integration priority order contradicts its own dependency map | 4 |
 | P4-03 | Medium | Open | Inter-module integration mechanism & contracts unspecified | 4 |
 | P4-04 | Medium | Open | Offline-sync specified in multiple enterprise docs (intra-enterprise duplication) | 4 |
-| P4-05 | Improvement Opportunity | Open | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
+| P4-05 | Improvement Opportunity | Resolved (Stage A) | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
 | P4.5-01 | High | Open | No database indexing strategy (tenant/RLS columns unindexed) | 4.5 |
 | P4.5-02 | High | Open | No partitioning strategy for high-volume tables | 4.5 |
 | P4.5-03 | High | Open | Compute-from-history balances have no snapshot/materialization counterpart | 4.5 |
@@ -159,7 +159,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 54 |
-| Accepted (ADR-001) | 5 |
-| Resolved | 0 |
-| Rejected | 0 |
+| Open | 44 |
+| Accepted (ADR-001) | 4 |
+| Resolved (Stage A) | 10 |
+| Rejected | 1 |
+
+> "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).

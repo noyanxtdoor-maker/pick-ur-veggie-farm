@@ -5,7 +5,7 @@
 > Regenerate via CI per [Stage A Documentation Index Strategy](28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md).
 > This index **supersedes the deprecated `MANIFEST.json` files** (audit findings P0-01, P0-02).
 
-**Total documentation files:** 290 across 29 numbered sections.
+**Total documentation files:** 291 across 29 numbered sections.
 
 ## 00_Project_Constitution
 
@@ -160,18 +160,18 @@
 - [17_Implementation_Preparation/17.09_Deployment_And_Release_Pipeline.md](17_Implementation_Preparation/17.09_Deployment_And_Release_Pipeline.md)
 - [17_Implementation_Preparation/README.md](17_Implementation_Preparation/README.md)
 
-## 18_Project Build
+## 18_Project_Build
 
-- [18_Project Build/18.01_Project_Build_Order.md](18_Project Build/18.01_Project_Build_Order.md)
-- [18_Project Build/18.02_Development_Rules.md](18_Project Build/18.02_Development_Rules.md)
-- [18_Project Build/18.03_Coding_Standards.md](18_Project Build/18.03_Coding_Standards.md)
-- [18_Project Build/18.04_Component_Architecture.md](18_Project Build/18.04_Component_Architecture.md)
-- [18_Project Build/18.05_Database_Implementation_Order.md](18_Project Build/18.05_Database_Implementation_Order.md)
-- [18_Project Build/18.06_Module_Dependency_Map.md](18_Project Build/18.06_Module_Dependency_Map.md)
-- [18_Project Build/18.07_Git_Workflow_And_Branching.md](18_Project Build/18.07_Git_Workflow_And_Branching.md)
-- [18_Project Build/18.09_Quality_Gates_Checklist.md](18_Project Build/18.09_Quality_Gates_Checklist.md)
-- [18_Project Build/18.10_Pre_Production_Checklist.md](18_Project Build/18.10_Pre_Production_Checklist.md)
-- [18_Project Build/README.md](18_Project Build/README.md)
+- [18_Project_Build/18.01_Project_Build_Order.md](18_Project_Build/18.01_Project_Build_Order.md)
+- [18_Project_Build/18.02_Development_Rules.md](18_Project_Build/18.02_Development_Rules.md)
+- [18_Project_Build/18.03_Coding_Standards.md](18_Project_Build/18.03_Coding_Standards.md)
+- [18_Project_Build/18.04_Component_Architecture.md](18_Project_Build/18.04_Component_Architecture.md)
+- [18_Project_Build/18.05_Database_Implementation_Order.md](18_Project_Build/18.05_Database_Implementation_Order.md)
+- [18_Project_Build/18.06_Module_Dependency_Map.md](18_Project_Build/18.06_Module_Dependency_Map.md)
+- [18_Project_Build/18.07_Git_Workflow_And_Branching.md](18_Project_Build/18.07_Git_Workflow_And_Branching.md)
+- [18_Project_Build/18.09_Quality_Gates_Checklist.md](18_Project_Build/18.09_Quality_Gates_Checklist.md)
+- [18_Project_Build/18.10_Pre_Production_Checklist.md](18_Project_Build/18.10_Pre_Production_Checklist.md)
+- [18_Project_Build/README.md](18_Project_Build/README.md)
 
 ## 19_Claude_Code_Master_Operating_System
 
@@ -344,11 +344,11 @@
 ## 26_Master_System_Integration
 
 - [26_Master_System_Integration/26.01_System_Architecture_Overview.md](26_Master_System_Integration/26.01_System_Architecture_Overview.md)
-- [26_Master_System_Integration/26.02_Entity_Relationship_Master_Map.md](26_Master_System_Integration/26.02_Entity_Relationship_Master_Map.md)
-- [26_Master_System_Integration/26.03_Entity_Relationship_Master_Map.md](26_Master_System_Integration/26.03_Entity_Relationship_Master_Map.md)
-- [26_Master_System_Integration/26.04_Entity_Relationship_Master_Map.md](26_Master_System_Integration/26.04_Entity_Relationship_Master_Map.md)
-- [26_Master_System_Integration/26.05_Entity_Relationship_Master_Map.md](26_Master_System_Integration/26.05_Entity_Relationship_Master_Map.md)
-- [26_Master_System_Integration/26.06_Entity_Relationship_Master_Map.md](26_Master_System_Integration/26.06_Entity_Relationship_Master_Map.md)
+- [26_Master_System_Integration/26.02_ERM_Overview.md](26_Master_System_Integration/26.02_ERM_Overview.md)
+- [26_Master_System_Integration/26.03_ERM_Farm_Operations_Layer.md](26_Master_System_Integration/26.03_ERM_Farm_Operations_Layer.md)
+- [26_Master_System_Integration/26.04_ERM_Inventory_Supply_Chain_Layer.md](26_Master_System_Integration/26.04_ERM_Inventory_Supply_Chain_Layer.md)
+- [26_Master_System_Integration/26.05_ERM_Sales_Customer_Financial_Layer.md](26_Master_System_Integration/26.05_ERM_Sales_Customer_Financial_Layer.md)
+- [26_Master_System_Integration/26.06_ERM_Intelligence_Technology_Infrastructure_Layer.md](26_Master_System_Integration/26.06_ERM_Intelligence_Technology_Infrastructure_Layer.md)
 - [26_Master_System_Integration/26.07_Financial_Posting_Rules.md](26_Master_System_Integration/26.07_Financial_Posting_Rules.md)
 - [26_Master_System_Integration/26.08_Module_Dependency_Map.md](26_Master_System_Integration/26.08_Module_Dependency_Map.md)
 - [26_Master_System_Integration/26.09_Permission_Matrix.md](26_Master_System_Integration/26.09_Permission_Matrix.md)
@@ -381,6 +381,7 @@
 - [28_Enterprise_Architecture_Audit/Phase_6_Migration_and_Roadmap_Soundness.md](28_Enterprise_Architecture_Audit/Phase_6_Migration_and_Roadmap_Soundness.md)
 - [28_Enterprise_Architecture_Audit/Phase_7_Synthesis_and_Remediation_Roadmap.md](28_Enterprise_Architecture_Audit/Phase_7_Synthesis_and_Remediation_Roadmap.md)
 - [28_Enterprise_Architecture_Audit/README.md](28_Enterprise_Architecture_Audit/README.md)
+- [28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md](28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md)
 - [28_Enterprise_Architecture_Audit/Stage_A_Governance_Reconciliation.md](28_Enterprise_Architecture_Audit/Stage_A_Governance_Reconciliation.md)
 
 ## README.md
