@@ -59,7 +59,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 1 | Governance & Source-of-Truth Integrity | [Phase_1_Governance_and_Source_of_Truth.md](Phase_1_Governance_and_Source_of_Truth.md) | Complete |
 | 2 | Documentation Consistency & Cross-Reference | [Phase_2_Documentation_Consistency_and_Cross_Reference.md](Phase_2_Documentation_Consistency_and_Cross_Reference.md) | Complete |
 | 3 | Data & Security Architecture | [Phase_3_Data_and_Security_Architecture.md](Phase_3_Data_and_Security_Architecture.md) | Complete |
-| 3.5 | Enterprise Data Lifecycle & Disaster Recovery | _pending_ | Not started |
+| 3.5 | Enterprise Data Lifecycle & Disaster Recovery | [Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md](Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md) | Complete |
 | 4 | System, Integration & Module Architecture | _pending_ | Not started |
 | 4.5 | Performance & Scalability Stress | _pending_ | Not started |
 | 5 | Doc-to-Code Drift & Implementation Readiness | _pending_ | Not started |
@@ -101,22 +101,29 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P3-05 | Medium | Open | Audit immutability is policy without specified enforcement mechanism | 3 |
 | P3-06 | Medium | Open | Offline cache encryption optional, not mandatory (financial/PII on BYOD) | 3 |
 | P3-07 | Medium | Open | Auth hardening gaps (MFA deferred, no password policy) + unconstrained Developer superuser | 3 |
+| P3.5-01 | High | Open | No RPO/RTO; implied 24h financial-data-loss window; no PITR | 3.5 |
+| P3.5-02 | High | Open | Backup confidentiality/encryption & access control unspecified (full DB + PII to Drive) | 3.5 |
+| P3.5-03 | Medium | Open | No backup integrity verification, immutability, or rotation/retention policy | 3.5 |
+| P3.5-04 | Medium | Open | No documented restore procedure (esp. tenant-scoped restore) | 3.5 |
+| P3.5-05 | Medium | Open | Offline-first un-synced local data has no recovery path | 3.5 |
+| P3.5-06 | Medium | Open | No DR ownership, runbook, or communication plan | 3.5 |
+| P3.5-07 | Improvement Opportunity | Open | Large-object/IoT backup growth & retention-vs-hold gaps | 3.5 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 8 |
-| Medium | 12 |
+| High | 10 |
+| Medium | 16 |
 | Low | 6 |
-| Improvement Opportunity | 1 |
+| Improvement Opportunity | 2 |
 
 ### Status breakdown
 
 | Status | Count |
 |---|---|
-| Open | 22 |
+| Open | 29 |
 | Accepted (ADR-001) | 5 |
 | Resolved | 0 |
 | Rejected | 0 |
