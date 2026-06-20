@@ -33,7 +33,7 @@ Authority order: `ADR/ODR → Enterprise Architecture (10–26) → B1–B8 → 
 
 ## Run locally
 
-**Prerequisites:** Node.js (version authority via `.nvmrc`/`engines` — being established in Phase 0).
+**Prerequisites:** Node.js — pinned to **Node 22 LTS** via `.nvmrc` and enforced by `package.json` `engines` (`node >=20.19.0`, `npm >=10`). Run `nvm use` (or install Node 22) before `npm ci`.
 
 ```bash
 npm ci          # install from the committed lockfile

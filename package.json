@@ -4,6 +4,10 @@
   "version": "3.0.0-dev.0",
   "description": "PickUrVeggie ERP V3 — enterprise multi-company, multi-branch agricultural ERP (offline-first; Supabase). Governing architecture: docs/28_Enterprise_Architecture_Audit.",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
