@@ -146,7 +146,7 @@ These are non-destructive documentation reconciliations. A4/A5 remain HELD pendi
 
 Per instruction, none of the Phase 7 §6 decisions is resolved by assumption:
 
-1. **Migrate historical V2 data vs. start V3 fresh** — OPEN.
+1. **Migrate historical V2 data vs. start V3 fresh** — **APPROVED ([ODR-001](ODR_001_V2_to_V3_Migration_Strategy.md))**: hybrid — master data only; V2 read-only archive; new V3 operational history.
 2. **Multi-currency scope for v1** — OPEN.
 3. **MFA scope at launch** — OPEN.
 4. **Intra-enterprise precedence specifics** — OPEN (the §1 intra-enterprise order is a *recommendation* pending this).

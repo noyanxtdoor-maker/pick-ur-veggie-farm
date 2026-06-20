@@ -50,6 +50,9 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [ADR-001](ADR_001_Architecture_Ratification.md) | Architectural Ratification Decision (enterprise layer 10–26 canonical; foundation 00–08 preserved as history; permission-first RBAC; dependency-driven build order) | Ratified | 2026-06-20 |
+| [ODR-001](ODR_001_V2_to_V3_Migration_Strategy.md) | Owner Decision #1 — Hybrid V2→V3 migration (master data only; V2 read-only archive; new V3 operational history) | Approved | 2026-06-20 |
+
+**Owner decisions (Phase 7 §6):** ① migrate vs fresh — **APPROVED (ODR-001)** · ② multi-currency scope — Open · ③ MFA scope — Open · ④ intra-enterprise precedence order — Open · ⑤ v1 scale envelope — Open.
 
 ## Remediation log
 
@@ -140,7 +143,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P5-05 | Medium | Open | Enterprise prerequisites not scaffolded (no Supabase/RLS/auth foundation) | 5 |
 | P5-06 | Improvement Opportunity | Open | Designate prototype as V2 behavioral reference (money.ts, CA logic) | 5 |
 | P6-01 | High | Open | Migration framed as in-place evolution but requires a foundation rebuild | 6 |
-| P6-02 | High | Open | No actual data-migration mapping (flat->double-entry, tenant back-assignment, float->numeric); migrate-vs-fresh undecided | 6 |
+| P6-02 | High | Accepted (ODR-001) | No actual data-migration mapping; migrate-vs-fresh decided (hybrid, master-only); mapping owed by Stage B/B8 | 6 |
 | P6-03 | Medium | Open | No coexistence/cutover/rollback strategy across Dexie<->Supabase boundary | 6 |
 | P6-04 | Medium | Open | Reconcile sequences to the sound ones (27.03 + 18.05); retire conflicts | 6 |
 | P6-05 | Low | Open | Foundation roadmap stubs 08.01/08.02 vestigial/superseded by 27 + 18.05 | 6 |
@@ -159,8 +162,8 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 44 |
-| Accepted (ADR-001) | 4 |
+| Open | 43 |
+| Accepted (ADR-001 / ODR-001) | 5 |
 | Resolved (Stage A) | 10 |
 | Rejected | 1 |
 
