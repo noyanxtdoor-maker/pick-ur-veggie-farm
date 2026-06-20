@@ -60,7 +60,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 2 | Documentation Consistency & Cross-Reference | [Phase_2_Documentation_Consistency_and_Cross_Reference.md](Phase_2_Documentation_Consistency_and_Cross_Reference.md) | Complete |
 | 3 | Data & Security Architecture | [Phase_3_Data_and_Security_Architecture.md](Phase_3_Data_and_Security_Architecture.md) | Complete |
 | 3.5 | Enterprise Data Lifecycle & Disaster Recovery | [Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md](Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md) | Complete |
-| 4 | System, Integration & Module Architecture | _pending_ | Not started |
+| 4 | System, Integration & Module Architecture | [Phase_4_System_Integration_and_Module_Architecture.md](Phase_4_System_Integration_and_Module_Architecture.md) | Complete |
 | 4.5 | Performance & Scalability Stress | _pending_ | Not started |
 | 5 | Doc-to-Code Drift & Implementation Readiness | _pending_ | Not started |
 | 6 | Migration & Roadmap Soundness | _pending_ | Not started |
@@ -108,22 +108,27 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P3.5-05 | Medium | Open | Offline-first un-synced local data has no recovery path | 3.5 |
 | P3.5-06 | Medium | Open | No DR ownership, runbook, or communication plan | 3.5 |
 | P3.5-07 | Improvement Opportunity | Open | Large-object/IoT backup growth & retention-vs-hold gaps | 3.5 |
+| P4-01 | High | Open | Automatic financial posting lacks idempotency under offline-retry (duplicate journal risk) | 4 |
+| P4-02 | Medium | Open | 26.08 integration priority order contradicts its own dependency map | 4 |
+| P4-03 | Medium | Open | Inter-module integration mechanism & contracts unspecified | 4 |
+| P4-04 | Medium | Open | Offline-sync specified in multiple enterprise docs (intra-enterprise duplication) | 4 |
+| P4-05 | Improvement Opportunity | Open | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 10 |
-| Medium | 16 |
+| High | 11 |
+| Medium | 19 |
 | Low | 6 |
-| Improvement Opportunity | 2 |
+| Improvement Opportunity | 3 |
 
 ### Status breakdown
 
 | Status | Count |
 |---|---|
-| Open | 29 |
+| Open | 34 |
 | Accepted (ADR-001) | 5 |
 | Resolved | 0 |
 | Rejected | 0 |
