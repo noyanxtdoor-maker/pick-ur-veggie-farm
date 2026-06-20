@@ -51,6 +51,15 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 |---|---|---|---|
 | [ADR-001](ADR_001_Architecture_Ratification.md) | Architectural Ratification Decision (enterprise layer 10–26 canonical; foundation 00–08 preserved as history; permission-first RBAC; dependency-driven build order) | Ratified | 2026-06-20 |
 
+## Remediation log
+
+| Stage | Title | Artifact | State |
+|---|---|---|---|
+| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) | Precedence model established; foundation 00–08 re-scoped (additive banners); content reconciliation A2–A7 in progress |
+| B–E | Foundation specs → scaffolding → modules → pre-prod | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
+
+**Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per governance concern). Added additive "Authority & Precedence" banners to foundation READMEs `00`–`08` and an authority pointer to `16`. The intra-enterprise precedence *order* and all five owner decisions remain **open** (Phase 7 §6). No finding marked Resolved yet — content edits A2–A7 pending. Conflicts register: see the [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
+
 ## Phase index
 
 | Phase | Title | Artifact | State |
