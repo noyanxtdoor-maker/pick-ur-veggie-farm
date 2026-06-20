@@ -61,7 +61,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 
 | Stage | Title | Artifact | State |
 |---|---|---|---|
-| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **A1–A3, A6, A7 complete** (decision-independent); **A4/A5 HELD** pending Owner Decisions #4/#5 |
+| A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **A1–A4, A6, A7 complete** (A4 via ODR-004); **A5 HELD** pending Owner Decision #5 |
 | B–E | Foundation specs → scaffolding → modules → pre-prod | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -102,9 +102,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P1-03 | Medium | Open | Duplicated/divergent system rules & design principles across corpus | 1 |
 | P1-04 | Medium | Resolved (Stage A) | Two competing Claude start prompts; fragmented AI onboarding | 1 |
 | P1-05 | Medium | Open | Authority/completeness inversion — apex Constitution is thinnest | 1 |
-| P1-06 | Medium | Open | Multiple competing development-sequence authorities | 1 |
+| P1-06 | Medium | Resolved (Stage A4) | Multiple competing development-sequence authorities | 1 |
 | P2-01 | High | Accepted (ADR-001) | Dual-layer architectural duplication (foundation 00-08 vs enterprise 10-26) with undefined supersession | 2 |
-| P2-02 | High | Accepted (ADR-001) | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
+| P2-02 | High | Resolved (Stage A4) | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
 | P2-03 | Medium | Resolved (Stage A) | Uncontrolled RBAC role taxonomy (Admin/Administrator; system-role vs HR-title) | 2 |
 | P2-04 | Medium | Open | Near-total absence of internal cross-linking (3 links / 280 files) | 2 |
 | P2-05 | Low | Resolved (Stage A) | Non-descriptive duplicate filenames 26.02-26.06 | 2 |
@@ -126,7 +126,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P3.5-06 | Medium | Open | No DR ownership, runbook, or communication plan | 3.5 |
 | P3.5-07 | Improvement Opportunity | Open | Large-object/IoT backup growth & retention-vs-hold gaps | 3.5 |
 | P4-01 | High | Open | Automatic financial posting lacks idempotency under offline-retry (duplicate journal risk) | 4 |
-| P4-02 | Medium | Open | 26.08 integration priority order contradicts its own dependency map | 4 |
+| P4-02 | Medium | Resolved (Stage A4) | 26.08 integration priority order contradicts its own dependency map | 4 |
 | P4-03 | Medium | Open | Inter-module integration mechanism & contracts unspecified | 4 |
 | P4-04 | Medium | Open | Offline-sync specified in multiple enterprise docs (intra-enterprise duplication) | 4 |
 | P4-05 | Improvement Opportunity | Resolved (Stage A) | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
@@ -165,9 +165,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 43 |
-| Accepted (ADR-001 / ODR-001) | 5 |
-| Resolved (Stage A) | 10 |
+| Open | 41 |
+| Accepted (ADR / ODR) | 4 |
+| Resolved (Stage A / A4) | 13 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
