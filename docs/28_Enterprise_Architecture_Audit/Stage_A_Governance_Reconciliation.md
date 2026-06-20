@@ -149,7 +149,7 @@ Per instruction, none of the Phase 7 §6 decisions is resolved by assumption:
 1. **Migrate historical V2 data vs. start V3 fresh** — **APPROVED ([ODR-001](ODR_001_V2_to_V3_Migration_Strategy.md))**: hybrid — master data only; V2 read-only archive; new V3 operational history.
 2. **Multi-currency scope for v1** — **APPROVED ([ODR-002](ODR_002_Multi_Currency_Strategy.md))**: PHP-only V1; multi-currency-ready architecture; FX deferred behind an activation gate.
 3. **MFA scope at launch** — **APPROVED ([ODR-003](ODR_003_Risk_Based_MFA_Security_Policy.md))**: risk-based — mandatory MFA for privileged/financial roles at V1, optional for operational, sensitive-action re-auth.
-4. **Intra-enterprise precedence specifics** — OPEN (the §1 intra-enterprise order is a *recommendation* pending this).
+4. **Intra-enterprise precedence specifics** — **APPROVED ([ODR-004](ODR_004_Implementation_Precedence.md))**: dependency-driven 7-phase sequence; `18.05`/`27.03` primary; `08.02`/`16.03` historical. Unblocks Stage A4.
 5. **v1 scale envelope** — OPEN (affects how much of A4/Stage B is built now vs deferred).
 
 ---
