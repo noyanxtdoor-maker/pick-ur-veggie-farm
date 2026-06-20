@@ -61,7 +61,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 3 | Data & Security Architecture | [Phase_3_Data_and_Security_Architecture.md](Phase_3_Data_and_Security_Architecture.md) | Complete |
 | 3.5 | Enterprise Data Lifecycle & Disaster Recovery | [Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md](Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md) | Complete |
 | 4 | System, Integration & Module Architecture | [Phase_4_System_Integration_and_Module_Architecture.md](Phase_4_System_Integration_and_Module_Architecture.md) | Complete |
-| 4.5 | Performance & Scalability Stress | _pending_ | Not started |
+| 4.5 | Performance & Scalability Stress | [Phase_4_5_Performance_and_Scalability_Stress.md](Phase_4_5_Performance_and_Scalability_Stress.md) | Complete |
 | 5 | Doc-to-Code Drift & Implementation Readiness | _pending_ | Not started |
 | 6 | Migration & Roadmap Soundness | _pending_ | Not started |
 | 7 | Synthesis & Prioritized Remediation Backlog | _pending_ | Not started |
@@ -113,22 +113,31 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P4-03 | Medium | Open | Inter-module integration mechanism & contracts unspecified | 4 |
 | P4-04 | Medium | Open | Offline-sync specified in multiple enterprise docs (intra-enterprise duplication) | 4 |
 | P4-05 | Improvement Opportunity | Open | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
+| P4.5-01 | High | Open | No database indexing strategy (tenant/RLS columns unindexed) | 4.5 |
+| P4.5-02 | High | Open | No partitioning strategy for high-volume tables | 4.5 |
+| P4.5-03 | High | Open | Compute-from-history balances have no snapshot/materialization counterpart | 4.5 |
+| P4.5-04 | High | Open | Reporting/dashboard scalability undesigned (on-the-fly over millions of rows) | 4.5 |
+| P4.5-05 | Medium | Open | Offline conflict resolution ("preserve both + supervisor review") does not scale | 4.5 |
+| P4.5-06 | Medium | Open | Sync-queue growth & reconnect thundering-herd unaddressed | 4.5 |
+| P4.5-07 | Medium | Open | Time-series/large-object live storage growth undesigned | 4.5 |
+| P4.5-08 | Medium | Open | No concurrency/connection-pooling/caching/pagination strategy | 4.5 |
+| P4.5-09 | Improvement Opportunity | Open | Stress tests cover failure-correctness but not load/performance | 4.5 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 11 |
-| Medium | 19 |
+| High | 15 |
+| Medium | 23 |
 | Low | 6 |
-| Improvement Opportunity | 3 |
+| Improvement Opportunity | 4 |
 
 ### Status breakdown
 
 | Status | Count |
 |---|---|
-| Open | 34 |
+| Open | 43 |
 | Accepted (ADR-001) | 5 |
 | Resolved | 0 |
 | Rejected | 0 |
