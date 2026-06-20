@@ -1,9 +1,5 @@
-[
-  "15.01_Claude_Read_Order.md",
-  "15.02_Code_Change_Rules.md",
-  "15.03_Implementation_Sequence.md",
-  "15.04_Branch_Commit_Policy.md",
-  "15.05_Review_Approval_Process.md",
-  "15.06_What_Not_To_Change.md",
-  "README.md"
-]
+{
+  "_deprecated": true,
+  "_notice": "Deprecated in Stage A (ADR-001). Section-level manifests are no longer maintained. The single source of truth for documentation completeness is the generated docs/INDEX.md. See docs/28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md. Audit findings P0-01, P0-02.",
+  "supersededBy": "../INDEX.md"
+}

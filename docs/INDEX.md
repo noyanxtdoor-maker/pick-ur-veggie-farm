@@ -1,0 +1,392 @@
+# PickUrVeggie ERP V3 — Documentation Index
+
+> **AUTO-GENERATED (2026-06-20) from the `docs/` tree — do not edit by hand.**
+> The filesystem tree is the single source of truth for documentation completeness.
+> Regenerate via CI per [Stage A Documentation Index Strategy](28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md).
+> This index **supersedes the deprecated `MANIFEST.json` files** (audit findings P0-01, P0-02).
+
+**Total documentation files:** 294 across 29 numbered sections.
+
+## 00_Project_Constitution
+
+- [00_Project_Constitution/00.01_Vision_and_Mission.md](00_Project_Constitution/00.01_Vision_and_Mission.md)
+- [00_Project_Constitution/00.02_Design_Principles.md](00_Project_Constitution/00.02_Design_Principles.md)
+- [00_Project_Constitution/00.03_System_Rules.md](00_Project_Constitution/00.03_System_Rules.md)
+- [00_Project_Constitution/README.md](00_Project_Constitution/README.md)
+
+## 01_Business_Modules
+
+- [01_Business_Modules/01.01_User_and_Security_System.md](01_Business_Modules/01.01_User_and_Security_System.md)
+- [01_Business_Modules/01.02_Personal_Workspace_Engine.md](01_Business_Modules/01.02_Personal_Workspace_Engine.md)
+- [01_Business_Modules/01.03_Calendar_Engine.md](01_Business_Modules/01.03_Calendar_Engine.md)
+- [01_Business_Modules/README.md](01_Business_Modules/README.md)
+
+## 02_Agricultural_Core
+
+- [02_Agricultural_Core/02.01_Crop_Lifecycle_Engine.md](02_Agricultural_Core/02.01_Crop_Lifecycle_Engine.md)
+- [02_Agricultural_Core/02.02_Biological_Asset_Accounting.md](02_Agricultural_Core/02.02_Biological_Asset_Accounting.md)
+- [02_Agricultural_Core/02.03_Crop_Loss_Engine.md](02_Agricultural_Core/02.03_Crop_Loss_Engine.md)
+- [02_Agricultural_Core/README.md](02_Agricultural_Core/README.md)
+
+## 03_Inventory_System
+
+- [03_Inventory_System/03.01_Raw_Material_Inventory.md](03_Inventory_System/03.01_Raw_Material_Inventory.md)
+- [03_Inventory_System/03.02_Harvest_Batch_System.md](03_Inventory_System/03.02_Harvest_Batch_System.md)
+- [03_Inventory_System/03.03_FIFO_Engine.md](03_Inventory_System/03.03_FIFO_Engine.md)
+- [03_Inventory_System/03.04_Storage_and_Traceability.md](03_Inventory_System/03.04_Storage_and_Traceability.md)
+- [03_Inventory_System/README.md](03_Inventory_System/README.md)
+
+## 04_Accounting
+
+- [04_Accounting/04.01_Chart_of_Accounts.md](04_Accounting/04.01_Chart_of_Accounts.md)
+- [04_Accounting/04.02_General_Ledger.md](04_Accounting/04.02_General_Ledger.md)
+- [04_Accounting/04.03_AR_AP.md](04_Accounting/04.03_AR_AP.md)
+- [04_Accounting/04.04_Financial_Statements.md](04_Accounting/04.04_Financial_Statements.md)
+- [04_Accounting/README.md](04_Accounting/README.md)
+
+## 05_System_Architecture
+
+- [05_System_Architecture/05.01_Master_Entity_Model.md](05_System_Architecture/05.01_Master_Entity_Model.md)
+- [05_System_Architecture/05.02_Offline_First_Sync.md](05_System_Architecture/05.02_Offline_First_Sync.md)
+- [05_System_Architecture/05.03_Security_and_Audit.md](05_System_Architecture/05.03_Security_and_Audit.md)
+- [05_System_Architecture/05.04_Multi_Branch_Multi_Tenant_Architecture.md](05_System_Architecture/05.04_Multi_Branch_Multi_Tenant_Architecture.md)
+- [05_System_Architecture/README.md](05_System_Architecture/README.md)
+
+## 06_UI_UX
+
+- [06_UI_UX/06.01_Dashboard_Design.md](06_UI_UX/06.01_Dashboard_Design.md)
+- [06_UI_UX/06.02_Calendar_Design.md](06_UI_UX/06.02_Calendar_Design.md)
+- [06_UI_UX/06.03_Field_Tablet_Interface.md](06_UI_UX/06.03_Field_Tablet_Interface.md)
+- [06_UI_UX/README.md](06_UI_UX/README.md)
+
+## 07_Stress_Testing
+
+- [07_Stress_Testing/07.01_Accounting_Failures.md](07_Stress_Testing/07.01_Accounting_Failures.md)
+- [07_Stress_Testing/07.02_Farm_Failure_Scenarios.md](07_Stress_Testing/07.02_Farm_Failure_Scenarios.md)
+- [07_Stress_Testing/07.03_Security_Attacks.md](07_Stress_Testing/07.03_Security_Attacks.md)
+- [07_Stress_Testing/README.md](07_Stress_Testing/README.md)
+
+## 08_Roadmap
+
+- [08_Roadmap/08.01_Phase_Plan.md](08_Roadmap/08.01_Phase_Plan.md)
+- [08_Roadmap/08.02_Module_Sequence.md](08_Roadmap/08.02_Module_Sequence.md)
+- [08_Roadmap/README.md](08_Roadmap/README.md)
+
+## 09_AI_Development_Constitution
+
+- [09_AI_Development_Constitution/09.01_AI_Development_Rules.md](09_AI_Development_Constitution/09.01_AI_Development_Rules.md)
+- [09_AI_Development_Constitution/09.02_Code_Modification_Policy.md](09_AI_Development_Constitution/09.02_Code_Modification_Policy.md)
+- [09_AI_Development_Constitution/09.03_AI_Session_Onboarding.md](09_AI_Development_Constitution/09.03_AI_Session_Onboarding.md)
+- [09_AI_Development_Constitution/README.md](09_AI_Development_Constitution/README.md)
+
+## 10_Database_Blueprint
+
+- [10_Database_Blueprint/10.01_Master_Entities.md](10_Database_Blueprint/10.01_Master_Entities.md)
+- [10_Database_Blueprint/10.02_User_Roles_Permissions.md](10_Database_Blueprint/10.02_User_Roles_Permissions.md)
+- [10_Database_Blueprint/10.03_ERP_Data_Relationship_Map.md](10_Database_Blueprint/10.03_ERP_Data_Relationship_Map.md)
+- [10_Database_Blueprint/10.04_Audit_Log_Architecture.md](10_Database_Blueprint/10.04_Audit_Log_Architecture.md)
+- [10_Database_Blueprint/10.05_Supabase_Multi_User_Sync_Architecture.md](10_Database_Blueprint/10.05_Supabase_Multi_User_Sync_Architecture.md)
+- [10_Database_Blueprint/README.md](10_Database_Blueprint/README.md)
+
+## 11_Security_Access_Control
+
+- [11_Security_Access_Control/11.01_Role_Based_Access_Control_RBAC.md](11_Security_Access_Control/11.01_Role_Based_Access_Control_RBAC.md)
+- [11_Security_Access_Control/11.02_Approval_Workflow_System.md](11_Security_Access_Control/11.02_Approval_Workflow_System.md)
+- [11_Security_Access_Control/11.03_Data_Privacy_Policy.md](11_Security_Access_Control/11.03_Data_Privacy_Policy.md)
+- [11_Security_Access_Control/11.04_Audit_Trail_And_Change_History.md](11_Security_Access_Control/11.04_Audit_Trail_And_Change_History.md)
+- [11_Security_Access_Control/11.05_User_Session_Device_Management.md](11_Security_Access_Control/11.05_User_Session_Device_Management.md)
+- [11_Security_Access_Control/README.md](11_Security_Access_Control/README.md)
+
+## 12_Integration_Architecture
+
+- [12_Integration_Architecture/12.01_Supabase_Real_Time_Architecture.md](12_Integration_Architecture/12.01_Supabase_Real_Time_Architecture.md)
+- [12_Integration_Architecture/12.02_Google_Drive_Backup_Architecture.md](12_Integration_Architecture/12.02_Google_Drive_Backup_Architecture.md)
+- [12_Integration_Architecture/12.03_Google_Calendar_Integration.md](12_Integration_Architecture/12.03_Google_Calendar_Integration.md)
+- [12_Integration_Architecture/12.04_Google_Workspace_Chat_Integration.md](12_Integration_Architecture/12.04_Google_Workspace_Chat_Integration.md)
+- [12_Integration_Architecture/12.05_Weather_API_Agricultural_Intelligence.md](12_Integration_Architecture/12.05_Weather_API_Agricultural_Intelligence.md)
+- [12_Integration_Architecture/12.06_IoT_Sensor_Integration.md](12_Integration_Architecture/12.06_IoT_Sensor_Integration.md)
+- [12_Integration_Architecture/12.07_Notification_System_Architecture.md](12_Integration_Architecture/12.07_Notification_System_Architecture.md)
+- [12_Integration_Architecture/12.08_Payment_Gateway_Integration.md](12_Integration_Architecture/12.08_Payment_Gateway_Integration.md)
+- [12_Integration_Architecture/12.09_Future_AI_Assistant_Architecture.md](12_Integration_Architecture/12.09_Future_AI_Assistant_Architecture.md)
+- [12_Integration_Architecture/README.md](12_Integration_Architecture/README.md)
+
+## 13_Project_Status
+
+- [13_Project_Status/13.01_Module_Maturity_Status.md](13_Project_Status/13.01_Module_Maturity_Status.md)
+- [13_Project_Status/13.02_Locked_Designs.md](13_Project_Status/13.02_Locked_Designs.md)
+- [13_Project_Status/13.03_In_Progress_Designs.md](13_Project_Status/13.03_In_Progress_Designs.md)
+- [13_Project_Status/13.04_Future_Modules.md](13_Project_Status/13.04_Future_Modules.md)
+- [13_Project_Status/13.05_Change_Control_Rules.md](13_Project_Status/13.05_Change_Control_Rules.md)
+- [13_Project_Status/README.md](13_Project_Status/README.md)
+
+## 14_UI_References
+
+- [14_UI_References/Approved_Screens/README.md](14_UI_References/Approved_Screens/README.md)
+- [14_UI_References/Comparison_Notes.md](14_UI_References/Comparison_Notes.md)
+- [14_UI_References/External_Financial_UI_Inspirations/Gotyme/README.md](14_UI_References/External_Financial_UI_Inspirations/Gotyme/README.md)
+- [14_UI_References/External_Financial_UI_Inspirations/MariBank/README.md](14_UI_References/External_Financial_UI_Inspirations/MariBank/README.md)
+- [14_UI_References/External_Financial_UI_Inspirations/README.md](14_UI_References/External_Financial_UI_Inspirations/README.md)
+- [14_UI_References/New_UI/README.md](14_UI_References/New_UI/README.md)
+- [14_UI_References/Old_UI/README.md](14_UI_References/Old_UI/README.md)
+- [14_UI_References/README.md](14_UI_References/README.md)
+
+## 15_Claude_Code_Onboarding
+
+- [15_Claude_Code_Onboarding/15.01_Claude_Read_Order.md](15_Claude_Code_Onboarding/15.01_Claude_Read_Order.md)
+- [15_Claude_Code_Onboarding/15.02_Code_Change_Rules.md](15_Claude_Code_Onboarding/15.02_Code_Change_Rules.md)
+- [15_Claude_Code_Onboarding/15.03_Implementation_Sequence.md](15_Claude_Code_Onboarding/15.03_Implementation_Sequence.md)
+- [15_Claude_Code_Onboarding/15.04_Branch_Commit_Policy.md](15_Claude_Code_Onboarding/15.04_Branch_Commit_Policy.md)
+- [15_Claude_Code_Onboarding/15.05_Review_Approval_Process.md](15_Claude_Code_Onboarding/15.05_Review_Approval_Process.md)
+- [15_Claude_Code_Onboarding/15.06_What_Not_To_Change.md](15_Claude_Code_Onboarding/15.06_What_Not_To_Change.md)
+- [15_Claude_Code_Onboarding/README.md](15_Claude_Code_Onboarding/README.md)
+
+## 16_Master_Project_Index
+
+- [16_Master_Project_Index/16.01_Project_Overview.md](16_Master_Project_Index/16.01_Project_Overview.md)
+- [16_Master_Project_Index/16.02_Architecture_Map.md](16_Master_Project_Index/16.02_Architecture_Map.md)
+- [16_Master_Project_Index/16.03_Module_Development_Order.md](16_Master_Project_Index/16.03_Module_Development_Order.md)
+- [16_Master_Project_Index/16.04_System_Rules_And_Principles.md](16_Master_Project_Index/16.04_System_Rules_And_Principles.md)
+- [16_Master_Project_Index/16.05_Claude_Startup_Prompt.md](16_Master_Project_Index/16.05_Claude_Startup_Prompt.md)
+- [16_Master_Project_Index/16.06_Project_Glossary.md](16_Master_Project_Index/16.06_Project_Glossary.md)
+- [16_Master_Project_Index/README.md](16_Master_Project_Index/README.md)
+
+## 17_Implementation_Preparation
+
+- [17_Implementation_Preparation/17.01_Technology_Stack_Decisions.md](17_Implementation_Preparation/17.01_Technology_Stack_Decisions.md)
+- [17_Implementation_Preparation/17.02_Frontend_Architecture.md](17_Implementation_Preparation/17.02_Frontend_Architecture.md)
+- [17_Implementation_Preparation/17.03_Backend_Supabase_Architecture.md](17_Implementation_Preparation/17.03_Backend_Supabase_Architecture.md)
+- [17_Implementation_Preparation/17.04_Database_Migration_Strategy.md](17_Implementation_Preparation/17.04_Database_Migration_Strategy.md)
+- [17_Implementation_Preparation/17.05_API_Service_Layer_Design.md](17_Implementation_Preparation/17.05_API_Service_Layer_Design.md)
+- [17_Implementation_Preparation/17.06_State_Management_Strategy.md](17_Implementation_Preparation/17.06_State_Management_Strategy.md)
+- [17_Implementation_Preparation/17.07_Offline_Sync_Implementation.md](17_Implementation_Preparation/17.07_Offline_Sync_Implementation.md)
+- [17_Implementation_Preparation/17.08_Testing_And_QA_Strategy.md](17_Implementation_Preparation/17.08_Testing_And_QA_Strategy.md)
+- [17_Implementation_Preparation/17.09_Deployment_And_Release_Pipeline.md](17_Implementation_Preparation/17.09_Deployment_And_Release_Pipeline.md)
+- [17_Implementation_Preparation/README.md](17_Implementation_Preparation/README.md)
+
+## 18_Project_Build
+
+- [18_Project_Build/18.01_Project_Build_Order.md](18_Project_Build/18.01_Project_Build_Order.md)
+- [18_Project_Build/18.02_Development_Rules.md](18_Project_Build/18.02_Development_Rules.md)
+- [18_Project_Build/18.03_Coding_Standards.md](18_Project_Build/18.03_Coding_Standards.md)
+- [18_Project_Build/18.04_Component_Architecture.md](18_Project_Build/18.04_Component_Architecture.md)
+- [18_Project_Build/18.05_Database_Implementation_Order.md](18_Project_Build/18.05_Database_Implementation_Order.md)
+- [18_Project_Build/18.06_Module_Dependency_Map.md](18_Project_Build/18.06_Module_Dependency_Map.md)
+- [18_Project_Build/18.07_Git_Workflow_And_Branching.md](18_Project_Build/18.07_Git_Workflow_And_Branching.md)
+- [18_Project_Build/18.09_Quality_Gates_Checklist.md](18_Project_Build/18.09_Quality_Gates_Checklist.md)
+- [18_Project_Build/18.10_Pre_Production_Checklist.md](18_Project_Build/18.10_Pre_Production_Checklist.md)
+- [18_Project_Build/README.md](18_Project_Build/README.md)
+
+## 19_Claude_Code_Master_Operating_System
+
+- [19_Claude_Code_Master_Operating_System/19.01_AI_Development_Commands.md](19_Claude_Code_Master_Operating_System/19.01_AI_Development_Commands.md)
+- [19_Claude_Code_Master_Operating_System/19.02_Architecture_Protection_Rules.md](19_Claude_Code_Master_Operating_System/19.02_Architecture_Protection_Rules.md)
+- [19_Claude_Code_Master_Operating_System/19.03_Database_Rules.md](19_Claude_Code_Master_Operating_System/19.03_Database_Rules.md)
+- [19_Claude_Code_Master_Operating_System/19.05_Offline_First_Rules.md](19_Claude_Code_Master_Operating_System/19.05_Offline_First_Rules.md)
+- [19_Claude_Code_Master_Operating_System/19.06_Inventory_Accounting_Protection.md](19_Claude_Code_Master_Operating_System/19.06_Inventory_Accounting_Protection.md)
+- [19_Claude_Code_Master_Operating_System/19.07_UI_UX_Field_Rules.md](19_Claude_Code_Master_Operating_System/19.07_UI_UX_Field_Rules.md)
+- [19_Claude_Code_Master_Operating_System/19.08_Coding_Quality_Rules.md](19_Claude_Code_Master_Operating_System/19.08_Coding_Quality_Rules.md)
+- [19_Claude_Code_Master_Operating_System/19.09_Testing_Requirements.md](19_Claude_Code_Master_Operating_System/19.09_Testing_Requirements.md)
+- [19_Claude_Code_Master_Operating_System/19.10_Claude_Code_Start_Prompt.md](19_Claude_Code_Master_Operating_System/19.10_Claude_Code_Start_Prompt.md)
+- [19_Claude_Code_Master_Operating_System/README.md](19_Claude_Code_Master_Operating_System/README.md)
+
+## 20_Supabase_Master_Database_Schema
+
+- [20_Supabase_Master_Database_Schema/20.01_Database_Philosophy.md](20_Supabase_Master_Database_Schema/20.01_Database_Philosophy.md)
+- [20_Supabase_Master_Database_Schema/20.02_Multi_Tenant_Company_Structure.md](20_Supabase_Master_Database_Schema/20.02_Multi_Tenant_Company_Structure.md)
+- [20_Supabase_Master_Database_Schema/20.03_User_Accounts_Roles_Permissions.md](20_Supabase_Master_Database_Schema/20.03_User_Accounts_Roles_Permissions.md)
+- [20_Supabase_Master_Database_Schema/20.04_User_Workspaces_Private_Data.md](20_Supabase_Master_Database_Schema/20.04_User_Workspaces_Private_Data.md)
+- [20_Supabase_Master_Database_Schema/20.05_Farm_Locations_Production_Zones.md](20_Supabase_Master_Database_Schema/20.05_Farm_Locations_Production_Zones.md)
+- [20_Supabase_Master_Database_Schema/20.06_Crop_Master_Seed_Varieties.md](20_Supabase_Master_Database_Schema/20.06_Crop_Master_Seed_Varieties.md)
+- [20_Supabase_Master_Database_Schema/20.07_Inventory_Item_Master.md](20_Supabase_Master_Database_Schema/20.07_Inventory_Item_Master.md)
+- [20_Supabase_Master_Database_Schema/20.08_Inventory_Batches_FIFO.md](20_Supabase_Master_Database_Schema/20.08_Inventory_Batches_FIFO.md)
+- [20_Supabase_Master_Database_Schema/20.09_Inventory_Movement_Ledger.md](20_Supabase_Master_Database_Schema/20.09_Inventory_Movement_Ledger.md)
+- [20_Supabase_Master_Database_Schema/20.10_Unit_Conversion_System.md](20_Supabase_Master_Database_Schema/20.10_Unit_Conversion_System.md)
+- [20_Supabase_Master_Database_Schema/20.11_Suppliers_Customers_Ledger.md](20_Supabase_Master_Database_Schema/20.11_Suppliers_Customers_Ledger.md)
+- [20_Supabase_Master_Database_Schema/20.12_Purchase_Receiving_System.md](20_Supabase_Master_Database_Schema/20.12_Purchase_Receiving_System.md)
+- [20_Supabase_Master_Database_Schema/20.13_Crop_Blocks_Biological_Assets.md](20_Supabase_Master_Database_Schema/20.13_Crop_Blocks_Biological_Assets.md)
+- [20_Supabase_Master_Database_Schema/20.14_Production_Events.md](20_Supabase_Master_Database_Schema/20.14_Production_Events.md)
+- [20_Supabase_Master_Database_Schema/20.15_Harvest_Batch_Traceability.md](20_Supabase_Master_Database_Schema/20.15_Harvest_Batch_Traceability.md)
+- [20_Supabase_Master_Database_Schema/20.16_Finished_Goods_Inventory.md](20_Supabase_Master_Database_Schema/20.16_Finished_Goods_Inventory.md)
+- [20_Supabase_Master_Database_Schema/20.17_Sales_Orders_Invoices.md](20_Supabase_Master_Database_Schema/20.17_Sales_Orders_Invoices.md)
+- [20_Supabase_Master_Database_Schema/20.18_Delivery_Logistics.md](20_Supabase_Master_Database_Schema/20.18_Delivery_Logistics.md)
+- [20_Supabase_Master_Database_Schema/20.19_Calendar_Event_Engine.md](20_Supabase_Master_Database_Schema/20.19_Calendar_Event_Engine.md)
+- [20_Supabase_Master_Database_Schema/20.20_Personal_Workspace_Calendar.md](20_Supabase_Master_Database_Schema/20.20_Personal_Workspace_Calendar.md)
+- [20_Supabase_Master_Database_Schema/20.21_Accounting_Chart_of_Accounts.md](20_Supabase_Master_Database_Schema/20.21_Accounting_Chart_of_Accounts.md)
+- [20_Supabase_Master_Database_Schema/20.22_Journal_Entries_General_Ledger.md](20_Supabase_Master_Database_Schema/20.22_Journal_Entries_General_Ledger.md)
+- [20_Supabase_Master_Database_Schema/20.23_Accounts_Receivable_Payable.md](20_Supabase_Master_Database_Schema/20.23_Accounts_Receivable_Payable.md)
+- [20_Supabase_Master_Database_Schema/20.24_Cash_Bank_Digital_Wallets.md](20_Supabase_Master_Database_Schema/20.24_Cash_Bank_Digital_Wallets.md)
+- [20_Supabase_Master_Database_Schema/20.25_Equipment_Assets_Maintenance.md](20_Supabase_Master_Database_Schema/20.25_Equipment_Assets_Maintenance.md)
+- [20_Supabase_Master_Database_Schema/20.26_Notifications_Messaging.md](20_Supabase_Master_Database_Schema/20.26_Notifications_Messaging.md)
+- [20_Supabase_Master_Database_Schema/20.27_File_Attachments_Documents.md](20_Supabase_Master_Database_Schema/20.27_File_Attachments_Documents.md)
+- [20_Supabase_Master_Database_Schema/20.28_Audit_Log_System.md](20_Supabase_Master_Database_Schema/20.28_Audit_Log_System.md)
+- [20_Supabase_Master_Database_Schema/20.29_Offline_Sync_Queue.md](20_Supabase_Master_Database_Schema/20.29_Offline_Sync_Queue.md)
+- [20_Supabase_Master_Database_Schema/20.30_Entity_Relationship_Master_Map.md](20_Supabase_Master_Database_Schema/20.30_Entity_Relationship_Master_Map.md)
+- [20_Supabase_Master_Database_Schema/README.md](20_Supabase_Master_Database_Schema/README.md)
+
+## 21_Human_Resources_Payroll_Architecture
+
+- [21_Human_Resources_Payroll_Architecture/21.01_HR_System_Philosophy.md](21_Human_Resources_Payroll_Architecture/21.01_HR_System_Philosophy.md)
+- [21_Human_Resources_Payroll_Architecture/21.02_Employee_Master_Records.md](21_Human_Resources_Payroll_Architecture/21.02_Employee_Master_Records.md)
+- [21_Human_Resources_Payroll_Architecture/21.03_Employee_Account_Creation_Workflow.md](21_Human_Resources_Payroll_Architecture/21.03_Employee_Account_Creation_Workflow.md)
+- [21_Human_Resources_Payroll_Architecture/21.04_Roles_Permissions_Access_Control.md](21_Human_Resources_Payroll_Architecture/21.04_Roles_Permissions_Access_Control.md)
+- [21_Human_Resources_Payroll_Architecture/21.05_Employee_Workspace_and_Profile.md](21_Human_Resources_Payroll_Architecture/21.05_Employee_Workspace_and_Profile.md)
+- [21_Human_Resources_Payroll_Architecture/21.06_Attendance_Time_In_Time_Out_System.md](21_Human_Resources_Payroll_Architecture/21.06_Attendance_Time_In_Time_Out_System.md)
+- [21_Human_Resources_Payroll_Architecture/21.07_Work_Shifts_and_Scheduling.md](21_Human_Resources_Payroll_Architecture/21.07_Work_Shifts_and_Scheduling.md)
+- [21_Human_Resources_Payroll_Architecture/21.08_Leave_and_Absence_Management.md](21_Human_Resources_Payroll_Architecture/21.08_Leave_and_Absence_Management.md)
+- [21_Human_Resources_Payroll_Architecture/21.09_Overtime_and_Holiday_Pay_System.md](21_Human_Resources_Payroll_Architecture/21.09_Overtime_and_Holiday_Pay_System.md)
+- [21_Human_Resources_Payroll_Architecture/21.10_Salary_Structure_and_Payroll_Engine.md](21_Human_Resources_Payroll_Architecture/21.10_Salary_Structure_and_Payroll_Engine.md)
+- [21_Human_Resources_Payroll_Architecture/21.11_Payroll_Computation_Workflow.md](21_Human_Resources_Payroll_Architecture/21.11_Payroll_Computation_Workflow.md)
+- [21_Human_Resources_Payroll_Architecture/21.12_Cash_Advance_and_Salary_Request_System.md](21_Human_Resources_Payroll_Architecture/21.12_Cash_Advance_and_Salary_Request_System.md)
+- [21_Human_Resources_Payroll_Architecture/21.13_Payroll_Approval_Workflow.md](21_Human_Resources_Payroll_Architecture/21.13_Payroll_Approval_Workflow.md)
+- [21_Human_Resources_Payroll_Architecture/21.14_Payment_Methods_and_Disbursement_Records.md](21_Human_Resources_Payroll_Architecture/21.14_Payment_Methods_and_Disbursement_Records.md)
+- [21_Human_Resources_Payroll_Architecture/21.15_Employee_Performance_and_Evaluations.md](21_Human_Resources_Payroll_Architecture/21.15_Employee_Performance_and_Evaluations.md)
+- [21_Human_Resources_Payroll_Architecture/21.16_Training_Certification_and_Skills.md](21_Human_Resources_Payroll_Architecture/21.16_Training_Certification_and_Skills.md)
+- [21_Human_Resources_Payroll_Architecture/21.17_Employee_Documents_and_Contracts.md](21_Human_Resources_Payroll_Architecture/21.17_Employee_Documents_and_Contracts.md)
+- [21_Human_Resources_Payroll_Architecture/21.18_HR_Notifications_and_Communication.md](21_Human_Resources_Payroll_Architecture/21.18_HR_Notifications_and_Communication.md)
+- [21_Human_Resources_Payroll_Architecture/21.19_Disciplinary_Action_and_Incident_Records.md](21_Human_Resources_Payroll_Architecture/21.19_Disciplinary_Action_and_Incident_Records.md)
+- [21_Human_Resources_Payroll_Architecture/21.20_Employee_Exit_and_Termination_Workflow.md](21_Human_Resources_Payroll_Architecture/21.20_Employee_Exit_and_Termination_Workflow.md)
+- [21_Human_Resources_Payroll_Architecture/21.21_HR_Analytics_and_Dashboard.md](21_Human_Resources_Payroll_Architecture/21.21_HR_Analytics_and_Dashboard.md)
+- [21_Human_Resources_Payroll_Architecture/21.22_HR_Stress_Test_Scenarios.md](21_Human_Resources_Payroll_Architecture/21.22_HR_Stress_Test_Scenarios.md)
+- [21_Human_Resources_Payroll_Architecture/README.md](21_Human_Resources_Payroll_Architecture/README.md)
+
+## 22_Accounting_Financial_Core
+
+- [22_Accounting_Financial_Core/22.01_Accounting_Philosophy.md](22_Accounting_Financial_Core/22.01_Accounting_Philosophy.md)
+- [22_Accounting_Financial_Core/22.02_Financial_Boundary_Principle.md](22_Accounting_Financial_Core/22.02_Financial_Boundary_Principle.md)
+- [22_Accounting_Financial_Core/22.03_Chart_of_Accounts_Master.md](22_Accounting_Financial_Core/22.03_Chart_of_Accounts_Master.md)
+- [22_Accounting_Financial_Core/22.04_General_Ledger_Architecture.md](22_Accounting_Financial_Core/22.04_General_Ledger_Architecture.md)
+- [22_Accounting_Financial_Core/22.05_Double_Entry_Journal_Engine.md](22_Accounting_Financial_Core/22.05_Double_Entry_Journal_Engine.md)
+- [22_Accounting_Financial_Core/22.06_Automatic_ERP_Transaction_Posting.md](22_Accounting_Financial_Core/22.06_Automatic_ERP_Transaction_Posting.md)
+- [22_Accounting_Financial_Core/22.07_Accounts_Receivable_Customer_Ledger.md](22_Accounting_Financial_Core/22.07_Accounts_Receivable_Customer_Ledger.md)
+- [22_Accounting_Financial_Core/22.08_Accounts_Payable_Supplier_Ledger.md](22_Accounting_Financial_Core/22.08_Accounts_Payable_Supplier_Ledger.md)
+- [22_Accounting_Financial_Core/22.09_Cash_Management_and_Cash_Drawer.md](22_Accounting_Financial_Core/22.09_Cash_Management_and_Cash_Drawer.md)
+- [22_Accounting_Financial_Core/22.10_Bank_GCash_Maya_Wallet_Ledger.md](22_Accounting_Financial_Core/22.10_Bank_GCash_Maya_Wallet_Ledger.md)
+- [22_Accounting_Financial_Core/22.11_Financial_Reconciliation_System.md](22_Accounting_Financial_Core/22.11_Financial_Reconciliation_System.md)
+- [22_Accounting_Financial_Core/22.12_Expense_Request_and_Approval_Workflow.md](22_Accounting_Financial_Core/22.12_Expense_Request_and_Approval_Workflow.md)
+- [22_Accounting_Financial_Core/22.13_Budget_Control_and_Variance_Analysis.md](22_Accounting_Financial_Core/22.13_Budget_Control_and_Variance_Analysis.md)
+- [22_Accounting_Financial_Core/22.15_Depreciation_and_Asset_Lifecycle.md](22_Accounting_Financial_Core/22.15_Depreciation_and_Asset_Lifecycle.md)
+- [22_Accounting_Financial_Core/22.16_Inventory_Accounting_Integration.md](22_Accounting_Financial_Core/22.16_Inventory_Accounting_Integration.md)
+- [22_Accounting_Financial_Core/22.17_Crop_Production_Cost_Accounting.md](22_Accounting_Financial_Core/22.17_Crop_Production_Cost_Accounting.md)
+- [22_Accounting_Financial_Core/22.18_Biological_Asset_Accounting_IAS41.md](22_Accounting_Financial_Core/22.18_Biological_Asset_Accounting_IAS41.md)
+- [22_Accounting_Financial_Core/22.19_Harvest_FIFO_COGS_Release_Engine.md](22_Accounting_Financial_Core/22.19_Harvest_FIFO_COGS_Release_Engine.md)
+- [22_Accounting_Financial_Core/22.20_Payroll_Accounting_Integration.md](22_Accounting_Financial_Core/22.20_Payroll_Accounting_Integration.md)
+- [22_Accounting_Financial_Core/22.21_Tax_Regulatory_and_Compliance.md](22_Accounting_Financial_Core/22.21_Tax_Regulatory_and_Compliance.md)
+- [22_Accounting_Financial_Core/22.22_Financial_Statement_Generator.md](22_Accounting_Financial_Core/22.22_Financial_Statement_Generator.md)
+- [22_Accounting_Financial_Core/22.23_Crop_Profitability_and_Business_Analytics.md](22_Accounting_Financial_Core/22.23_Crop_Profitability_and_Business_Analytics.md)
+- [22_Accounting_Financial_Core/22.24_Audit_Trail_and_Financial_Record_Lock.md](22_Accounting_Financial_Core/22.24_Audit_Trail_and_Financial_Record_Lock.md)
+- [22_Accounting_Financial_Core/22.25_Accounting_Period_Closing.md](22_Accounting_Financial_Core/22.25_Accounting_Period_Closing.md)
+- [22_Accounting_Financial_Core/22.26_Multi_Company_and_Consolidation.md](22_Accounting_Financial_Core/22.26_Multi_Company_and_Consolidation.md)
+- [22_Accounting_Financial_Core/22.27_Accounting_Stress_Test_Scenarios.md](22_Accounting_Financial_Core/22.27_Accounting_Stress_Test_Scenarios.md)
+- [22_Accounting_Financial_Core/README.md](22_Accounting_Financial_Core/README.md)
+
+## 23_AI_Intelligence_Automation
+
+- [23_AI_Intelligence_Automation/23.01_Codex_Farm_Companion_Philosophy.md](23_AI_Intelligence_Automation/23.01_Codex_Farm_Companion_Philosophy.md)
+- [23_AI_Intelligence_Automation/23.02_Multi_AI_Gateway_Architecture.md](23_AI_Intelligence_Automation/23.02_Multi_AI_Gateway_Architecture.md)
+- [23_AI_Intelligence_Automation/23.03_AI_Privacy_Data_Ownership_and_Confidentiality.md](23_AI_Intelligence_Automation/23.03_AI_Privacy_Data_Ownership_and_Confidentiality.md)
+- [23_AI_Intelligence_Automation/23.04_AI_Cost_Management_and_Usage_Control.md](23_AI_Intelligence_Automation/23.04_AI_Cost_Management_and_Usage_Control.md)
+- [23_AI_Intelligence_Automation/23.05_Codex_User_Personalities_and_Adaptive_Communication.md](23_AI_Intelligence_Automation/23.05_Codex_User_Personalities_and_Adaptive_Communication.md)
+- [23_AI_Intelligence_Automation/23.06_Codex_Permissions_and_Authority_Boundaries.md](23_AI_Intelligence_Automation/23.06_Codex_Permissions_and_Authority_Boundaries.md)
+- [23_AI_Intelligence_Automation/23.07_Codex_Memory_and_Personalization.md](23_AI_Intelligence_Automation/23.07_Codex_Memory_and_Personalization.md)
+- [23_AI_Intelligence_Automation/23.08_Codex_Chat_and_Floating_Assistant_Interface.md](23_AI_Intelligence_Automation/23.08_Codex_Chat_and_Floating_Assistant_Interface.md)
+- [23_AI_Intelligence_Automation/23.09_Local_ERP_Intelligence_Engine.md](23_AI_Intelligence_Automation/23.09_Local_ERP_Intelligence_Engine.md)
+- [23_AI_Intelligence_Automation/23.10_AI_Knowledge_Assistant_and_SOP_Training.md](23_AI_Intelligence_Automation/23.10_AI_Knowledge_Assistant_and_SOP_Training.md)
+- [23_AI_Intelligence_Automation/23.11_AI_Vision_Pest_Disease_and_Image_Analysis.md](23_AI_Intelligence_Automation/23.11_AI_Vision_Pest_Disease_and_Image_Analysis.md)
+- [23_AI_Intelligence_Automation/23.12_AI_Document_Invoice_and_Receipt_Understanding.md](23_AI_Intelligence_Automation/23.12_AI_Document_Invoice_and_Receipt_Understanding.md)
+- [23_AI_Intelligence_Automation/23.13_AI_Farm_Monitoring_and_Anomaly_Detection.md](23_AI_Intelligence_Automation/23.13_AI_Farm_Monitoring_and_Anomaly_Detection.md)
+- [23_AI_Intelligence_Automation/23.14_AI_Inventory_and_Supply_Intelligence.md](23_AI_Intelligence_Automation/23.14_AI_Inventory_and_Supply_Intelligence.md)
+- [23_AI_Intelligence_Automation/23.15_AI_Crop_Production_and_Fertigation_Advisor.md](23_AI_Intelligence_Automation/23.15_AI_Crop_Production_and_Fertigation_Advisor.md)
+- [23_AI_Intelligence_Automation/23.16_AI_Harvest_Yield_and_Demand_Forecasting.md](23_AI_Intelligence_Automation/23.16_AI_Harvest_Yield_and_Demand_Forecasting.md)
+- [23_AI_Intelligence_Automation/23.17_AI_Financial_and_Business_Intelligence.md](23_AI_Intelligence_Automation/23.17_AI_Financial_and_Business_Intelligence.md)
+- [23_AI_Intelligence_Automation/23.18_AI_HR_Productivity_and_Workforce_Analytics.md](23_AI_Intelligence_Automation/23.18_AI_HR_Productivity_and_Workforce_Analytics.md)
+- [23_AI_Intelligence_Automation/23.19_AI_Notifications_and_Daily_Farm_Briefing.md](23_AI_Intelligence_Automation/23.19_AI_Notifications_and_Daily_Farm_Briefing.md)
+- [23_AI_Intelligence_Automation/23.20_AI_Cost_Management_and_Usage_Control.md](23_AI_Intelligence_Automation/23.20_AI_Cost_Management_and_Usage_Control.md)
+- [23_AI_Intelligence_Automation/23.21_Offline_AI_and_Island_Connectivity_Strategy.md](23_AI_Intelligence_Automation/23.21_Offline_AI_and_Island_Connectivity_Strategy.md)
+- [23_AI_Intelligence_Automation/23.22_AI_Security_Fraud_Prevention_and_Audit.md](23_AI_Intelligence_Automation/23.22_AI_Security_Fraud_Prevention_and_Audit.md)
+- [23_AI_Intelligence_Automation/23.24_AI_Stress_Test_Scenarios.md](23_AI_Intelligence_Automation/23.24_AI_Stress_Test_Scenarios.md)
+- [23_AI_Intelligence_Automation/README.md](23_AI_Intelligence_Automation/README.md)
+
+## 24_IoT_Sensors_Smart_Farm_System
+
+- [24_IoT_Sensors_Smart_Farm_System/24.01_IoT_Philosophy_and_Smart_Farm_Architecture.md](24_IoT_Sensors_Smart_Farm_System/24.01_IoT_Philosophy_and_Smart_Farm_Architecture.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.02_IoT_Device_Registration_and_Management.md](24_IoT_Sensors_Smart_Farm_System/24.02_IoT_Device_Registration_and_Management.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.03_IoT_Gateway_ESP32_and_Communication_Architecture.md](24_IoT_Sensors_Smart_Farm_System/24.03_IoT_Gateway_ESP32_and_Communication_Architecture.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.04_Sensor_Data_Collection_and_Historical_Storage.md](24_IoT_Sensors_Smart_Farm_System/24.04_Sensor_Data_Collection_and_Historical_Storage.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.05_Environmental_Monitoring.md](24_IoT_Sensors_Smart_Farm_System/24.05_Environmental_Monitoring.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.06_Water_Reservoir_and_Irrigation_Monitoring.md](24_IoT_Sensors_Smart_Farm_System/24.06_Water_Reservoir_and_Irrigation_Monitoring.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.07_EC_pH_and_Nutrient_Monitoring.md](24_IoT_Sensors_Smart_Farm_System/24.07_EC_pH_and_Nutrient_Monitoring.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.08_Pump_Equipment_and_Energy_Monitoring.md](24_IoT_Sensors_Smart_Farm_System/24.08_Pump_Equipment_and_Energy_Monitoring.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.09_Real_Time_Dashboard_and_Alerts.md](24_IoT_Sensors_Smart_Farm_System/24.09_Real_Time_Dashboard_and_Alerts.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.10_Codex_IoT_Intelligence_and_Recommendations.md](24_IoT_Sensors_Smart_Farm_System/24.10_Codex_IoT_Intelligence_and_Recommendations.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.11_Sensor_Calibration_Maintenance_and_Health.md](24_IoT_Sensors_Smart_Farm_System/24.11_Sensor_Calibration_Maintenance_and_Health.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.12_Offline_IoT_Data_Buffering_and_Synchronization.md](24_IoT_Sensors_Smart_Farm_System/24.12_Offline_IoT_Data_Buffering_and_Synchronization.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.13_IoT_Security_Permissions_and_Audit.md](24_IoT_Sensors_Smart_Farm_System/24.13_IoT_Security_Permissions_and_Audit.md)
+- [24_IoT_Sensors_Smart_Farm_System/24.14_IoT_Stress_Test_Scenarios.md](24_IoT_Sensors_Smart_Farm_System/24.14_IoT_Stress_Test_Scenarios.md)
+- [24_IoT_Sensors_Smart_Farm_System/README.md](24_IoT_Sensors_Smart_Farm_System/README.md)
+
+## 25_Mobile_Application_Offline_Field_Operations
+
+- [25_Mobile_Application_Offline_Field_Operations/25.01_Mobile_First_Design_Philosophy.md](25_Mobile_Application_Offline_Field_Operations/25.01_Mobile_First_Design_Philosophy.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.02_Mobile_User_Roles_and_Dashboards.md](25_Mobile_Application_Offline_Field_Operations/25.02_Mobile_User_Roles_and_Dashboards.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.03_Worker_Task_and_Daily_Operations_Interface.md](25_Mobile_Application_Offline_Field_Operations/25.03_Worker_Task_and_Daily_Operations_Interface.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.04_Time_Attendance_and_Work_Logging.md](25_Mobile_Application_Offline_Field_Operations/25.04_Time_Attendance_and_Work_Logging.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.05_Fast_Data_Entry_Search_Recents_and_Favorites.md](25_Mobile_Application_Offline_Field_Operations/25.05_Fast_Data_Entry_Search_Recents_and_Favorites.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.06_Mobile_Camera_Photo_and_Document_Capture.md](25_Mobile_Application_Offline_Field_Operations/25.06_Mobile_Camera_Photo_and_Document_Capture.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.07_Push_Notifications_and_Alert_Center.md](25_Mobile_Application_Offline_Field_Operations/25.07_Push_Notifications_and_Alert_Center.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.08_Codex_Mobile_Floating_Assistant.md](25_Mobile_Application_Offline_Field_Operations/25.08_Codex_Mobile_Floating_Assistant.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.09_BYOD_Device_Trust_Security_and_Mobile_Access_Control.md](25_Mobile_Application_Offline_Field_Operations/25.09_BYOD_Device_Trust_Security_and_Mobile_Access_Control.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.10_Offline_Data_Storage_and_Synchronization_Policy.md](25_Mobile_Application_Offline_Field_Operations/25.10_Offline_Data_Storage_and_Synchronization_Policy.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.11_Offline_Field_Operations_and_Sync_Queue.md](25_Mobile_Application_Offline_Field_Operations/25.11_Offline_Field_Operations_and_Sync_Queue.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.12_Mobile_Authentication_Biometrics_and_Session_Management.md](25_Mobile_Application_Offline_Field_Operations/25.12_Mobile_Authentication_Biometrics_and_Session_Management.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.13_Mobile_File_Storage_and_Media_Optimization.md](25_Mobile_Application_Offline_Field_Operations/25.13_Mobile_File_Storage_and_Media_Optimization.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.14_Mobile_Accessibility_and_Field_Usability.md](25_Mobile_Application_Offline_Field_Operations/25.14_Mobile_Accessibility_and_Field_Usability.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.15_Mobile_Security_Permissions_and_Audit.md](25_Mobile_Application_Offline_Field_Operations/25.15_Mobile_Security_Permissions_and_Audit.md)
+- [25_Mobile_Application_Offline_Field_Operations/25.16_Mobile_Stress_Test_Scenarios.md](25_Mobile_Application_Offline_Field_Operations/25.16_Mobile_Stress_Test_Scenarios.md)
+- [25_Mobile_Application_Offline_Field_Operations/README.md](25_Mobile_Application_Offline_Field_Operations/README.md)
+
+## 26_Master_System_Integration
+
+- [26_Master_System_Integration/26.01_System_Architecture_Overview.md](26_Master_System_Integration/26.01_System_Architecture_Overview.md)
+- [26_Master_System_Integration/26.02_ERM_Overview.md](26_Master_System_Integration/26.02_ERM_Overview.md)
+- [26_Master_System_Integration/26.03_ERM_Farm_Operations_Layer.md](26_Master_System_Integration/26.03_ERM_Farm_Operations_Layer.md)
+- [26_Master_System_Integration/26.04_ERM_Inventory_Supply_Chain_Layer.md](26_Master_System_Integration/26.04_ERM_Inventory_Supply_Chain_Layer.md)
+- [26_Master_System_Integration/26.05_ERM_Sales_Customer_Financial_Layer.md](26_Master_System_Integration/26.05_ERM_Sales_Customer_Financial_Layer.md)
+- [26_Master_System_Integration/26.06_ERM_Intelligence_Technology_Infrastructure_Layer.md](26_Master_System_Integration/26.06_ERM_Intelligence_Technology_Infrastructure_Layer.md)
+- [26_Master_System_Integration/26.07_Financial_Posting_Rules.md](26_Master_System_Integration/26.07_Financial_Posting_Rules.md)
+- [26_Master_System_Integration/26.08_Module_Dependency_Map.md](26_Master_System_Integration/26.08_Module_Dependency_Map.md)
+- [26_Master_System_Integration/26.09_Permission_Matrix.md](26_Master_System_Integration/26.09_Permission_Matrix.md)
+- [26_Master_System_Integration/26.10_Offline_Sync_Rulebook.md](26_Master_System_Integration/26.10_Offline_Sync_Rulebook.md)
+- [26_Master_System_Integration/26.11_AI_Authority_Matrix.md](26_Master_System_Integration/26.11_AI_Authority_Matrix.md)
+- [26_Master_System_Integration/26.12_Mobile_Device_Trust_and_Data_Policy.md](26_Master_System_Integration/26.12_Mobile_Device_Trust_and_Data_Policy.md)
+- [26_Master_System_Integration/26.13_Integration_Stress_Test_Scenarios.md](26_Master_System_Integration/26.13_Integration_Stress_Test_Scenarios.md)
+- [26_Master_System_Integration/26.14_Risk_Register_and_Mitigation_Plan.md](26_Master_System_Integration/26.14_Risk_Register_and_Mitigation_Plan.md)
+- [26_Master_System_Integration/26.15_Data_Ownership_Storage_and_Retention_Policy.md](26_Master_System_Integration/26.15_Data_Ownership_Storage_and_Retention_Policy.md)
+- [26_Master_System_Integration/26.16_Backup_Disaster_Recovery_and_Data_Portability.md](26_Master_System_Integration/26.16_Backup_Disaster_Recovery_and_Data_Portability.md)
+
+## 27_V2_to_V3_Migration_Roadmap
+
+- [27_V2_to_V3_Migration_Roadmap/27.01_Current_V2_System_Audit.md](27_V2_to_V3_Migration_Roadmap/27.01_Current_V2_System_Audit.md)
+- [27_V2_to_V3_Migration_Roadmap/27.02_V2_to_V3_Refactoring_Strategy.md](27_V2_to_V3_Migration_Roadmap/27.02_V2_to_V3_Refactoring_Strategy.md)
+- [27_V2_to_V3_Migration_Roadmap/27.03_Module_Migration_Order.md](27_V2_to_V3_Migration_Roadmap/27.03_Module_Migration_Order.md)
+- [27_V2_to_V3_Migration_Roadmap/27.04_Deprecated_Code_Replacement_Plan.md](27_V2_to_V3_Migration_Roadmap/27.04_Deprecated_Code_Replacement_Plan.md)
+
+## 28_Enterprise_Architecture_Audit
+
+- [28_Enterprise_Architecture_Audit/ADR_001_Architecture_Ratification.md](28_Enterprise_Architecture_Audit/ADR_001_Architecture_Ratification.md)
+- [28_Enterprise_Architecture_Audit/Phase_0_Charter_and_Inventory.md](28_Enterprise_Architecture_Audit/Phase_0_Charter_and_Inventory.md)
+- [28_Enterprise_Architecture_Audit/Phase_1_Governance_and_Source_of_Truth.md](28_Enterprise_Architecture_Audit/Phase_1_Governance_and_Source_of_Truth.md)
+- [28_Enterprise_Architecture_Audit/Phase_2_Documentation_Consistency_and_Cross_Reference.md](28_Enterprise_Architecture_Audit/Phase_2_Documentation_Consistency_and_Cross_Reference.md)
+- [28_Enterprise_Architecture_Audit/Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md](28_Enterprise_Architecture_Audit/Phase_3_5_Data_Lifecycle_and_Disaster_Recovery.md)
+- [28_Enterprise_Architecture_Audit/Phase_3_Data_and_Security_Architecture.md](28_Enterprise_Architecture_Audit/Phase_3_Data_and_Security_Architecture.md)
+- [28_Enterprise_Architecture_Audit/Phase_4_5_Performance_and_Scalability_Stress.md](28_Enterprise_Architecture_Audit/Phase_4_5_Performance_and_Scalability_Stress.md)
+- [28_Enterprise_Architecture_Audit/Phase_4_System_Integration_and_Module_Architecture.md](28_Enterprise_Architecture_Audit/Phase_4_System_Integration_and_Module_Architecture.md)
+- [28_Enterprise_Architecture_Audit/Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md](28_Enterprise_Architecture_Audit/Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md)
+- [28_Enterprise_Architecture_Audit/Phase_6_Migration_and_Roadmap_Soundness.md](28_Enterprise_Architecture_Audit/Phase_6_Migration_and_Roadmap_Soundness.md)
+- [28_Enterprise_Architecture_Audit/Phase_7_Synthesis_and_Remediation_Roadmap.md](28_Enterprise_Architecture_Audit/Phase_7_Synthesis_and_Remediation_Roadmap.md)
+- [28_Enterprise_Architecture_Audit/README.md](28_Enterprise_Architecture_Audit/README.md)
+- [28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md](28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md)
+- [28_Enterprise_Architecture_Audit/Stage_A_Governance_Reconciliation.md](28_Enterprise_Architecture_Audit/Stage_A_Governance_Reconciliation.md)
+
+## README.md
+
+- [README.md](README.md)
