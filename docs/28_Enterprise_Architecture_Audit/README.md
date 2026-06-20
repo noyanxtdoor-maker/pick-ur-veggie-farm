@@ -51,7 +51,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 |---|---|---|---|
 | 0 | Audit Charter & Inventory | [Phase_0_Charter_and_Inventory.md](Phase_0_Charter_and_Inventory.md) | Complete |
 | 1 | Governance & Source-of-Truth Integrity | [Phase_1_Governance_and_Source_of_Truth.md](Phase_1_Governance_and_Source_of_Truth.md) | Complete |
-| 2 | Documentation Consistency & Cross-Reference | _pending_ | Not started |
+| 2 | Documentation Consistency & Cross-Reference | [Phase_2_Documentation_Consistency_and_Cross_Reference.md](Phase_2_Documentation_Consistency_and_Cross_Reference.md) | Complete |
 | 3 | Data & Security Architecture | _pending_ | Not started |
 | 3.5 | Enterprise Data Lifecycle & Disaster Recovery | _pending_ | Not started |
 | 4 | System, Integration & Module Architecture | _pending_ | Not started |
@@ -80,13 +80,21 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P1-04 | Medium | Open | Two competing Claude start prompts; fragmented AI onboarding | 1 |
 | P1-05 | Medium | Open | Authority/completeness inversion — apex Constitution is thinnest | 1 |
 | P1-06 | Medium | Open | Multiple competing development-sequence authorities | 1 |
+| P2-01 | High | Open | Dual-layer architectural duplication (foundation 00-08 vs enterprise 10-26) with undefined supersession | 2 |
+| P2-02 | High | Open | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
+| P2-03 | Medium | Open | Uncontrolled RBAC role taxonomy (Admin/Administrator; system-role vs HR-title) | 2 |
+| P2-04 | Medium | Open | Near-total absence of internal cross-linking (3 links / 280 files) | 2 |
+| P2-05 | Low | Open | Non-descriptive duplicate filenames 26.02-26.06 | 2 |
+| P2-06 | Low | Open | Duplicate-title specs (23.04/23.20) and cross-section functional overlap | 2 |
+| P2-07 | Low | Open | Escaped-markdown corruption isolated to 18.01 | 2 |
+| P2-08 | Low | Open | V2 legacy reference outside migration section (22.13) | 2 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 3 |
-| Medium | 6 |
-| Low | 2 |
+| High | 5 |
+| Medium | 8 |
+| Low | 6 |
 | Improvement Opportunity | 1 |
