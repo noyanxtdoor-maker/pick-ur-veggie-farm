@@ -64,7 +64,8 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 |---|---|---|---|
 | A | Governance Reconciliation & Precedence Model | [Stage_A_Governance_Reconciliation.md](Stage_A_Governance_Reconciliation.md) · [Index Strategy](Stage_A_Documentation_Index_Strategy.md) | **COMPLETE** (A1–A7); all five owner decisions approved (ODR-001…005) |
 | B1 | Enterprise RLS Specification | [Stage_B1_RLS_Specification.md](Stage_B1_RLS_Specification.md) | **Complete** — resolves P3-02, P3-04 |
-| B2–B8 | Money/precision · indexing/partitioning · snapshots/reporting · idempotent posting/conflict · audit/contracts · auth/DR · data migration | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
+| B2 | Money & Financial Precision Specification | [Stage_B2_Money_and_Financial_Precision_Specification.md](Stage_B2_Money_and_Financial_Precision_Specification.md) | **Complete** — resolves P3-01 |
+| B3–B8 | Indexing/partitioning · snapshots/reporting · idempotent posting/conflict · audit/contracts · auth/DR · data migration | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 | C–E | Scaffolding → modules → pre-prod | _pending_ | Not started |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -114,7 +115,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P2-06 | Low | Open | Duplicate-title specs (23.04/23.20) and cross-section functional overlap | 2 |
 | P2-07 | Low | Resolved (Stage A) | Escaped-markdown corruption isolated to 18.01 | 2 |
 | P2-08 | Low | Rejected (false positive) | V2 legacy reference outside migration section (22.13) — "V2" = Budget Version 2 | 2 |
-| P3-01 | High | Open | Monetary precision & currency unspecified at data layer (untyped money columns, no rounding, no FX on journal lines) | 3 |
+| P3-01 | High | Resolved (Stage B2) | Monetary precision & currency unspecified at data layer (untyped money columns, no rounding, no FX on journal lines) | 3 |
 | P3-02 | High | Resolved (Stage B1) | RLS named "final authority" but never specified (no policy design) | 3 |
 | P3-03 | High | Accepted (ADR-001) | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
 | P3-04 | Medium | Resolved (Stage B1) | RLS cannot enforce active-branch scoping (final-authority claim overstated) | 3 |
@@ -168,9 +169,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 38 |
+| Open | 37 |
 | Accepted (ADR / ODR) | 4 |
-| Resolved (Stage A / B1) | 16 |
+| Resolved (Stage A / B) | 17 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
