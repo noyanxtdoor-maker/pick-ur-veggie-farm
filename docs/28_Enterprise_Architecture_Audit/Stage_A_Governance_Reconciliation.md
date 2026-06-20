@@ -116,7 +116,7 @@ Per the instruction to "record the conflict and the remediation recommendation."
 | GC-6 | `00.02`/`00.03`/`16.04` vs `09`/`19` | Duplicated/divergent system rules | Define each rule once at strongest formulation; others link | P1-03, P1-05 | Banner applied; consolidation pending |
 | GC-7 | `04`, `05.01`, `10.01` (foundation technical detail) | Foundation specs conflict with enterprise (22/20) | Re-scoped to summary (banner); enterprise canonical | P2-01 | Banner applied; demote-to-summary pending |
 | GC-8 | `22.13` | Stray V2 reference outside migration scope | Re-scope/move to section 27 | P2-08 | Pending (A7) |
-| GC-9 | root `MANIFEST.json` (+ 5 section manifests) | Covers only 00–08; stale index | Generate index in CI; deprecate static manifests | P0-01, P0-02 | Pending (A6) |
+| GC-9 | root `MANIFEST.json` (+ 5 section manifests) | Covers only 00–08; stale index | Generate index in CI; deprecate static manifests | P0-01, P0-02 | **Reconciled (A6)** — generated `INDEX.md`; all 6 manifests deprecated; CI strategy documented |
 
 > Note: GC-3/GC-4 remediation touches build-sequence content; the canonical *designation* is made here, but editing `26.08`/`08.02`/`16.03`/`13.01` content is sequenced as the next Stage A sub-tasks (A2/A4/A5) and partly depends on Owner Decision #5 (scale envelope) and #4 (precedence order).
 
@@ -135,7 +135,7 @@ Per the instruction to "record the conflict and the remediation recommendation."
 - ✅ A3 — role-vocabulary + canonical-prompt edits (`16.01`→defers to `11.01`/`20.03`; `16.05`→defers to `19.10`; controlled-vocabulary clause added to `11.01`).
 - ⏳ A4 — canonical-sequence content edits (fix `26.08`; redirect `08.02`/`16.03`). **HELD** — gated on Owner Decision #4 (precedence order) / #5 (scale envelope).
 - ⏳ A5 — rebuild `13.01` as Designed/Implemented/Verified; mark `27.01` baseline of record. **HELD** — partly gated on Owner Decision #5.
-- ⏳ A6 — generated documentation index + CI link-integrity strategy; deprecate stale manifests. (in progress this session)
+- ✅ A6 — generated `docs/INDEX.md` from the tree; defined the [index & link-integrity strategy](Stage_A_Documentation_Index_Strategy.md); deprecated all 6 `MANIFEST.json` files; expanded the root `docs/README.md` with navigation.
 - ⏳ A7 — structural cleanups (rename `18_Project Build`→`18_Project_Build`; fix `18.01` markdown; rename `26.02–26.06`; merge `23.04`/`23.20`; record numbering gaps; label `14_UI_References`; scope `22.13`). (in progress this session)
 
 These are non-destructive documentation reconciliations. A4/A5 remain HELD pending Owner Decisions #4/#5.

@@ -1,12 +1,5 @@
-[
-  "12.01_Supabase_Real_Time_Architecture.md",
-  "12.02_Google_Drive_Backup_Architecture.md",
-  "12.03_Google_Calendar_Integration.md",
-  "12.04_Google_Workspace_Chat_Integration.md",
-  "12.05_Weather_API_Agricultural_Intelligence.md",
-  "12.06_IoT_Sensor_Integration.md",
-  "12.07_Notification_System_Architecture.md",
-  "12.08_Payment_Gateway_Integration.md",
-  "12.09_Future_AI_Assistant_Architecture.md",
-  "README.md"
-]
+{
+  "_deprecated": true,
+  "_notice": "Deprecated in Stage A (ADR-001). Section-level manifests are no longer maintained. The single source of truth for documentation completeness is the generated docs/INDEX.md. See docs/28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md. Audit findings P0-01, P0-02.",
+  "supersededBy": "../INDEX.md"
+}
