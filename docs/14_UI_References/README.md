@@ -7,5 +7,6 @@ Use this as the visual source of truth for:
 - **New UI design** — *Active direction (V3). Subject to approval.*
 - **Approved screens** — *Authoritative for implementation.*
 - **Comparison between versions** — *Reference only.*
+- **[External Financial UI Inspirations](External_Financial_UI_Inspirations/README.md)** — *External third-party app references (GoTyme, MariBank). Inspiration only — lowest authority; never overrides Approved Screens, New UI, or ADR-001.*
 
 > **Provenance (Stage A · ADR-001 — audit finding P0-06):** "Approved Screens" is the authoritative source for V3 UI implementation. "Old UI" is preserved as historical V1/V2 reference and must **not** be used as the V3 design target. Do not confuse "Old UI" with the read-only V1 prototype repository.

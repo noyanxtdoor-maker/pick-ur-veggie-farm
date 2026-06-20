@@ -5,7 +5,7 @@
 > Regenerate via CI per [Stage A Documentation Index Strategy](28_Enterprise_Architecture_Audit/Stage_A_Documentation_Index_Strategy.md).
 > This index **supersedes the deprecated `MANIFEST.json` files** (audit findings P0-01, P0-02).
 
-**Total documentation files:** 291 across 29 numbered sections.
+**Total documentation files:** 294 across 29 numbered sections.
 
 ## 00_Project_Constitution
 
@@ -123,6 +123,9 @@
 
 - [14_UI_References/Approved_Screens/README.md](14_UI_References/Approved_Screens/README.md)
 - [14_UI_References/Comparison_Notes.md](14_UI_References/Comparison_Notes.md)
+- [14_UI_References/External_Financial_UI_Inspirations/Gotyme/README.md](14_UI_References/External_Financial_UI_Inspirations/Gotyme/README.md)
+- [14_UI_References/External_Financial_UI_Inspirations/MariBank/README.md](14_UI_References/External_Financial_UI_Inspirations/MariBank/README.md)
+- [14_UI_References/External_Financial_UI_Inspirations/README.md](14_UI_References/External_Financial_UI_Inspirations/README.md)
 - [14_UI_References/New_UI/README.md](14_UI_References/New_UI/README.md)
 - [14_UI_References/Old_UI/README.md](14_UI_References/Old_UI/README.md)
 - [14_UI_References/README.md](14_UI_References/README.md)
