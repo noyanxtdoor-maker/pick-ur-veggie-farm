@@ -50,7 +50,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | Phase | Title | Artifact | State |
 |---|---|---|---|
 | 0 | Audit Charter & Inventory | [Phase_0_Charter_and_Inventory.md](Phase_0_Charter_and_Inventory.md) | Complete |
-| 1 | Governance & Source-of-Truth Integrity | _pending_ | Not started |
+| 1 | Governance & Source-of-Truth Integrity | [Phase_1_Governance_and_Source_of_Truth.md](Phase_1_Governance_and_Source_of_Truth.md) | Complete |
 | 2 | Documentation Consistency & Cross-Reference | _pending_ | Not started |
 | 3 | Data & Security Architecture | _pending_ | Not started |
 | 3.5 | Enterprise Data Lifecycle & Disaster Recovery | _pending_ | Not started |
@@ -74,13 +74,19 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P0-04 | Low | Open | Numbering gaps in four sections (18.08, 19.04, 22.14, 23.23) | 0 |
 | P0-05 | Low | Open | Two sections missing README; root README is a stub | 0 |
 | P0-06 | Improvement Opportunity | Open | `14_UI_References/Old_UI` provenance undefined | 0 |
+| P1-01 | High | Open | No precedence/conflict-resolution hierarchy among governing documents | 1 |
+| P1-02 | High | Open | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
+| P1-03 | Medium | Open | Duplicated/divergent system rules & design principles across corpus | 1 |
+| P1-04 | Medium | Open | Two competing Claude start prompts; fragmented AI onboarding | 1 |
+| P1-05 | Medium | Open | Authority/completeness inversion — apex Constitution is thinnest | 1 |
+| P1-06 | Medium | Open | Multiple competing development-sequence authorities | 1 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 1 |
-| Medium | 2 |
+| High | 3 |
+| Medium | 6 |
 | Low | 2 |
 | Improvement Opportunity | 1 |
