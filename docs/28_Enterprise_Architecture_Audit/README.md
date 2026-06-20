@@ -71,8 +71,9 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | B6 | Audit Immutability & Integration Contracts | [Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md](Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md) | **Complete** — resolves P3-05, P4-03, P4-04 |
 | B7 | Authentication Hardening & Disaster Recovery | [Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md](Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md) | **Complete** — resolves P3-06, P3-07, P3.5-01…06 |
 | B8 | V2→V3 Master Data Migration Mapping | [Stage_B8_V2_to_V3_Migration_Mapping_Specification.md](Stage_B8_V2_to_V3_Migration_Mapping_Specification.md) | **Complete** — resolves P6-02 |
-| **Stage B** | **Enterprise Foundation Specifications (B1–B8)** | — | **COMPLETE** — next: Stage B Completion Review, then Stage C |
-| C–E | Scaffolding → modules → pre-prod | _pending_ | Not started |
+| **Stage B** | **Enterprise Foundation Specifications (B1–B8)** | — | **COMPLETE** |
+| Gate | Stage B Completion Readiness Review | [Stage_B_Completion_Readiness_Review.md](Stage_B_Completion_Readiness_Review.md) | **COMPLETE — Verdict C: Ready for Stage C** (production coding still gated) |
+| C–E | Scaffolding → modules → pre-prod | _pending_ | Not started (Stage C roadmap C1–C8 defined in the review) |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
 
@@ -107,7 +108,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P0-04 | Low | Open | Numbering gaps in four sections (18.08, 19.04, 22.14, 23.23) | 0 |
 | P0-05 | Low | Open | Two sections missing README; root README is a stub | 0 |
 | P0-06 | Improvement Opportunity | Resolved (Stage A) | `14_UI_References/Old_UI` provenance undefined | 0 |
-| P1-01 | High | Accepted (ADR-001) | No precedence/conflict-resolution hierarchy among governing documents | 1 |
+| P1-01 | High | Resolved (Stage A/ODR-004) | No precedence/conflict-resolution hierarchy among governing documents | 1 |
 | P1-02 | High | Resolved (Stage A) | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
 | P1-03 | Medium | Open | Duplicated/divergent system rules & design principles across corpus | 1 |
 | P1-04 | Medium | Resolved (Stage A) | Two competing Claude start prompts; fragmented AI onboarding | 1 |
@@ -147,19 +148,19 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P4.5-05 | Medium | Resolved (Stage B5) | Offline conflict resolution ("preserve both + supervisor review") does not scale | 4.5 |
 | P4.5-06 | Medium | Resolved (Stage B5) | Sync-queue growth & reconnect thundering-herd unaddressed | 4.5 |
 | P4.5-07 | Medium | Open | Time-series/large-object live storage growth undesigned | 4.5 |
-| P4.5-08 | Medium | Open | No concurrency/connection-pooling/caching/pagination strategy | 4.5 |
+| P4.5-08 | Medium | Resolved (Stage B3) | No concurrency/connection-pooling/caching/pagination strategy | 4.5 |
 | P4.5-09 | Improvement Opportunity | Open | Stress tests cover failure-correctness but not load/performance | 4.5 |
 | P5-01 | High | Open | Implemented code is the V2 prototype, architecturally divergent from canonical V3 | 5 |
 | P5-02 | High | Resolved (Stage A5) | 13_Project_Status maturity stale; conflates prototype vs enterprise completeness | 5 |
 | P5-03 | Medium | Open | Code violates ADR-001 (role-name auth, plaintext passwords) — do-not-port | 5 |
-| P5-04 | Medium | Open | Build sequences verified: 18.05 sound; 16.03/08.02/26.08 still conflict | 5 |
+| P5-04 | Medium | Resolved (Stage A4) | Build sequences verified: 18.05 sound; 16.03/08.02/26.08 still conflict | 5 |
 | P5-05 | Medium | Open | Enterprise prerequisites not scaffolded (no Supabase/RLS/auth foundation) | 5 |
-| P5-06 | Improvement Opportunity | Open | Designate prototype as V2 behavioral reference (money.ts, CA logic) | 5 |
-| P6-01 | High | Open | Migration framed as in-place evolution but requires a foundation rebuild | 6 |
+| P5-06 | Improvement Opportunity | Resolved (Stage B2/B8) | Designate prototype as V2 behavioral reference (money.ts, CA logic) | 5 |
+| P6-01 | High | Resolved (ODR-001) | Migration framed as in-place evolution but requires a foundation rebuild | 6 |
 | P6-02 | High | Resolved (Stage B8) | No actual data-migration mapping; migrate-vs-fresh decided (hybrid, master-only); mapping authored | 6 |
-| P6-03 | Medium | Open | No coexistence/cutover/rollback strategy across Dexie<->Supabase boundary | 6 |
-| P6-04 | Medium | Open | Reconcile sequences to the sound ones (27.03 + 18.05); retire conflicts | 6 |
-| P6-05 | Low | Open | Foundation roadmap stubs 08.01/08.02 vestigial/superseded by 27 + 18.05 | 6 |
+| P6-03 | Medium | Resolved (Stage B8) | No coexistence/cutover/rollback strategy across Dexie<->Supabase boundary | 6 |
+| P6-04 | Medium | Resolved (Stage A4) | Reconcile sequences to the sound ones (27.03 + 18.05); retire conflicts | 6 |
+| P6-05 | Low | Resolved (Stage A4) | Foundation roadmap stubs 08.01/08.02 vestigial/superseded by 27 + 18.05 | 6 |
 
 ### Running severity tally
 
@@ -175,9 +176,11 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 19 |
-| Accepted (ADR / ODR) | 3 |
-| Resolved (Stage A / B) | 36 |
+| Open | 12 |
+| Accepted (ADR / ODR) | 2 |
+| Resolved (Stage A / B) | 44 |
 | Rejected | 1 |
+
+> Updated by the [Stage B Completion Readiness Review](Stage_B_Completion_Readiness_Review.md) (fresh verification corrected 8 stale-status findings). **0 Critical · 0 Category-A blockers.** The 12 Open are Category B (resolved during Stage C–E) or Category C (low-risk accepted debt); the 2 Accepted (P2-01, P3-03) are direction-ratified with low residual risk. **Verdict: Ready for Stage C.**
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
