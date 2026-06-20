@@ -45,6 +45,12 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 
 ---
 
+## Decision records
+
+| ADR | Title | Status | Date |
+|---|---|---|---|
+| [ADR-001](ADR_001_Architecture_Ratification.md) | Architectural Ratification Decision (enterprise layer 10–26 canonical; foundation 00–08 preserved as history; permission-first RBAC; dependency-driven build order) | Ratified | 2026-06-20 |
+
 ## Phase index
 
 | Phase | Title | Artifact | State |
@@ -74,14 +80,14 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P0-04 | Low | Open | Numbering gaps in four sections (18.08, 19.04, 22.14, 23.23) | 0 |
 | P0-05 | Low | Open | Two sections missing README; root README is a stub | 0 |
 | P0-06 | Improvement Opportunity | Open | `14_UI_References/Old_UI` provenance undefined | 0 |
-| P1-01 | High | Open | No precedence/conflict-resolution hierarchy among governing documents | 1 |
-| P1-02 | High | Open | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
+| P1-01 | High | Accepted (ADR-001) | No precedence/conflict-resolution hierarchy among governing documents | 1 |
+| P1-02 | High | Accepted (ADR-001) | Conflicting definitions of "locked" architecture (13.02 vs 19.02) | 1 |
 | P1-03 | Medium | Open | Duplicated/divergent system rules & design principles across corpus | 1 |
 | P1-04 | Medium | Open | Two competing Claude start prompts; fragmented AI onboarding | 1 |
 | P1-05 | Medium | Open | Authority/completeness inversion — apex Constitution is thinnest | 1 |
 | P1-06 | Medium | Open | Multiple competing development-sequence authorities | 1 |
-| P2-01 | High | Open | Dual-layer architectural duplication (foundation 00-08 vs enterprise 10-26) with undefined supersession | 2 |
-| P2-02 | High | Open | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
+| P2-01 | High | Accepted (ADR-001) | Dual-layer architectural duplication (foundation 00-08 vs enterprise 10-26) with undefined supersession | 2 |
+| P2-02 | High | Accepted (ADR-001) | Contradictory module build sequences (one dependency-unsound; POS missing from two) | 2 |
 | P2-03 | Medium | Open | Uncontrolled RBAC role taxonomy (Admin/Administrator; system-role vs HR-title) | 2 |
 | P2-04 | Medium | Open | Near-total absence of internal cross-linking (3 links / 280 files) | 2 |
 | P2-05 | Low | Open | Non-descriptive duplicate filenames 26.02-26.06 | 2 |
@@ -90,7 +96,7 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P2-08 | Low | Open | V2 legacy reference outside migration section (22.13) | 2 |
 | P3-01 | High | Open | Monetary precision & currency unspecified at data layer (untyped money columns, no rounding, no FX on journal lines) | 3 |
 | P3-02 | High | Open | RLS named "final authority" but never specified (no policy design) | 3 |
-| P3-03 | High | Open | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
+| P3-03 | High | Accepted (ADR-001) | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
 | P3-04 | Medium | Open | RLS cannot enforce active-branch scoping (final-authority claim overstated) | 3 |
 | P3-05 | Medium | Open | Audit immutability is policy without specified enforcement mechanism | 3 |
 | P3-06 | Medium | Open | Offline cache encryption optional, not mandatory (financial/PII on BYOD) | 3 |
@@ -105,3 +111,12 @@ Single source of truth for every finding raised across all phases. Updated at th
 | Medium | 12 |
 | Low | 6 |
 | Improvement Opportunity | 1 |
+
+### Status breakdown
+
+| Status | Count |
+|---|---|
+| Open | 22 |
+| Accepted (ADR-001) | 5 |
+| Resolved | 0 |
+| Rejected | 0 |
