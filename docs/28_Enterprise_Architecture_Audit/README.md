@@ -63,7 +63,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 4 | System, Integration & Module Architecture | [Phase_4_System_Integration_and_Module_Architecture.md](Phase_4_System_Integration_and_Module_Architecture.md) | Complete |
 | 4.5 | Performance & Scalability Stress | [Phase_4_5_Performance_and_Scalability_Stress.md](Phase_4_5_Performance_and_Scalability_Stress.md) | Complete |
 | 5 | Doc-to-Code Drift & Implementation Readiness | [Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md](Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md) | Complete |
-| 6 | Migration & Roadmap Soundness | _pending_ | Not started |
+| 6 | Migration & Roadmap Soundness | [Phase_6_Migration_and_Roadmap_Soundness.md](Phase_6_Migration_and_Roadmap_Soundness.md) | Complete |
 | 7 | Synthesis & Prioritized Remediation Backlog | _pending_ | Not started |
 
 ---
@@ -128,22 +128,27 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P5-04 | Medium | Open | Build sequences verified: 18.05 sound; 16.03/08.02/26.08 still conflict | 5 |
 | P5-05 | Medium | Open | Enterprise prerequisites not scaffolded (no Supabase/RLS/auth foundation) | 5 |
 | P5-06 | Improvement Opportunity | Open | Designate prototype as V2 behavioral reference (money.ts, CA logic) | 5 |
+| P6-01 | High | Open | Migration framed as in-place evolution but requires a foundation rebuild | 6 |
+| P6-02 | High | Open | No actual data-migration mapping (flat->double-entry, tenant back-assignment, float->numeric); migrate-vs-fresh undecided | 6 |
+| P6-03 | Medium | Open | No coexistence/cutover/rollback strategy across Dexie<->Supabase boundary | 6 |
+| P6-04 | Medium | Open | Reconcile sequences to the sound ones (27.03 + 18.05); retire conflicts | 6 |
+| P6-05 | Low | Open | Foundation roadmap stubs 08.01/08.02 vestigial/superseded by 27 + 18.05 | 6 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 17 |
-| Medium | 26 |
-| Low | 6 |
+| High | 19 |
+| Medium | 28 |
+| Low | 7 |
 | Improvement Opportunity | 5 |
 
 ### Status breakdown
 
 | Status | Count |
 |---|---|
-| Open | 49 |
+| Open | 54 |
 | Accepted (ADR-001) | 5 |
 | Resolved | 0 |
 | Rejected | 0 |
