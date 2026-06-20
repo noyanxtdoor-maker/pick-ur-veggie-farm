@@ -52,7 +52,7 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 0 | Audit Charter & Inventory | [Phase_0_Charter_and_Inventory.md](Phase_0_Charter_and_Inventory.md) | Complete |
 | 1 | Governance & Source-of-Truth Integrity | [Phase_1_Governance_and_Source_of_Truth.md](Phase_1_Governance_and_Source_of_Truth.md) | Complete |
 | 2 | Documentation Consistency & Cross-Reference | [Phase_2_Documentation_Consistency_and_Cross_Reference.md](Phase_2_Documentation_Consistency_and_Cross_Reference.md) | Complete |
-| 3 | Data & Security Architecture | _pending_ | Not started |
+| 3 | Data & Security Architecture | [Phase_3_Data_and_Security_Architecture.md](Phase_3_Data_and_Security_Architecture.md) | Complete |
 | 3.5 | Enterprise Data Lifecycle & Disaster Recovery | _pending_ | Not started |
 | 4 | System, Integration & Module Architecture | _pending_ | Not started |
 | 4.5 | Performance & Scalability Stress | _pending_ | Not started |
@@ -88,13 +88,20 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P2-06 | Low | Open | Duplicate-title specs (23.04/23.20) and cross-section functional overlap | 2 |
 | P2-07 | Low | Open | Escaped-markdown corruption isolated to 18.01 | 2 |
 | P2-08 | Low | Open | V2 legacy reference outside migration section (22.13) | 2 |
+| P3-01 | High | Open | Monetary precision & currency unspecified at data layer (untyped money columns, no rounding, no FX on journal lines) | 3 |
+| P3-02 | High | Open | RLS named "final authority" but never specified (no policy design) | 3 |
+| P3-03 | High | Open | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
+| P3-04 | Medium | Open | RLS cannot enforce active-branch scoping (final-authority claim overstated) | 3 |
+| P3-05 | Medium | Open | Audit immutability is policy without specified enforcement mechanism | 3 |
+| P3-06 | Medium | Open | Offline cache encryption optional, not mandatory (financial/PII on BYOD) | 3 |
+| P3-07 | Medium | Open | Auth hardening gaps (MFA deferred, no password policy) + unconstrained Developer superuser | 3 |
 
 ### Running severity tally
 
 | Severity | Count |
 |---|---|
 | Critical | 0 |
-| High | 5 |
-| Medium | 8 |
+| High | 8 |
+| Medium | 12 |
 | Low | 6 |
 | Improvement Opportunity | 1 |
