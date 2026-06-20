@@ -66,7 +66,8 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | B1 | Enterprise RLS Specification | [Stage_B1_RLS_Specification.md](Stage_B1_RLS_Specification.md) | **Complete** — resolves P3-02, P3-04 |
 | B2 | Money & Financial Precision Specification | [Stage_B2_Money_and_Financial_Precision_Specification.md](Stage_B2_Money_and_Financial_Precision_Specification.md) | **Complete** — resolves P3-01 |
 | B3 | Indexing, Partitioning & Scalability Specification | [Stage_B3_Indexing_Partitioning_Scalability_Specification.md](Stage_B3_Indexing_Partitioning_Scalability_Specification.md) | **Complete** — resolves P4.5-01, P4.5-02 |
-| B4–B8 | Snapshots/reporting · idempotent posting/conflict · audit/contracts · auth/DR · data migration | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
+| B4 | Balance Snapshot & Reporting Architecture | [Stage_B4_Balance_Snapshot_and_Reporting_Architecture.md](Stage_B4_Balance_Snapshot_and_Reporting_Architecture.md) | **Complete** — resolves P4.5-03, P4.5-04 |
+| B5–B8 | Idempotent posting/conflict · audit/contracts · auth/DR · data migration | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 | C–E | Scaffolding → modules → pre-prod | _pending_ | Not started |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -137,8 +138,8 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P4-05 | Improvement Opportunity | Resolved (Stage A) | Prose role lists should be seed-data examples (ADR-001 Decision 3) | 4 |
 | P4.5-01 | High | Resolved (Stage B3) | No database indexing strategy (tenant/RLS columns unindexed) | 4.5 |
 | P4.5-02 | High | Resolved (Stage B3) | No partitioning strategy for high-volume tables | 4.5 |
-| P4.5-03 | High | Open | Compute-from-history balances have no snapshot/materialization counterpart | 4.5 |
-| P4.5-04 | High | Open | Reporting/dashboard scalability undesigned (on-the-fly over millions of rows) | 4.5 |
+| P4.5-03 | High | Resolved (Stage B4) | Compute-from-history balances have no snapshot/materialization counterpart | 4.5 |
+| P4.5-04 | High | Resolved (Stage B4) | Reporting/dashboard scalability undesigned (on-the-fly over millions of rows) | 4.5 |
 | P4.5-05 | Medium | Open | Offline conflict resolution ("preserve both + supervisor review") does not scale | 4.5 |
 | P4.5-06 | Medium | Open | Sync-queue growth & reconnect thundering-herd unaddressed | 4.5 |
 | P4.5-07 | Medium | Open | Time-series/large-object live storage growth undesigned | 4.5 |
@@ -170,9 +171,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 35 |
+| Open | 33 |
 | Accepted (ADR / ODR) | 4 |
-| Resolved (Stage A / B) | 19 |
+| Resolved (Stage A / B) | 21 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
