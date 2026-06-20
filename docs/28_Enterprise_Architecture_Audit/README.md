@@ -73,7 +73,9 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | B8 | V2→V3 Master Data Migration Mapping | [Stage_B8_V2_to_V3_Migration_Mapping_Specification.md](Stage_B8_V2_to_V3_Migration_Mapping_Specification.md) | **Complete** — resolves P6-02 |
 | **Stage B** | **Enterprise Foundation Specifications (B1–B8)** | — | **COMPLETE** |
 | Gate | Stage B Completion Readiness Review | [Stage_B_Completion_Readiness_Review.md](Stage_B_Completion_Readiness_Review.md) | **COMPLETE — Verdict C: Ready for Stage C** (production coding still gated) |
-| C–E | Scaffolding → modules → pre-prod | _pending_ | Not started (Stage C roadmap C1–C8 defined in the review) |
+| Gate | Stage C Initialization & Readiness Assessment | [Stage_C_Initialization_and_Readiness_Assessment.md](Stage_C_Initialization_and_Readiness_Assessment.md) | **COMPLETE — Ready to begin Stage C** (0 blockers; roadmap C1–C8 + execution order defined; action: push branch to GitHub) |
+| C1–C8 | Engineering preparation (env, Supabase, migrations, git gov, testing, CI/CD, Constitution, impl sequence) | _pending_ | Not started — awaiting owner approval to begin C1 |
+| D–E | Module build → pre-prod hardening | _pending_ | Not started (separately gated) |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
 
