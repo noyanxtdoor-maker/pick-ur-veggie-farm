@@ -1,6 +1,6 @@
 # 28 — Enterprise Architecture Audit
 
-**Status:** Active
+**Status:** Audit complete (Phases 0–7) — remediation pending
 **Branch of record:** `architecture-audit`
 **Auditor role:** Chief Enterprise Architect & System Auditor
 **Mandate:** Validate the entire V3 architectural foundation (all 28 documentation domains, `00`–`27`) **before production coding begins**, and maintain a permanent engineering audit & remediation history.
@@ -64,7 +64,9 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | 4.5 | Performance & Scalability Stress | [Phase_4_5_Performance_and_Scalability_Stress.md](Phase_4_5_Performance_and_Scalability_Stress.md) | Complete |
 | 5 | Doc-to-Code Drift & Implementation Readiness | [Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md](Phase_5_Doc_to_Code_Drift_and_Implementation_Readiness.md) | Complete |
 | 6 | Migration & Roadmap Soundness | [Phase_6_Migration_and_Roadmap_Soundness.md](Phase_6_Migration_and_Roadmap_Soundness.md) | Complete |
-| 7 | Synthesis & Prioritized Remediation Backlog | _pending_ | Not started |
+| 7 | Synthesis & Prioritized Remediation Roadmap | [Phase_7_Synthesis_and_Remediation_Roadmap.md](Phase_7_Synthesis_and_Remediation_Roadmap.md) | Complete |
+
+**Readiness verdict ([Phase 7](Phase_7_Synthesis_and_Remediation_Roadmap.md)):** 0 Critical · 19 High · 28 Medium · 7 Low · 5 Improvement. **Conditionally ready to proceed to a Foundation-Design stage — NOT ready to begin module coding** until the High-severity foundation specs (RLS, money precision, indexing/partitioning, balance snapshots, data migration, DR mechanics, governance reconciliation) are authored. No Critical defects; the vision is sound; the enforcement/precision/scale specs are what's missing.
 
 ---
 
