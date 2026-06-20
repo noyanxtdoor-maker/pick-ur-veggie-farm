@@ -69,7 +69,8 @@ Finding IDs are namespaced by phase: `P0-01`, `P1-03`, `P3.5-02`, etc.
 | B4 | Balance Snapshot & Reporting Architecture | [Stage_B4_Balance_Snapshot_and_Reporting_Architecture.md](Stage_B4_Balance_Snapshot_and_Reporting_Architecture.md) | **Complete** — resolves P4.5-03, P4.5-04 |
 | B5 | Idempotent Transactions & Offline Sync | [Stage_B5_Idempotent_Transactions_and_Offline_Sync_Specification.md](Stage_B5_Idempotent_Transactions_and_Offline_Sync_Specification.md) | **Complete** — resolves P4-01, P4.5-05, P4.5-06 |
 | B6 | Audit Immutability & Integration Contracts | [Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md](Stage_B6_Audit_Immutability_and_Integration_Contracts_Specification.md) | **Complete** — resolves P3-05, P4-03, P4-04 |
-| B7–B8 | Auth hardening/DR · data migration mapping | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
+| B7 | Authentication Hardening & Disaster Recovery | [Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md](Stage_B7_Authentication_Hardening_and_Disaster_Recovery_Specification.md) | **Complete** — resolves P3-06, P3-07, P3.5-01…06 |
+| B8 | V2→V3 Data Migration Mapping | _pending_ | Not started (see [Phase 7 roadmap](Phase_7_Synthesis_and_Remediation_Roadmap.md)) |
 | C–E | Scaffolding → modules → pre-prod | _pending_ | Not started |
 
 **Stage A note:** Established the single governance precedence model (TIER 0 ADR-001 → … → TIER 6 navigation) and the authority map (one owner per concern); re-scoped foundation `00`–`08` (additive banners); pointed `16` to the model. Completed the decision-independent reconciliations: **A2** single locked-designs registry (`13.02`), **A3** role vocabulary + canonical prompt (`19.10`), **A6** generated `INDEX.md` + manifest deprecation + CI strategy, **A7** structural cleanups (renamed `18_Project_Build`, fixed `18.01`, renamed `26.02–06`, merged `23.04`→`23.20`, labelled `14`). **A4** (sequence finalization) and **A5** (status model) are HELD pending Owner Decisions #4/#5. All five owner decisions remain **open** (Phase 7 §6). Conflicts register & per-item status: [Stage A artifact §4](Stage_A_Governance_Reconciliation.md).
@@ -124,14 +125,14 @@ Single source of truth for every finding raised across all phases. Updated at th
 | P3-03 | High | Accepted (ADR-001) | Role taxonomy inconsistent across layers (9-role security vs 5-role canon) | 3 |
 | P3-04 | Medium | Resolved (Stage B1) | RLS cannot enforce active-branch scoping (final-authority claim overstated) | 3 |
 | P3-05 | Medium | Resolved (Stage B6) | Audit immutability is policy without specified enforcement mechanism | 3 |
-| P3-06 | Medium | Open | Offline cache encryption optional, not mandatory (financial/PII on BYOD) | 3 |
-| P3-07 | Medium | Open | Auth hardening gaps (MFA deferred, no password policy) + unconstrained Developer superuser | 3 |
-| P3.5-01 | High | Open | No RPO/RTO; implied 24h financial-data-loss window; no PITR | 3.5 |
-| P3.5-02 | High | Open | Backup confidentiality/encryption & access control unspecified (full DB + PII to Drive) | 3.5 |
-| P3.5-03 | Medium | Open | No backup integrity verification, immutability, or rotation/retention policy | 3.5 |
-| P3.5-04 | Medium | Open | No documented restore procedure (esp. tenant-scoped restore) | 3.5 |
-| P3.5-05 | Medium | Open | Offline-first un-synced local data has no recovery path | 3.5 |
-| P3.5-06 | Medium | Open | No DR ownership, runbook, or communication plan | 3.5 |
+| P3-06 | Medium | Resolved (Stage B7) | Offline cache encryption optional, not mandatory (financial/PII on BYOD) | 3 |
+| P3-07 | Medium | Resolved (Stage B7) | Auth hardening gaps (MFA deferred, no password policy) + unconstrained Developer superuser | 3 |
+| P3.5-01 | High | Resolved (Stage B7) | No RPO/RTO; implied 24h financial-data-loss window; no PITR | 3.5 |
+| P3.5-02 | High | Resolved (Stage B7) | Backup confidentiality/encryption & access control unspecified (full DB + PII to Drive) | 3.5 |
+| P3.5-03 | Medium | Resolved (Stage B7) | No backup integrity verification, immutability, or rotation/retention policy | 3.5 |
+| P3.5-04 | Medium | Resolved (Stage B7) | No documented restore procedure (esp. tenant-scoped restore) | 3.5 |
+| P3.5-05 | Medium | Resolved (Stage B7) | Offline-first un-synced local data has no recovery path | 3.5 |
+| P3.5-06 | Medium | Resolved (Stage B7) | No DR ownership, runbook, or communication plan | 3.5 |
 | P3.5-07 | Improvement Opportunity | Open | Large-object/IoT backup growth & retention-vs-hold gaps | 3.5 |
 | P4-01 | High | Resolved (Stage B5) | Automatic financial posting lacks idempotency under offline-retry (duplicate journal risk) | 4 |
 | P4-02 | Medium | Resolved (Stage A4) | 26.08 integration priority order contradicts its own dependency map | 4 |
@@ -173,9 +174,9 @@ Single source of truth for every finding raised across all phases. Updated at th
 
 | Status | Count |
 |---|---|
-| Open | 27 |
+| Open | 19 |
 | Accepted (ADR / ODR) | 4 |
-| Resolved (Stage A / B) | 27 |
+| Resolved (Stage A / B) | 35 |
 | Rejected | 1 |
 
 > "Resolved (Stage A)" = documentation-level remediation complete and committed on `architecture-audit`. CI automation (index-freshness + link-integrity checks) is specified in the [index strategy](Stage_A_Documentation_Index_Strategy.md) for a later infrastructure change. P2-08 was **Rejected** as a false positive ("V2" in 22.13 = Budget Version 2).
