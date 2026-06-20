@@ -1,26 +1,46 @@
 {
+  // PickUrVeggie ERP V3 — TypeScript configuration (Stage D Phase 0, Commit #4).
+  //
+  // STRICT-BY-INTENT. The V3 standard is full `strict`. The `strict` umbrella and
+  // the most expensive flags are STAGED (see bottom) because the V2 prototype in
+  // `src/` — reference code slated for relocation to /legacy and replacement by
+  // the V3 build (ODR-001) — currently yields ~4039 `noImplicitAny` errors.
+  //
+  // Every flag enabled below was MEASURED at 0 errors against the current code,
+  // so each is active now with zero risk and no V2 source changes. Vite (esbuild)
+  // transpiles regardless of these flags, so the app still runs; this config
+  // governs `tsc --noEmit` (the C6 type-safety gate / C5 static layer).
   "compilerOptions": {
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
+    "paths": { "@/*": ["./*"] },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+
+    // --- Enabled now: each measured at 0 errors on the current codebase ---
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true
+
+    // --- STAGED for V3 (the binding standard; activate as the V2 prototype is
+    //     relocated/replaced, then enforce as the C6 gate). Measured V2 cost:
+    //   "strict": true,                              // noImplicitAny (~4039), strictNullChecks (3), strictPropertyInitialization
+    //   "exactOptionalPropertyTypes": true,          // (1)
+    //   "noPropertyAccessFromIndexSignature": true   // (4)
+    // New V3 code MUST be written to satisfy the full strict set above.
   }
 }
