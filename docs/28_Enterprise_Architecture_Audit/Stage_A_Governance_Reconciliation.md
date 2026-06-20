@@ -108,11 +108,11 @@ Per the instruction to "record the conflict and the remediation recommendation."
 
 | ID | Conflicting document(s) | Conflict | Remediation recommendation | Finding | Status |
 |---|---|---|---|---|---|
-| GC-1 | `16.01` (5 roles) vs `11.01`/`20.03` (9 roles) | Two incompatible role sets | `16.01` defers to `11.01`/`20.03` (canonical, data-driven) | P3-03 | Banner applied to 16; content edit pending (A3) |
-| GC-2 | `13.02` vs `19.02` | Divergent "locked" lists | Single registry in `13.02`; `19.02` references it | P1-02 | Pending (A2) |
+| GC-1 | `16.01` (5 roles) vs `11.01`/`20.03` (9 roles) | Two incompatible role sets | `16.01` defers to `11.01`/`20.03` (canonical, data-driven) | P3-03 | **Reconciled (A3)** — 16.01 defers; controlled vocabulary added to 11.01 |
+| GC-2 | `13.02` vs `19.02` | Divergent "locked" lists | Single registry in `13.02`; `19.02` references it | P1-02 | **Reconciled (A2)** — 13.02 canonical; 19.02 references it |
 | GC-3 | `08.02`, `16.03`, `26.08` (priority order) | Conflicting/contradictory build sequences | Canonical = `27.03`+`18.05`; fix `26.08`; redirect `08.02`/`16.03` | P2-02, P4-02 | Pending (A4) |
 | GC-4 | `13.01` | Status (90–95% "locked") misrepresents reality | Replace with Designed/Implemented/Verified; `27.01` = baseline | P5-02 | Pending (A5) |
-| GC-5 | `16.05` vs `19.10` | Two competing AI start prompts | Canonical = `19.10`; `16.05` references it | P1-04 | Pending (A3) |
+| GC-5 | `16.05` vs `19.10` | Two competing AI start prompts | Canonical = `19.10`; `16.05` references it | P1-04 | **Reconciled (A3)** — 16.05 defers to 19.10 |
 | GC-6 | `00.02`/`00.03`/`16.04` vs `09`/`19` | Duplicated/divergent system rules | Define each rule once at strongest formulation; others link | P1-03, P1-05 | Banner applied; consolidation pending |
 | GC-7 | `04`, `05.01`, `10.01` (foundation technical detail) | Foundation specs conflict with enterprise (22/20) | Re-scoped to summary (banner); enterprise canonical | P2-01 | Banner applied; demote-to-summary pending |
 | GC-8 | `22.13` | Stray V2 reference outside migration scope | Re-scope/move to section 27 | P2-08 | Pending (A7) |
@@ -130,15 +130,15 @@ Per the instruction to "record the conflict and the remediation recommendation."
 - ✅ Master Project Index (`16`) README points to this precedence model as the entry authority.
 - ✅ Governance conflicts register (§4).
 
-**Remaining Stage A sub-tasks (recorded; some gated on owner decisions):**
-- ⏳ A2 — reconcile `13.02`⊕`19.02` into one locked-designs registry.
-- ⏳ A3 — role-vocabulary + canonical-prompt content edits (`16.01`→defer; `16.05`→`19.10`).
-- ⏳ A4 — canonical-sequence content edits (fix `26.08`; redirect `08.02`/`16.03`).
-- ⏳ A5 — rebuild `13.01` as Designed/Implemented/Verified; mark `27.01` baseline of record.
-- ⏳ A6 — generated documentation index + CI link-integrity check; deprecate stale manifests.
-- ⏳ A7 — structural cleanups (rename `18_Project Build`→`18_Project_Build`; fix `18.01` markdown; rename `26.02–26.06`; merge `23.04`/`23.20`; confirm numbering gaps; label `14_UI_References`; scope `22.13`).
+**Stage A sub-tasks:**
+- ✅ A2 — reconciled `13.02`⊕`19.02` into one locked-designs registry (`13.02` canonical; `19.02` references it).
+- ✅ A3 — role-vocabulary + canonical-prompt edits (`16.01`→defers to `11.01`/`20.03`; `16.05`→defers to `19.10`; controlled-vocabulary clause added to `11.01`).
+- ⏳ A4 — canonical-sequence content edits (fix `26.08`; redirect `08.02`/`16.03`). **HELD** — gated on Owner Decision #4 (precedence order) / #5 (scale envelope).
+- ⏳ A5 — rebuild `13.01` as Designed/Implemented/Verified; mark `27.01` baseline of record. **HELD** — partly gated on Owner Decision #5.
+- ⏳ A6 — generated documentation index + CI link-integrity strategy; deprecate stale manifests. (in progress this session)
+- ⏳ A7 — structural cleanups (rename `18_Project Build`→`18_Project_Build`; fix `18.01` markdown; rename `26.02–26.06`; merge `23.04`/`23.20`; record numbering gaps; label `14_UI_References`; scope `22.13`). (in progress this session)
 
-These are non-destructive documentation reconciliations; they were not bundled into this commit to keep the precedence-model change reviewable in isolation and because A4/A5 partly depend on Owner Decisions #4/#5.
+These are non-destructive documentation reconciliations. A4/A5 remain HELD pending Owner Decisions #4/#5.
 
 ---
 
