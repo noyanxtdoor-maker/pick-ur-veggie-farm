@@ -43,6 +43,20 @@ npm run lint    # type-check (tsc --noEmit)
 
 Environment variables: copy `.env.example` and fill values locally. **Never commit secrets** (`.env*` is git-ignored). Per **C2**, local development uses a local/dev Supabase only — never production credentials.
 
+### Local Supabase development
+
+A local Supabase stack for development (C2 §1). **Phase 0 sets up the empty environment only — no schema, RLS, auth, or business tables.**
+
+**Prerequisites:** Docker running locally, and `npm ci` (the Supabase CLI is a pinned dev dependency — no global install).
+
+```bash
+npm run db:start    # start the local Supabase stack (Docker)
+npm run db:status   # show local service URLs and status
+npm run db:stop     # stop the local stack
+```
+
+**Connecting:** `npm run db:start` prints the local API URL and `anon` key. Copy those into your `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`). The **`.env.example` contract remains the authority** for which variables exist.
+
 ## Status
 
 **Stage D — Phase 0 (Development Foundation)** in progress on `feature/phase-0-foundation`: standing up the engineering foundation (toolchain, tests, CI guards, local Supabase). **No business modules, schema, or UI are built in Phase 0.** Business-module construction (Stage D Phase 1+) is separately gated and requires branch protection enabled.
