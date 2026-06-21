@@ -33,19 +33,12 @@ Repository:  clean; synchronized with origin
 ## 2. Next Approved Action
 
 ```
-1. Connect CLAUDE.md to the roadmap (add the roadmap-consistency check).
+1. Enable GitHub Branch Protection (Phase 1 precondition).
 
-2. Establish the Knowledge Intelligence Layer:
-   - Graphify
-   - Obsidian
-   - ClaudeMem
-   - CodeGraph   (when V3 code exists)
-   - TaskMaster  (when project complexity justifies it)
-
-3. Enable GitHub Branch Protection.
-
-4. Begin Stage D Phase 1.
+2. Begin Stage D Phase 1.
 ```
+
+The Knowledge Intelligence Layer (Graphify, Obsidian, ClaudeMem, CodeGraph, TaskMaster) is deferred — re-evaluate when Phase 1+ creates enough implementation complexity to justify a derived knowledge index.
 
 Each is a separate milestone requiring its own approval.
 
@@ -87,11 +80,13 @@ Status map only. **C8 owns the phase definitions** (§3–§10); see C8 for what
 
 | Item | Status |
 |---|---|
-| Graphify | Planned |
-| Obsidian | Planned |
-| ClaudeMem | Planned |
+| Graphify | Deferred |
+| Obsidian | Deferred |
+| ClaudeMem | Deferred |
 | CodeGraph | Deferred (when V3 code exists) |
 | TaskMaster | Deferred (when project complexity justifies it) |
+
+Deferred (not rejected) — re-evaluate when Phase 1+ creates enough implementation complexity to justify a derived knowledge index.
 
 **Delivery & Governance Gates**
 
