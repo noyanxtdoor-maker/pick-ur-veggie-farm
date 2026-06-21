@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -10,6 +11,12 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+    },
+    // Vitest reuses this Vite config (C5 §2 — no separate runner). Node env
+    // (Phase 0 has no DOM/component tests yet); explicit imports, no globals.
+    test: {
+      include: ['tests/**/*.test.ts'],
+      environment: 'node',
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
