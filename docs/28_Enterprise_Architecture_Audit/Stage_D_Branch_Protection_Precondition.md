@@ -46,11 +46,42 @@ The durable configuration that satisfies the **Requirement** above — *what the
 
 **Administrator bypass:** no permanent bypass. Emergency recovery only by (1) temporarily relaxing the specific protection rule, (2) merging the corrective change, (3) restoring protection immediately afterward (auditable via GitHub settings history).
 
+## Temporary Solo-Founder Enforcement Exception
+
+**Status:** Temporary operating exception — active only while all scope conditions and expiration criteria remain satisfied.
+
+**Authority.** C4 §10 remains the permanent, unweakened requirement. This records a **temporary operating condition** below the architecture layer; it does **not** amend C4, C6, C7, or C8.
+
+**Why this exists (justification — changed threat model, not finances).** GitHub Free private repositories cannot technically enforce the Approved Configuration above — neither rulesets nor classic branch protection are enforced on a Free private repo. The current threat model is materially narrower: a single human repository owner · no second or external contributor · no independent AI credentials (AI actions operate through the owner with explicit approval) · no production users · no real business/customer data. The inability to purchase GitHub Pro is the **circumstance** that revealed the limitation; it is **not** the architectural justification and is **not** a reason to lower the standard.
+
+**Scope.** The exception temporarily waives **only** the unavailable GitHub branch-protection *enforcement mechanism* for `main`/`develop`. It does **not** waive PR discipline, CI verification, security-review discipline, architectural governance, or Git history integrity. **Branch protection remains the required architectural state.**
+
+**Degraded posture (explicit).** The compensating controls below **reduce the probability** of a violation; they do **not** equal technical enforcement, and **residual risk remains**. Manual discipline does **not** replace GitHub protection.
+
+**Mandatory compensating controls (while the exception is valid):**
+- `main` — release/archive only; no direct development.
+- `develop` — no direct pushes; changes only through Pull Requests.
+- `feature/*` — normal development workflow.
+- Every merge into `develop`: `feature/*` → checkpoint push → Pull Request → GitHub Actions `verify` + `secrets` must pass → architecture review → explicit owner merge decision.
+- No force-push or history rewrite on `main`/`develop` · no deletion of approved-milestone branches · maintain frequent remote checkpoints · maintain a linear, auditable history.
+
+**Automatic expiration — the exception terminates the moment ANY occur:**
+- *Team:* a second human contributor · a contractor · any external write access.
+- *Enforcement becomes available:* GitHub Pro · GitHub Team/Enterprise · any mechanism providing actual branch-protection enforcement.
+- *Product maturity:* production-deployment preparation · real customer/business data · external audit · investor or commercial due diligence.
+- *Periodic:* mandatory re-evaluation at every Stage D phase boundary.
+
+Upon expiration, actual branch protection must be enabled and verified **before further phase progression**.
+
+**Non-transferable.** This exception applies only to a single-owner, pre-production environment. It does **not** transfer to a team, contractor environment, or production operation.
+
 ## Effect on the phase gates
 
 - **Stage D Phase 0** (development foundation) **may proceed** under this recorded exception — Phase 0 touches tooling/CI/test/env foundation, not business modules or schema.
 - **Phase 0 exit gate adds a hard check:** verify branch protection is ENABLED on `main` and `develop`.
-- **If branch protection is still disabled at the Phase 0 exit gate, Phase 1 authorization MUST be DENIED.** No Identity/Tenant/Security or business-module work begins until protection is active.
+- **Default rule:** if branch protection is disabled and **no valid exception is active**, Phase 1 authorization MUST be DENIED — no Identity/Tenant/Security or business-module work begins until protection is active.
+- **Exception case:** while the **Temporary Solo-Founder Enforcement Exception** (above) remains valid and all its compensating controls are active, Phase 1 may proceed under those controls.
+- **On expiration:** the default hard gate automatically returns — no further phase progression until real branch protection is enabled and verified. The exception is never a permanent waiver.
 
 ## Non-negotiable
 
