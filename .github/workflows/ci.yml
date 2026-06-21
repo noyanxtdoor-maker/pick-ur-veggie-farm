@@ -1,0 +1,53 @@
+# Stage D Phase 0 — Commit #7: Tier-1 Continuous Integration (C6 §8).
+# Reuses the existing npm scripts (C1 §8 local↔CI parity); adds no npm deps.
+# These status checks are what GitHub branch protection will later require (C4 §10).
+name: CI
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  verify:
+    name: Verify (install · type · test · build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install (clean, lockfile-verified)
+        run: npm ci
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
