@@ -24,6 +24,28 @@ This requirement remains **fully binding**. Option 2 does not relax it; it recor
 | Action required | Enable branch protection on `main` and `develop` in GitHub settings |
 | Required completion point | **Before Phase 1 (Identity/Tenant/Security) and before ANY business-module implementation** |
 
+## Approved Branch Protection Configuration
+
+The durable configuration that satisfies the **Requirement** above — *what the protection must be*, not GitHub UI steps (those are delivered operationally at apply-time). C4 §10 remains the owning rule; this records only its operational enforcement.
+
+**Protected branches:** `main`, `develop`. · **Unprotected:** `feature/*` — preserves the rapid implementation loop (C4 §2).
+
+**Pull requests:** required on protected branches; direct pushes forbidden.
+
+**Required approvals:**
+- **Current: 0** — while the project has a single authorized contributor (GitHub does not permit self-approval; 0 + required PR + required CI + no direct push is the strongest honestly enforceable solo configuration).
+- **Binding trigger:** the moment a second authorized contributor/reviewer exists, raise required approvals to **≥1**; High-risk changes continue to follow C4 §5 senior review. This satisfies the Requirement's "≥1 approving review" as soon as a reviewer exists — until then it is recorded, not waived.
+
+**Required status checks:** `verify`, `secrets` (the checks that exist today; exact names selected from an actual Actions run). Future checks are added only after they exist and are approved — no speculative requirements.
+
+**Additional settings:** require branches up-to-date before merging — Enabled · dismiss stale approvals after new commits — Enabled · conversation resolution — owner discretion.
+
+**History protection:** force pushes forbidden · branch deletion forbidden.
+
+**Not required at current scale:** linear history · signed commits.
+
+**Administrator bypass:** no permanent bypass. Emergency recovery only by (1) temporarily relaxing the specific protection rule, (2) merging the corrective change, (3) restoring protection immediately afterward (auditable via GitHub settings history).
+
 ## Effect on the phase gates
 
 - **Stage D Phase 0** (development foundation) **may proceed** under this recorded exception — Phase 0 touches tooling/CI/test/env foundation, not business modules or schema.
