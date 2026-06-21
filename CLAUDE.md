@@ -69,15 +69,16 @@ frontend during a Phase 0 infrastructure task.*
 **Before implementing:**
 1. Verify repository state (§7).
 2. Identify the specification that authorizes the change.
-3. If no authority exists — **STOP.** Raise the gap; request an architectural decision.
+3. Confirm the task is the current approved milestone in the Master Execution Roadmap, or has explicit approval to deviate.
+4. If no authority exists — **STOP.** Raise the gap; request an architectural decision.
    Do not invent authority to keep moving.
 
 **Then:**
-4. Produce a minimal plan and state the risks.
-5. Await approval for significant or outward-facing changes.
-6. Implement only the approved scope.
-7. Run the required verification (§5).
-8. Report truthfully (§1 goal-driven).
+5. Produce a minimal plan and state the risks.
+6. Await approval for significant or outward-facing changes.
+7. Implement only the approved scope.
+8. Run the required verification (§5).
+9. Report truthfully (§1 goal-driven).
 
 ---
 
