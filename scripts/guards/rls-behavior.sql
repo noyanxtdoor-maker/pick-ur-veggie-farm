@@ -51,7 +51,8 @@ insert into public.permissions (id, permission_key, description, status) values
   ('30000000-0000-0000-0000-0000000000a1','inventory.read','Read inventory','Active'),
   ('30000000-0000-0000-0000-0000000000a2','user.read','Read users','Active'),
   ('30000000-0000-0000-0000-0000000000a3','membership.read','Read memberships','Active'),
-  ('30000000-0000-0000-0000-0000000000a4','reports.read','Read reports','Deprecated');  -- deprecated permission
+  ('30000000-0000-0000-0000-0000000000a4','reports.read','Read reports','Deprecated'),  -- deprecated permission
+  ('30000000-0000-0000-0000-0000000000a5','audit.read','Read audit log','Active');
 
 insert into public.role_permissions (company_id, role_id, permission_id) values
   ('11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-0000000000a1','30000000-0000-0000-0000-0000000000a1'), -- worker -> inventory.read
@@ -59,6 +60,7 @@ insert into public.role_permissions (company_id, role_id, permission_id) values
   ('11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-0000000000a4','30000000-0000-0000-0000-0000000000a2'), -- admin -> user.read
   ('11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-0000000000a4','30000000-0000-0000-0000-0000000000a3'), -- admin -> membership.read
   ('11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-0000000000a4','30000000-0000-0000-0000-0000000000a4'), -- admin -> reports.read (deprecated perm)
+  ('11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-0000000000a4','30000000-0000-0000-0000-0000000000a5'), -- admin -> audit.read
   ('22222222-2222-2222-2222-222222222222','20000000-0000-0000-0000-0000000000b1','30000000-0000-0000-0000-0000000000a1'), -- workerb -> inventory.read (company B)
   ('33333333-3333-3333-3333-333333333333','20000000-0000-0000-0000-0000000000c1','30000000-0000-0000-0000-0000000000a1'); -- workerz -> inventory.read (company Z)
   -- superadmin role: intentionally NO role_permissions
@@ -197,6 +199,91 @@ do $$ declare bad text; begin
     and (coalesce(qual,'') = 'true');
   if bad is not null then raise exception 'DEFECT: over-broad USING(true) policy on tenant table(s): %', bad; end if;
   raise notice 'PASS: no USING(true) policy on any tenant table';
+end $$;
+
+-- ════════ AUDIT (M5): immutability · attribution · cross-tenant isolation ════════
+set local role postgres;
+insert into public.audit_events (id, company_id, branch_id, actor_user_id, event_class, event_type, module) values
+  ('50000000-0000-0000-0000-0000000000a1','11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-0000000000a1','Business','inventory.updated','inventory'),
+  ('50000000-0000-0000-0000-0000000000b1','22222222-2222-2222-2222-222222222222','b1111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-0000000000b1','Business','inventory.updated','inventory');
+insert into public.audit_events (id, event_class, event_type, module) values
+  ('50000000-0000-0000-0000-0000000000f1','Security','login.failed','auth');  -- platform event: no tenant, no actor
+
+-- Attack 2 — service_role cannot rewrite/erase history (no UPDATE/DELETE/TRUNCATE grant)
+do $$ begin set local role service_role;
+  update public.audit_events set event_type='tamper' where id='50000000-0000-0000-0000-0000000000a1';
+  raise exception 'DEFECT: service_role UPDATE audit succeeded';
+exception when insufficient_privilege then raise notice 'PASS audit: service_role UPDATE denied (%)', sqlstate; end $$;
+do $$ begin set local role service_role;
+  delete from public.audit_events where id='50000000-0000-0000-0000-0000000000a1';
+  raise exception 'DEFECT: service_role DELETE audit succeeded';
+exception when insufficient_privilege then raise notice 'PASS audit: service_role DELETE denied (%)', sqlstate; end $$;
+do $$ begin set local role service_role;
+  truncate public.audit_events;
+  raise exception 'DEFECT: service_role TRUNCATE audit succeeded';
+exception when insufficient_privilege then raise notice 'PASS audit: service_role TRUNCATE denied (%)', sqlstate; end $$;
+
+-- Attack 1 — even the table owner (superuser) is blocked by the append-only trigger
+do $$ begin set local role postgres;
+  update public.audit_events set event_type='tamper' where id='50000000-0000-0000-0000-0000000000a1';
+  raise exception 'DEFECT: owner UPDATE audit succeeded (trigger missing)';
+exception when restrict_violation then raise notice 'PASS audit: owner UPDATE blocked by trigger (%)', sqlstate; end $$;
+do $$ begin set local role postgres;
+  delete from public.audit_events where id='50000000-0000-0000-0000-0000000000a1';
+  raise exception 'DEFECT: owner DELETE audit succeeded (trigger missing)';
+exception when restrict_violation then raise notice 'PASS audit: owner DELETE blocked by trigger (%)', sqlstate; end $$;
+do $$ begin set local role postgres;
+  truncate public.audit_events;
+  raise exception 'DEFECT: owner TRUNCATE audit succeeded (trigger missing)';
+exception when restrict_violation then raise notice 'PASS audit: owner TRUNCATE blocked by trigger (%)', sqlstate; end $$;
+
+-- Attack 3 — an actioned event must name an actor (System/Security may be actor-less)
+do $$ begin set local role postgres;
+  insert into public.audit_events (company_id, event_class, event_type) values ('11111111-1111-1111-1111-111111111111','Business','no.actor');
+  raise exception 'DEFECT: Business audit event with no actor accepted';
+exception when check_violation then raise notice 'PASS audit: actor-less Business event rejected (%)', sqlstate; end $$;
+
+-- Attack 6 — orphan audit (referencing a non-existent company) is rejected
+do $$ begin set local role postgres;
+  insert into public.audit_events (company_id, actor_auth_id, event_class, event_type)
+    values ('99999999-9999-9999-9999-999999999999','00000000-0000-0000-0000-0000000000a1','System','orphan');
+  raise exception 'DEFECT: orphan audit (bad company_id) accepted';
+exception when foreign_key_violation then raise notice 'PASS audit: orphan audit FK rejected (%)', sqlstate; end $$;
+
+-- server-authoritative time — service_role cannot set server_timestamp (no column grant) → no backdating
+do $$ begin set local role service_role;
+  insert into public.audit_events (company_id, actor_user_id, event_class, event_type, server_timestamp)
+    values ('11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-0000000000a1','Business','backdate', now() - interval '10 years');
+  raise exception 'DEFECT: service_role set server_timestamp (backdating)';
+exception when insufficient_privilege then raise notice 'PASS audit: service_role cannot set server_timestamp (%)', sqlstate; end $$;
+
+-- Attack 5 (positive) — service_role CAN append a legitimate audit record (granted columns only)
+do $$ declare before_n int; after_n int; begin
+  set local role postgres; select count(*) into before_n from public.audit_events;
+  set local role service_role;
+  insert into public.audit_events (company_id, actor_user_id, event_class, event_type, module)
+    values ('11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-0000000000a1','Business','inventory.created','inventory');
+  set local role postgres; select count(*) into after_n from public.audit_events;
+  if after_n <> before_n + 1 then raise exception 'DEFECT: service_role legitimate audit insert failed'; end if;
+  raise notice 'PASS audit: service_role can append a legitimate audit record';
+end $$;
+
+-- Attack 4 — cross-tenant audit isolation: uG (audit.read@A) sees only company A; platform/company-B hidden
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-000000000a01"}';  -- uG admin@A
+  select count(*) into n from public.audit_events where company_id='22222222-2222-2222-2222-222222222222';
+  if n<>0 then raise exception 'DEFECT: uG read company B audit (% rows)',n; end if;
+  select count(*) into n from public.audit_events where company_id is null;
+  if n<>0 then raise exception 'DEFECT: uG read platform audit (% rows)',n; end if;
+  select count(*) into n from public.audit_events where company_id='11111111-1111-1111-1111-111111111111';
+  if n<1 then raise exception 'DEFECT: uG cannot read own company A audit'; end if;
+  raise notice 'PASS audit: uG sees only company A audit (company-B + platform isolated)';
+end $$;
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1"}';  -- uA worker, no audit.read
+  select count(*) into n from public.audit_events;
+  if n<>0 then raise exception 'DEFECT: uA (no audit.read) read % audit rows',n; end if;
+  raise notice 'PASS audit: uA without audit.read sees zero audit records';
 end $$;
 
 rollback;
