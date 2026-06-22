@@ -50,8 +50,9 @@ alter table public.users force row level security;
 -- Privileges: deny-by-default. Supabase default privileges over-grant (incl. TRUNCATE, which bypasses RLS),
 -- so revoke everything first, then grant precisely.
 revoke all on public.users from public, anon, authenticated, service_role;
-grant select, update on public.users to authenticated;            -- RLS gates these to the own row
-grant select, insert, update on public.users to service_role;     -- governed server/bootstrap path (RLS-exempt); no delete/truncate (no hard delete)
+grant select on public.users to authenticated;                    -- RLS gates rows to the own row
+grant update (display_name) on public.users to authenticated;     -- self-service is limited to display_name; account_status/auth_user_id are NOT self-editable (no suspension self-bypass)
+grant select, insert, update on public.users to service_role;     -- governed server/bootstrap/admin path (RLS-exempt); no delete/truncate (no hard delete)
 
 create policy users_select_own
   on public.users for select to authenticated
