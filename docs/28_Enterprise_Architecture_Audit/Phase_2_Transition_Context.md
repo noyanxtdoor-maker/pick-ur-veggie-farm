@@ -32,8 +32,9 @@ deny-by-default resolver-driven RLS, append-only audit, and a one-time controlle
 | Module | Status | Migration | CI |
 |---|---|---|---|
 | **M1 — Organization Setup** (DB authorization+data layer) | ✅ **LOCKED** | `a26b667` · `…_p2m1_organization_setup.sql` | **run #23 — all green** |
-| M1B — V3 Application Architecture (design-only) | ⏳ **next** | — (no migration) | — |
-| M1C — Organization Setup UI | ⬜ pending 1B lock | — | — |
+| **M1B — V3 Application Architecture** (design-only) | ✅ **LOCKED** | `Phase_2_M1B_V3_Application_Architecture.md` (survived stress test, 17 hardening rules) | — (docs-only) |
+| **M1C — Organization Setup UI specification** (design-only) | ⏳ **next** | `Phase_2_M1C_Organization_UI_Specification.md` | — |
+| M1D — V3 app implementation | ⬜ pending 1C | — | — |
 | Crop Management · Inventory · Daily Operations · Basic Reports | ⬜ Phase 2 backlog | — | — |
 
 **M1 lock record (GitHub run #23, commit `a26b667`).** Clean-runner CI audited from owner screenshots + `ci.yml`
