@@ -7,7 +7,7 @@
 ## 1. Where we are
 - **Stage D — Phase 1 (Core Platform / Identity·Tenant·Security).** Phase 0 is complete.
 - **M1 Identity Foundation:** ✅ implemented, security-audited (a self-reactivation loophole was found + fixed), **GitHub CI verified (run #11, all green), LOCKED.**
-- **M2 Tenant Foundation:** ✅ implemented, locally adversarially tested (all pass), guard suite green, **pushed** — **CI verification pending** (the owner must confirm the GitHub run for `4d122dd` is green, then M2 is LOCKED). *Environment cannot retrieve Actions results — see §8.*
+- **M2 Tenant Foundation:** ✅ implemented, locally adversarially tested (all pass), guard suite green, pushed, **GitHub CI verified (run #13 — `verify`+`secrets`+`db-guards` all green; clean-runner `supabase start`→`db reset`→guards→drift genuinely executed), LOCKED 2026-06-22.** *Run #13 ran on `4e87af8` (this handoff-doc commit), which is migration-identical to M2 `4d122dd` (zero migration changes between them) — so it validly reproduces M2 on a clean runner. CI evidence audited from owner-supplied screenshots + `ci.yml` + `package.json` (this env cannot fetch Actions — §8).*
 
 ## 2. Git state (verify on session start)
 - **Branch:** `feature/phase-0-foundation` (off `develop`); synced with origin; working tree clean.
@@ -40,7 +40,7 @@
 - **M2 (`…_m2_tenant_foundation.sql`):** `public.set_updated_at()` trigger fn; `companies` (tenant root: company_code UQ-immutable, name, base_currency_code default 'PHP' immutable, status {Active,Suspended,Archived}); `branches` (company_id NOT NULL FK→companies ON DELETE RESTRICT, branch_code, name, status; UNIQUE(company_id,branch_code); no standalone company_id index); both RLS enable+force **deny-all (no authenticated policy)**; `service_role` SELECT/INSERT + UPDATE(name,status); updated_at triggers on companies+branches (**NOT users**, by owner instruction).
 
 ## 6. Migration sequence (M1→M6) — status
-- **M1 Identity** ✅ locked · **M2 Tenant** ✅ pushed (CI pending) · **M3 Authorization** (roles, permissions, role_permissions, user_branch_roles) — NEXT · **M4 Resolver + RLS refinement** (introduce centralized resolver; replace M1/M2 interim deny-all/own-row with member-scoped policies via expand→migrate→contract) · **M5 Audit** (append-only audit_events, before bootstrap) · **M6 Bootstrap** (guarded one-time self-disabling mechanism; Company#1/Branch#1/Owner created at runtime, audited — NOT seeds). Seeds (idempotent): permission catalog + role template only.
+- **M1 Identity** ✅ locked · **M2 Tenant** ✅ **LOCKED (CI-verified, run #13)** · **M3 Authorization** (roles, permissions, role_permissions, user_branch_roles) — NEXT · **M4 Resolver + RLS refinement** (introduce centralized resolver; replace M1/M2 interim deny-all/own-row with member-scoped policies via expand→migrate→contract) · **M5 Audit** (append-only audit_events, before bootstrap) · **M6 Bootstrap** (guarded one-time self-disabling mechanism; Company#1/Branch#1/Owner created at runtime, audited — NOT seeds). Seeds (idempotent): permission catalog + role template only.
 
 ## 7. Tier-2 CI guards (ship with every migration PR; `ci.yml` `db-guards` job)
 `scripts/guards/db-guards.sql` (RLS-enabled · tenant-ownership[exempt list] · audit-immutability[N/A until M5]) · `scripts/guards/static-guards.mjs` (no-role-name-auth · no-float-money; **excludes `src/` = V2 prototype, ODR-001**) · `scripts/guards/check-drift.mjs`. npm: `db:reset`, `guard:static`, `guard:db` (needs psql), `guard:drift`. CI workflow `.github/workflows/ci.yml` jobs: `verify` (npm ci·tsc·vitest·build), `secrets` (gitleaks), `db-guards` (supabase start→db reset→guards→drift).
@@ -52,7 +52,7 @@
 - Repo is **private on the Free plan** → GitHub branch protection (classic + rulesets) is **NOT enforceable**; Phase 1 proceeds under the recorded **Temporary Solo-Founder Enforcement Exception** (active; single owner, no external write, no production, no real data; auto-expires on 2nd contributor / enforcement-available / production / real-data — then enforced branch protection becomes mandatory). The compensating-control flow: `feature → local reset+attack verify → checkpoint push → PR → CI (verify+secrets+db-guards) → owner review → merge`.
 
 ## 9. Immediate next step
-1. **Verify M2 CI:** owner pastes the GitHub run for `4d122dd` (`verify`, `secrets`, `db-guards`). If all green + logs match (db-guards actually ran supabase start→reset→guards→drift), mark **M2 LOCKED**. If red, diagnose smallest fix (do NOT modify the migration unless a real defect; likely `supabase start`/`psql` runner issue).
+1. **M2 CI: ✅ DONE — LOCKED.** GitHub run #13 audited (commit `4e87af8`, migration-identical to M2 `4d122dd`): `verify` (npm ci · `tsc --noEmit` · `vitest run` 1/1 · `vite build`), `secrets` (gitleaks full-history, no leaks), `db-guards` (`supabase start` 2m16s → `db reset` 38s rebuilding M1+M2 from history → static + db[`psql ON_ERROR_STOP=1`] + drift guards → stop) — all green. No skipped steps, no `continue-on-error`, no `|| true` masking (`ci.yml` confirmed). Only annotation: known Node-20 deprecation (§11), non-blocking.
 2. **Then M3 Authorization Foundation** — under separate explicit authorization, following the gate chain (design review → contract → implement → DB-attack → guards → commit → push → CI). Note the streamlined cadence: since the pattern is proven + CI-guarded, M3 can collapse implementation-review→implementation→verify into fewer gates (owner's call).
 
 ## 10. Working discipline (how this project operates)
@@ -71,6 +71,6 @@
 ## 12. Checkpoint status
 ```
 Stage D — Phase 1
-M1 LOCKED (CI-verified) · M2 PUSHED (CI verification pending) · M3 NEXT
+M1 LOCKED (CI-verified) · M2 LOCKED (CI-verified, run #13) · M3 NEXT (awaiting explicit authorization)
 Ready for new Claude Code session.
 ```
