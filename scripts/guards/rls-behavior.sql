@@ -47,6 +47,9 @@ insert into public.roles (id, company_id, role_key, description, status) values
   ('20000000-0000-0000-0000-0000000000b1','22222222-2222-2222-2222-222222222222','workerb','Worker B','Active'),
   ('20000000-0000-0000-0000-0000000000c1','33333333-3333-3333-3333-333333333333','workerz','Worker Z','Active');
 
+-- guard:rls owns its permission fixtures within this rolled-back transaction; clear the M6-seeded catalog first
+-- so the synthetic ids below don't collide on permission_key (the seeded catalog is restored on ROLLBACK).
+delete from public.permissions;
 insert into public.permissions (id, permission_key, description, status) values
   ('30000000-0000-0000-0000-0000000000a1','inventory.read','Read inventory','Active'),
   ('30000000-0000-0000-0000-0000000000a2','user.read','Read users','Active'),

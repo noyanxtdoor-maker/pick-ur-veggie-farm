@@ -87,6 +87,9 @@ jobs:
       - name: Behavioral security tests (cross-tenant · permission · lifecycle · audit-immutability)
         run: npm run guard:rls
 
+      - name: Bootstrap security tests (one-time · authorized · atomic · audited)
+        run: npm run guard:bootstrap
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
