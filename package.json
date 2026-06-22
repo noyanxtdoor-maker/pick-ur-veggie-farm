@@ -24,6 +24,7 @@
     "guard:db": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/db-guards.sql",
     "guard:rls": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/rls-behavior.sql",
     "guard:bootstrap": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/bootstrap-security.sql",
+    "guard:org": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/org-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {
