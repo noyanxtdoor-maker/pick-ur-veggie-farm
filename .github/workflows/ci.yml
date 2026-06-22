@@ -84,6 +84,9 @@ jobs:
       - name: DB guards (rls-enabled, tenant-ownership, audit-immutability)
         run: npm run guard:db
 
+      - name: Behavioral security tests (cross-tenant · permission · lifecycle)
+        run: npm run guard:rls
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
