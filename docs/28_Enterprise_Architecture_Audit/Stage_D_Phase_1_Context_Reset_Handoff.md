@@ -8,15 +8,19 @@
 - **Stage D — Phase 1 (Core Platform / Identity·Tenant·Security).** Phase 0 is complete.
 - **M1 Identity Foundation:** ✅ implemented, security-audited (a self-reactivation loophole was found + fixed), **GitHub CI verified (run #11, all green), LOCKED.**
 - **M2 Tenant Foundation:** ✅ implemented, locally adversarially tested (all pass), guard suite green, pushed, **GitHub CI verified (run #13 — `verify`+`secrets`+`db-guards` all green; clean-runner `supabase start`→`db reset`→guards→drift genuinely executed), LOCKED 2026-06-22.** *Run #13 ran on `4e87af8` (this handoff-doc commit), which is migration-identical to M2 `4d122dd` (zero migration changes between them) — so it validly reproduces M2 on a clean runner. CI evidence audited from owner-supplied screenshots + `ci.yml` + `package.json` (this env cannot fetch Actions — §8).*
+- **M3 Authorization Foundation:** ✅ implemented, locally adversarially tested (**23/23 attacks blocked** — cross-tenant escalation, duplicates, null-tenant, hard-delete RESTRICT, RLS/grant overreach), guard suite green, pushed, **GitHub CI verified (run #15, commit `aaf6f74` — `verify`+`secrets`+`db-guards` all green; clean-runner `supabase start` 2m26s → `db reset` 39s rebuilding M1→M2→M3 → static+db+drift guards → stop), LOCKED 2026-06-22.** *Run #15 ran on the M3 commit itself. Note: the owner's first paste mixed in run #13 (commit `4e87af8`, no M3) db-guards screenshots — those were rejected; lock waited for run #15's own completed db-guards.*
 
 ## 2. Git state (verify on session start)
 - **Branch:** `feature/phase-0-foundation` (off `develop`); synced with origin; working tree clean.
-- **Commit chain (origin tip → back):**
+- **Commit chain (origin tip → back):** (+ this M3-lock docs commit sits on top of `aaf6f74`)
+  - `aaf6f74` feat(db): **M3** authorization foundation — roles · permissions · role_permissions · user_branch_roles
+  - `292267e` docs: record M2 CI-verified & LOCKED (run #13)
+  - `4e87af8` docs: Stage D Phase 1 context reset handoff
   - `4d122dd` feat(db): **M2** tenant foundation — companies + branches
   - `ff5d267` fix(db): close M1 self-reactivation loophole (column-scoped UPDATE)
   - `ef2bc06` feat(db): **M1** identity foundation + Tier-2 CI guards
   - `c7130b7` docs: M1 Migration Design Spec · `4178de7` Physical Schema · `bd7a256` Conceptual Schema · `10a7c84` ADS · `7aed748` Solo-Founder Exception · `f1a6d0e` CI foundation · `5a28617` Vitest · `536bda4` CLAUDE.md · `b6dd2a1` roadmap (+ earlier Phase-0 commits `9672ed9…de9cda5`).
-- **Protected branches (must stay untouched):** `develop` = `d1c1f04`, `main` = `7833c9f` (local + origin). No merges/rebases/squash/rewrite. Never modify a locked migration (`ef2bc06`,`ff5d267`,`4d122dd`).
+- **Protected branches (must stay untouched):** `develop` = `d1c1f04`, `main` = `7833c9f` (local + origin). No merges/rebases/squash/rewrite. Never modify a locked migration (`ef2bc06`,`ff5d267`,`4d122dd`,`aaf6f74`).
 
 ## 3. Authority documents (source of truth — `docs/28_Enterprise_Architecture_Audit/`)
 - **ADR-001 / ODR-001…005** (supreme) → Enterprise architecture (10–26) → Stage A → **B1–B8** → **C1–C8** → `CLAUDE.md` (repo root, lowest authority) → **Master_Execution_Roadmap.md** (navigation) → implementation.
@@ -33,14 +37,15 @@
 6. **Append-only audit** (M5) — no UPDATE/DELETE for any role.
 7. **No floating-point money** — fixed-precision `NUMERIC` (B2); enforced from migration #1 (no money tables until Phase 4).
 8. **No hard delete** — deactivate via `status`; `ON DELETE RESTRICT`; no DELETE/TRUNCATE grants to app roles.
-9. **Privilege-layer immutability** — column-scoped UPDATE grants (e.g. M2 `service_role` may update only `name`,`status`; `company_code`/`base_currency_code`/`auth_user_id`/`id` are not updatable by any app path). `anon`/`authenticated` get nothing on tenant tables until M4.
+9. **Privilege-layer immutability** — column-scoped UPDATE grants (e.g. M2 `service_role` may update only `name`,`status`; `company_code`/`base_currency_code`/`auth_user_id`/`id` are not updatable by any app path; M3 `service_role` may update only `description`,`status` on roles/permissions and `assignment_status`,`expires_at` on memberships; `role_permissions` is immutable — no UPDATE). `anon`/`authenticated` get nothing on tenant tables until M4. *(Exception: the global `permissions` catalog is read-all-authenticated from M3 — it is not a tenant table; reads expose only capability keys, never tenant data; writes are service_role-only.)*
 
-## 5. What M1 + M2 actually contain
+## 5. What M1 + M2 + M3 actually contain
 - **M1 (`…_m1_identity_foundation.sql`):** `public.uuidv7()`; `public.users` (id uuidv7, auth_user_id UQ→auth.users ON DELETE RESTRICT, display_name, account_status {Active,Suspended}, timestamps); RLS enable+force, own-row select + **update(display_name) only** (closes self-reactivation); `service_role` SELECT/INSERT/UPDATE; no users trigger.
 - **M2 (`…_m2_tenant_foundation.sql`):** `public.set_updated_at()` trigger fn; `companies` (tenant root: company_code UQ-immutable, name, base_currency_code default 'PHP' immutable, status {Active,Suspended,Archived}); `branches` (company_id NOT NULL FK→companies ON DELETE RESTRICT, branch_code, name, status; UNIQUE(company_id,branch_code); no standalone company_id index); both RLS enable+force **deny-all (no authenticated policy)**; `service_role` SELECT/INSERT + UPDATE(name,status); updated_at triggers on companies+branches (**NOT users**, by owner instruction).
+- **M3 (`…_m3_authorization_foundation.sql`):** `permissions` (global catalog: permission_key UQ-global immutable, description, status {Active,Deprecated}; **no company_id** — guard-exempt; RLS enable+force; **read-all-authenticated** `using(true)`, service_role SELECT/INSERT + UPDATE(description,status)); `roles` (company_id FK→companies RESTRICT, role_key, UQ(company_id,role_key), **UQ(id,company_id)** composite-FK target, status {Active,Deprecated}; deny-all, service_role SELECT/INSERT + UPDATE(description,status)); `role_permissions` (company_id + role_id + permission_id; UQ(role_id,permission_id); **composite FK (role_id,company_id)→roles** forces same-company; created_at only — **immutable mapping, no UPDATE**; deny-all, service_role SELECT/INSERT); `user_branch_roles` (membership: user_id/company_id/branch_id/role_id NOT NULL, UQ(user_id,company_id,branch_id,role_id), **composite FKs (branch_id,company_id)→branches & (role_id,company_id)→roles** force same-company, assignment_status {Active,Expired}, expires_at; deny-all, service_role SELECT/INSERT + UPDATE(assignment_status,expires_at); updated_at trigger). All FKs `ON DELETE RESTRICT`; no DELETE/TRUNCATE to any app role. **Additive** `UNIQUE(id,company_id)` added to `branches` (M2 file untouched) as the composite-FK target. updated_at triggers on roles/permissions/user_branch_roles (not role_permissions).
 
 ## 6. Migration sequence (M1→M6) — status
-- **M1 Identity** ✅ locked · **M2 Tenant** ✅ **LOCKED (CI-verified, run #13)** · **M3 Authorization** (roles, permissions, role_permissions, user_branch_roles) — NEXT · **M4 Resolver + RLS refinement** (introduce centralized resolver; replace M1/M2 interim deny-all/own-row with member-scoped policies via expand→migrate→contract) · **M5 Audit** (append-only audit_events, before bootstrap) · **M6 Bootstrap** (guarded one-time self-disabling mechanism; Company#1/Branch#1/Owner created at runtime, audited — NOT seeds). Seeds (idempotent): permission catalog + role template only.
+- **M1 Identity** ✅ locked · **M2 Tenant** ✅ **LOCKED (CI-verified, run #13)** · **M3 Authorization** (roles, permissions, role_permissions, user_branch_roles) ✅ **LOCKED (CI-verified, run #15)** · **M4 Resolver + RLS refinement** (introduce centralized resolver; replace M1/M2/M3 interim deny-all/own-row with member-scoped policies via expand→migrate→contract) — **NEXT (requires separate explicit authorization — first real tenant access policies)** · **M5 Audit** (append-only audit_events, before bootstrap) · **M6 Bootstrap** (guarded one-time self-disabling mechanism; Company#1/Branch#1/Owner created at runtime, audited — NOT seeds). Seeds (idempotent): permission catalog + role template only.
 
 ## 7. Tier-2 CI guards (ship with every migration PR; `ci.yml` `db-guards` job)
 `scripts/guards/db-guards.sql` (RLS-enabled · tenant-ownership[exempt list] · audit-immutability[N/A until M5]) · `scripts/guards/static-guards.mjs` (no-role-name-auth · no-float-money; **excludes `src/` = V2 prototype, ODR-001**) · `scripts/guards/check-drift.mjs`. npm: `db:reset`, `guard:static`, `guard:db` (needs psql), `guard:drift`. CI workflow `.github/workflows/ci.yml` jobs: `verify` (npm ci·tsc·vitest·build), `secrets` (gitleaks), `db-guards` (supabase start→db reset→guards→drift).
@@ -53,7 +58,8 @@
 
 ## 9. Immediate next step
 1. **M2 CI: ✅ DONE — LOCKED.** GitHub run #13 audited (commit `4e87af8`, migration-identical to M2 `4d122dd`): `verify` (npm ci · `tsc --noEmit` · `vitest run` 1/1 · `vite build`), `secrets` (gitleaks full-history, no leaks), `db-guards` (`supabase start` 2m16s → `db reset` 38s rebuilding M1+M2 from history → static + db[`psql ON_ERROR_STOP=1`] + drift guards → stop) — all green. No skipped steps, no `continue-on-error`, no `|| true` masking (`ci.yml` confirmed). Only annotation: known Node-20 deprecation (§11), non-blocking.
-2. **Then M3 Authorization Foundation** — under separate explicit authorization, following the gate chain (design review → contract → implement → DB-attack → guards → commit → push → CI). Note the streamlined cadence: since the pattern is proven + CI-guarded, M3 can collapse implementation-review→implementation→verify into fewer gates (owner's call).
+2. **M3 CI: ✅ DONE — LOCKED.** GitHub run #15 (commit `aaf6f74`, the M3 commit) audited: `verify` (npm ci · `tsc --noEmit` · `vitest` · `vite build`), `secrets` (gitleaks full-history, no leaks), `db-guards` (`supabase start` 2m26s → `db reset` 39s rebuilding **M1→M2→M3** → static + db[`ON_ERROR_STOP=1`] + drift → stop) — all green, no skips/`continue-on-error`/`|| true`, realistic timings. False-green caught & rejected: first paste mixed run #13 (commit `4e87af8`, no M3) db-guards; lock waited for run #15's own completed db-guards.
+3. **Then M4 — Central Authorization Resolver + Tenant RLS** — NEXT milestone, **requires separate explicit authorization**. First time real tenant access policies exist: introduce the single security-definer resolver and migrate M1/M2/M3 interim deny-all/own-row to member-scoped policies via **expand→migrate→contract** (C3 §7). Behavioral cross-tenant negative tests (C5 §3) join CI here (§11). Follow the cadence: design → implement → DB-attack → guards → commit → push → CI → lock.
 
 ## 10. Working discipline (how this project operates)
 - Every step: **fresh git verification first** (branch, clean tree, sync, HEAD, develop/main).
@@ -65,12 +71,13 @@
 - M1 `users.updated_at` has **no trigger** (M2 added `set_updated_at` to companies/branches only, per owner instruction) — backfill later via an additive migration if desired.
 - `public.uuidv7()` EXECUTE is granted to PUBLIC (harmless) — optional hardening.
 - **Behavioral cross-tenant negative tests** (C5 §3) must join CI at **M4** (when member-scoped reads exist; metadata guards can't catch a future `USING(true)`).
-- Pre-M3 ticket: **Identity Lifecycle Policy** (leaver flow; Suspended/Inactive/Archived; who changes account_status; audit of status transitions).
+- **Identity Lifecycle Policy** (leaver flow; Suspended/Inactive/Archived; who changes account_status; audit of status transitions) — flagged pre-M3, **still open** (policy doc, not a migration blocker); revisit with/after M4.
+- **M3 carryovers (not blockers):** (a) `permissions` is read-all-authenticated `using(true)` — global catalog only; can tighten to deny-all + resolver-read at M4 if maximal deny-by-default is preferred. (b) `role_permissions` has **no revocation lifecycle** (no status/no delete, per spec) — un-mapping semantics belong to M4/future. (c) M3 added an **additive `UNIQUE(id,company_id)` on `branches`** (composite-FK target; M2 file untouched) — already on the locked-migration `aaf6f74`.
 - Checklist: **`service_role` key never in a frontend build**; gitleaks license if repo→org; CI `actions/*@v4` Node-20 deprecation (bump when GitHub ships Node-24 majors).
 
 ## 12. Checkpoint status
 ```
 Stage D — Phase 1
-M1 LOCKED (CI-verified) · M2 LOCKED (CI-verified, run #13) · M3 NEXT (awaiting explicit authorization)
+M1 LOCKED (CI-verified) · M2 LOCKED (CI-verified, run #13) · M3 LOCKED (CI-verified, run #15) · M4 NEXT (awaiting explicit authorization)
 Ready for new Claude Code session.
 ```
