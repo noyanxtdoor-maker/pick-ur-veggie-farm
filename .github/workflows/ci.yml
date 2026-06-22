@@ -51,3 +51,42 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Stage D Phase 1 — Tier-2 architecture guards (C6 §8 / C3 §12). Required from Migration #1.
+  db-guards:
+    name: DB guards (RLS · tenant · audit · drift · no-role-name · no-float)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install (clean, lockfile-verified)
+        run: npm ci
+
+      - name: Ensure psql client
+        run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Static guards (no-role-name-auth, no-float-money)
+        run: npm run guard:static
+
+      - name: Start local Supabase
+        run: npx supabase start
+
+      - name: Apply migrations (deterministic reset)
+        run: npm run db:reset
+
+      - name: DB guards (rls-enabled, tenant-ownership, audit-immutability)
+        run: npm run guard:db
+
+      - name: Schema-drift guard
+        run: npm run guard:drift
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop

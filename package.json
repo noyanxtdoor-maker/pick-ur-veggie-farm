@@ -18,7 +18,11 @@
     "test:watch": "vitest",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:status": "supabase status"
+    "db:status": "supabase status",
+    "db:reset": "supabase db reset",
+    "guard:static": "node scripts/guards/static-guards.mjs",
+    "guard:db": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/db-guards.sql",
+    "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
