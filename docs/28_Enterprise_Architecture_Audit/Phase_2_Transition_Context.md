@@ -27,6 +27,38 @@ M6 Controlled Bootstrap       ✅ LOCKED (#21)
 The security foundation is done: identity (auth-separated), tenant ownership, permission-based authorization,
 deny-by-default resolver-driven RLS, append-only audit, and a one-time controlled bootstrap.
 
+## 0.1 Phase 2 — module build progress
+
+| Module | Status | Migration | CI |
+|---|---|---|---|
+| **M1 — Organization Setup** (DB authorization+data layer) | ✅ **LOCKED** | `a26b667` · `…_p2m1_organization_setup.sql` | **run #23 — all green** |
+| M1B — V3 Application Architecture (design-only) | ⏳ **next** | — (no migration) | — |
+| M1C — Organization Setup UI | ⬜ pending 1B lock | — | — |
+| Crop Management · Inventory · Daily Operations · Basic Reports | ⬜ Phase 2 backlog | — | — |
+
+**M1 lock record (GitHub run #23, commit `a26b667`).** Clean-runner CI audited from owner screenshots + `ci.yml`
++ `package.json` (this env cannot fetch Actions — handoff §8). `verify` (npm ci · `tsc --noEmit` · `vitest` ·
+`vite build`) green; `secrets` (gitleaks full-history, no leaks) green; `db-guards` (`supabase start` 2m19s →
+`db reset` 37s rebuilding **M1→M2→M3→M4→M5→M6→P2-M1** [7 migrations] → `guard:static` → `guard:db` → `guard:rls`
+→ `guard:bootstrap` → **`guard:org` [NEW step "Organization security tests…", 13 behavioral assertions]** →
+`guard:drift` → stop) green — no skips, no `continue-on-error`, no `|| true`, realistic non-cached timings; the
+only annotation is the known non-blocking Node-20 deprecation (handoff §11). **`guard:org`
+(`scripts/guards/org-security.sql`) is now a permanent blocking CI gate**, joining static/db/rls/bootstrap/drift.
+M1–M6 migrations unchanged (each still last-touched at its locked hash). The Module-1 diff added exactly four
+things: the `p2m1` migration, `org-security.sql`, and the two CI wiring lines (`ci.yml` step + `package.json`
+script).
+
+**What M1 delivered (the first authenticated-driven WRITE model — Phase 1 had no authenticated writes):**
+resolver-gated company/branch/role/`role_permissions`/membership mutations (column-scoped grants keep identifiers
+immutable; M3 composite FKs force same-company); the `invitations` table (single-use, expiring, company/branch/
+role-scoped capability tokens) + `invite_user()` / `accept_invitation()` SECURITY DEFINER functions
+(`search_path=''`, audited); and +5 permission keys (`company.manage`, `branch.manage`, `role.manage`,
+`user.invite`, `membership.manage`) added additively to the M6 catalog.
+
+**Next:** Module **1B — V3 Application Architecture** (design-only decision document → owner review → lock)
+*before* any UI module — produces `Phase_2_M1B_V3_Application_Architecture.md` (the authority for Module 1C UI
+and every later Phase-2 UI module).
+
 ## 1. Phase 2 goal
 
 Create the **first usable farm management system** — the minimum set of operational modules that lets a real
