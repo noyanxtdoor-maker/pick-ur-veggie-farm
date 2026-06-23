@@ -6,6 +6,10 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {offlineDB} from './db';
 import {processOutbox} from './queue';
 import {supabaseSender} from '../api/repository';
+import {MOCK_MODE, mockSender} from '../mock/mock';
+
+// Mock/offline-dev mode drains the outbox into Dexie (no network); real mode goes to Supabase.
+const activeSender = MOCK_MODE ? mockSender : supabaseSender;
 
 interface SyncValue {
   online: boolean;
@@ -33,7 +37,7 @@ export function SyncProvider({children}: {children: ReactNode}) {
     if (lock.current || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
     lock.current = true;
     setSyncing(true);
-    processOutbox(supabaseSender)
+    processOutbox(activeSender)
       .catch(() => undefined)
       .finally(() => {
         lock.current = false;

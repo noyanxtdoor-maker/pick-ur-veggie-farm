@@ -6,6 +6,7 @@ import {supabase} from '../../core/supabase/client';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSync} from '../../core/offline/sync';
+import {MOCK_MODE, mockRead} from '../../core/mock/mock';
 import type {Branch, PlantingTemplate} from '../../types/db';
 import {templateCreateSchema, templateEditSchema, type TemplateCreateInput, type TemplateEditInput} from '../../schemas/crops';
 import {Button, Card} from '../../components/ui';
@@ -16,6 +17,7 @@ import {ArchiveButton, MasterDetail, useSyncedCrop} from './shared';
 import {cropApi} from './api';
 
 const branchFetch = async (c: string): Promise<Branch[]> => {
+  if (MOCK_MODE) return mockRead<Branch>('branches', c);
   const {data, error} = await supabase.from('branches').select('*').eq('company_id', c).order('branch_code');
   if (error) throw new Error(error.message);
   return (data ?? []) as Branch[];

@@ -2,11 +2,13 @@
 // offline outbox (idempotent, optimistic-concurrency). Archive = a status update (no hard delete).
 import {supabase} from '../../core/supabase/client';
 import {enqueue} from '../../core/offline/queue';
+import {MOCK_MODE, mockRead} from '../../core/mock/mock';
 import {nz} from './shared';
 import type {CropCategory, CropProfile, CropVariety, PlantingTemplate} from '../../types/db';
 import type {CategoryCreateInput, CategoryEditInput, ProfileCreateInput, ProfileEditInput, TemplateCreateInput, TemplateEditInput, VarietyCreateInput, VarietyEditInput} from '../../schemas/crops';
 
 async function fetchScoped<T>(table: string, companyId: string, order: string): Promise<T[]> {
+  if (MOCK_MODE) return mockRead<T>(table, companyId);
   const {data, error} = await supabase.from(table).select('*').eq('company_id', companyId).order(order);
   if (error) throw new Error(error.message);
   return (data ?? []) as T[];

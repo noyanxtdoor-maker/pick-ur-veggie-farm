@@ -8,6 +8,7 @@ import {offlineDB} from '../../../core/offline/db';
 import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
+import {MOCK_MODE} from '../../../core/mock/mock';
 import type {Company} from '../../../types/db';
 import {companyEditSchema, type CompanyEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader} from '../../../components/ui';
@@ -17,6 +18,7 @@ import {Skeleton, useToast} from '../../../components/feedback';
 
 const companyApi = {
   async fetch(companyId: string): Promise<Company | null> {
+    if (MOCK_MODE) return (await offlineDB.companies.get(companyId)) ?? null;
     const {data, error} = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
     if (error) throw new Error(error.message);
     return (data as Company | null) ?? null;

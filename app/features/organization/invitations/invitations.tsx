@@ -9,6 +9,8 @@ import {supabase} from '../../../core/supabase/client';
 import {offlineDB} from '../../../core/offline/db';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
+import {MOCK_MODE, mockRead} from '../../../core/mock/mock';
+import {uuidv7} from '../../../core/offline/uuidv7';
 import type {Invitation} from '../../../types/db';
 import {inviteSchema, type InviteInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader} from '../../../components/ui';
@@ -18,11 +20,23 @@ import {EmptyState, Skeleton, StatusBadge, useToast} from '../../../components/f
 
 const invitationsApi = {
   async fetch(companyId: string): Promise<Invitation[]> {
+    if (MOCK_MODE) return mockRead<Invitation>('invitations', companyId);
     const {data, error} = await supabase.from('invitations').select('*').eq('company_id', companyId).order('created_at', {ascending: false});
     if (error) throw new Error(error.message);
     return (data ?? []) as Invitation[];
   },
   async invite(companyId: string, input: InviteInput): Promise<string> {
+    if (MOCK_MODE) {
+      const token = `mock-token-${uuidv7()}`;
+      const now = new Date().toISOString();
+      await offlineDB.invitations.put({
+        id: uuidv7(), company_id: companyId, branch_id: input.branch_id, role_id: input.role_id,
+        email: input.email && input.email.length > 0 ? input.email : null, token, status: 'Pending',
+        invited_by: 'demo', accepted_user_id: null,
+        expires_at: new Date(Date.now() + input.valid_days * 86_400_000).toISOString(), created_at: now, updated_at: now,
+      });
+      return token;
+    }
     const {data, error} = await supabase.rpc('invite_user', {
       p_company_id: companyId,
       p_branch_id: input.branch_id,

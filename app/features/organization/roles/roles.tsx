@@ -9,6 +9,7 @@ import {offlineDB} from '../../../core/offline/db';
 import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
+import {MOCK_MODE, mockRead} from '../../../core/mock/mock';
 import type {Permission, Role} from '../../../types/db';
 import {roleCreateSchema, roleEditSchema, type RoleCreateInput, type RoleEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
@@ -20,16 +21,19 @@ interface RolePerm {permission_id: string; key: string; description: string}
 
 const rolesApi = {
   async fetch(companyId: string): Promise<Role[]> {
+    if (MOCK_MODE) return mockRead<Role>('roles', companyId);
     const {data, error} = await supabase.from('roles').select('*').eq('company_id', companyId).order('role_key');
     if (error) throw new Error(error.message);
     return (data ?? []) as Role[];
   },
   async catalog(): Promise<Permission[]> {
+    if (MOCK_MODE) return offlineDB.permissions.toArray();
     const {data, error} = await supabase.from('permissions').select('*').eq('status', 'Active').order('permission_key');
     if (error) throw new Error(error.message);
     return (data ?? []) as Permission[];
   },
   async rolePerms(roleId: string): Promise<RolePerm[]> {
+    if (MOCK_MODE) return []; // role_permissions are not cached locally in demo mode
     const {data, error} = await supabase.from('role_permissions').select('permission_id, permissions(permission_key, description)').eq('role_id', roleId);
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as Array<{permission_id: string; permissions: {permission_key: string; description: string} | {permission_key: string; description: string}[] | null}>;

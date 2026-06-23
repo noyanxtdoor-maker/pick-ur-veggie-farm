@@ -27,8 +27,8 @@ export default defineConfig(() => {
     // Vitest reuses this Vite config (C5 §2 — no separate runner). Node env
     // (Phase 0 has no DOM/component tests yet); explicit imports, no globals.
     test: {
-      include: ['tests/**/*.test.ts'],
-      environment: 'node',
+      include: ['tests/**/*.test.{ts,tsx}'],
+      environment: 'node', // default; component tests opt into jsdom via a per-file `// @vitest-environment jsdom`.
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

@@ -4,7 +4,11 @@
 import {createContext, useContext, useEffect, useMemo, useState, type ReactNode} from 'react';
 import type {Session, User} from '@supabase/supabase-js';
 import {supabase, isSupabaseConfigured} from '../supabase/client';
-import {purgeCache} from '../offline/db';
+import {offlineDB, purgeCache} from '../offline/db';
+import {DEMO, MOCK_MODE} from '../mock/mock';
+
+// A minimal stand-in session for mock/offline-dev mode (no cloud auth).
+const MOCK_SESSION = {access_token: 'mock', token_type: 'bearer', user: {id: DEMO.authId}} as unknown as Session;
 
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -26,6 +30,16 @@ export function SessionProvider({children}: {children: ReactNode}) {
 
   useEffect(() => {
     let active = true;
+    // Mock/offline-dev mode: derive auth state from local storage; no cloud call.
+    if (MOCK_MODE) {
+      offlineDB.meta.get('mock-auth').then((m) => {
+        if (!active) return;
+        const authed = m?.value === true;
+        setSession(authed ? MOCK_SESSION : null);
+        setStatus(authed ? 'authenticated' : 'anonymous');
+      });
+      return () => {active = false;};
+    }
     // Reads local storage only — resolves even with no internet (S2: no hang on offline startup).
     supabase.auth.getSession().then(({data}) => {
       if (!active) return;
@@ -51,10 +65,22 @@ export function SessionProvider({children}: {children: ReactNode}) {
       authUserId: session?.user?.id ?? null,
       configured: isSupabaseConfigured,
       signIn: async (email, password) => {
+        if (MOCK_MODE) {
+          await offlineDB.meta.put({key: 'mock-auth', value: true});
+          setSession(MOCK_SESSION);
+          setStatus('authenticated');
+          return {error: null};
+        }
         const {error} = await supabase.auth.signInWithPassword({email, password});
         return {error: error ? error.message : null};
       },
       signOut: async () => {
+        if (MOCK_MODE) {
+          await offlineDB.meta.put({key: 'mock-auth', value: false}); // keep seeded demo data so re-login works
+          setSession(null);
+          setStatus('anonymous');
+          return;
+        }
         await supabase.auth.signOut();
         await purgeCache(); // S1 — purge scoped cache on logout.
       },

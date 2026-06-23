@@ -7,6 +7,7 @@ import {Building2, Mailbox, Plus, ShieldPlus, UserPlus} from 'lucide-react';
 import {supabase} from '../core/supabase/client';
 import {offlineDB} from '../core/offline/db';
 import {usePermissions} from '../core/permissions/permissions';
+import {MOCK_MODE} from '../core/mock/mock';
 import {ActionTile, Card, PageHeader, StatCard} from '../components/ui';
 import {StatusBadge} from '../components/feedback';
 
@@ -21,6 +22,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!companyId) return;
+    if (MOCK_MODE) {
+      offlineDB.memberships.where('company_id').equals(companyId).count().then(setMembers);
+      offlineDB.invitations.where('company_id').equals(companyId).filter((i) => i.status === 'Pending').count().then(setPending);
+      return;
+    }
     if (has('membership.read')) {
       supabase.from('user_branch_roles').select('*', {count: 'exact', head: true}).eq('company_id', companyId)
         .then(({count}) => setMembers(count ?? 0)).then(undefined, () => setMembers(null));

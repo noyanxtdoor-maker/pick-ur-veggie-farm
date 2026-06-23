@@ -9,6 +9,7 @@ import {offlineDB} from '../../../core/offline/db';
 import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
+import {MOCK_MODE, mockRead} from '../../../core/mock/mock';
 import type {Branch} from '../../../types/db';
 import {branchCreateSchema, branchEditSchema, type BranchCreateInput, type BranchEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
@@ -18,6 +19,7 @@ import {EmptyState, ErrorState, Skeleton, StatusBadge, useToast} from '../../../
 
 const branchesApi = {
   async fetch(companyId: string): Promise<Branch[]> {
+    if (MOCK_MODE) return mockRead<Branch>('branches', companyId);
     const {data, error} = await supabase.from('branches').select('*').eq('company_id', companyId).order('branch_code');
     if (error) throw new Error(error.message);
     return (data ?? []) as Branch[];

@@ -9,6 +9,7 @@ import {offlineDB} from '../../../core/offline/db';
 import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
+import {MOCK_MODE, mockUsers} from '../../../core/mock/mock';
 import type {Membership} from '../../../types/db';
 import {membershipAssignSchema, membershipEditSchema, type MembershipAssignInput, type MembershipEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
@@ -24,6 +25,18 @@ interface MemberRow extends Membership {
 
 const membershipsApi = {
   async fetch(companyId: string): Promise<MemberRow[]> {
+    if (MOCK_MODE) {
+      const [mems, brs, rls, users] = await Promise.all([
+        offlineDB.memberships.where('company_id').equals(companyId).toArray(),
+        offlineDB.branches.where('company_id').equals(companyId).toArray(),
+        offlineDB.roles.where('company_id').equals(companyId).toArray(),
+        mockUsers(),
+      ]);
+      const bm = new Map(brs.map((b) => [b.id, b.name]));
+      const rm = new Map(rls.map((r) => [r.id, r.role_key]));
+      const um = new Map(users.map((u) => [u.id, u.display_name]));
+      return mems.map((m) => ({...m, userName: um.get(m.user_id) ?? '(demo user)', branchName: bm.get(m.branch_id) ?? m.branch_id, roleKey: rm.get(m.role_id) ?? m.role_id}));
+    }
     const {data, error} = await supabase
       .from('user_branch_roles')
       .select('*, users(display_name), branches(name), roles(role_key)')
@@ -38,6 +51,7 @@ const membershipsApi = {
     }));
   },
   async users(): Promise<Array<{id: string; display_name: string}>> {
+    if (MOCK_MODE) return mockUsers();
     const {data, error} = await supabase.from('users').select('id, display_name');
     if (error) throw new Error(error.message);
     return (data ?? []) as Array<{id: string; display_name: string}>;

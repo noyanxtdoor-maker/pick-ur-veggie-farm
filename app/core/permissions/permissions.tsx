@@ -5,6 +5,7 @@ import {createContext, useCallback, useContext, useEffect, useMemo, useState, ty
 import {supabase} from '../supabase/client';
 import {offlineDB} from '../offline/db';
 import {useSession} from '../auth/session';
+import {MOCK_MODE} from '../mock/mock';
 import type {PermissionKey} from '../../types/db';
 
 interface PermissionValue {
@@ -55,6 +56,13 @@ export function PermissionProvider({children}: {children: ReactNode}) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    if (MOCK_MODE) {
+      const snap = (await offlineDB.meta.get('perm-snapshot'))?.value as {companyId: string | null; keys: string[]} | undefined;
+      setCompanyId(snap?.companyId ?? null);
+      setKeys(new Set(snap?.keys ?? []));
+      setLoading(false);
+      return;
+    }
     try {
       const snap = await loadSnapshot();
       setCompanyId(snap.companyId);

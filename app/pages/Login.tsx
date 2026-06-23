@@ -4,6 +4,7 @@ import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 import {Sprout} from 'lucide-react';
 import {useSession} from '../core/auth/session';
+import {MOCK_MODE} from '../core/mock/mock';
 import {Button, Card} from '../components/ui';
 import {Field, TextInput, zodResolver} from '../components/forms';
 
@@ -21,7 +22,11 @@ export default function Login() {
         <div className="mb-6 flex items-center gap-2 text-2xl font-extrabold text-emerald-800">
           <Sprout aria-hidden /> PickUrVeggie ERP
         </div>
-        {!configured ? (
+        {MOCK_MODE ? (
+          <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-base text-emerald-900">
+            Demo mode — no cloud needed. Sign in with any email &amp; password to explore the app.
+          </p>
+        ) : !configured ? (
           <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-base text-amber-900">
             Supabase is not configured. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
           </p>
@@ -41,7 +46,7 @@ export default function Login() {
             <TextInput id="password" type="password" autoComplete="current-password" {...register('password')} />
           </Field>
           {error ? <p className="text-base font-medium text-red-700" role="alert">{error}</p> : null}
-          <Button type="submit" className="w-full" disabled={isSubmitting || !configured}>Sign in</Button>
+          <Button type="submit" className="w-full" disabled={isSubmitting || (!configured && !MOCK_MODE)}>Sign in</Button>
         </form>
       </Card>
     </div>
