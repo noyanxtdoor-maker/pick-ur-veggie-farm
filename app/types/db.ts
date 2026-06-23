@@ -91,7 +91,7 @@ export interface Invitation {
   updated_at: string;
 }
 
-// The 8 permission keys in the catalog after M6 seed + P2-M1 (M1C §1).
+// The permission keys in the catalog after M6 seed + P2-M1 + P2-M2 (M1C §1; crop.manage added by P2-M2).
 export type PermissionKey =
   | 'user.read'
   | 'membership.read'
@@ -100,4 +100,59 @@ export type PermissionKey =
   | 'branch.manage'
   | 'role.manage'
   | 'user.invite'
-  | 'membership.manage';
+  | 'membership.manage'
+  | 'crop.manage';
+
+// ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──
+export type CropStatus = 'Active' | 'Archived';
+
+export interface CropCategory {
+  id: string;
+  company_id: string;
+  category_code: string; // immutable after create
+  name: string;
+  description: string | null;
+  status: CropStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CropVariety {
+  id: string;
+  company_id: string;
+  category_id: string;
+  variety_code: string; // immutable after create
+  name: string;
+  description: string | null;
+  status: CropStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CropProfile {
+  id: string;
+  company_id: string;
+  variety_id: string;
+  profile_code: string; // immutable after create
+  name: string;
+  growth_duration_days: number | null; // integer days (not float)
+  notes: string | null;
+  status: CropStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlantingTemplate {
+  id: string;
+  company_id: string;
+  branch_id: string; // branch-owned (is_branch_member)
+  profile_id: string;
+  template_code: string; // immutable after create
+  name: string;
+  season: string | null;
+  planned_quantity: number; // integer count
+  notes: string | null;
+  status: CropStatus;
+  created_at: string;
+  updated_at: string;
+}

@@ -1,7 +1,7 @@
 // Local-first store (B5 §4) + the durable write-ahead outbox (M1B O1). IndexedDB via Dexie.
 // Cache holds only authorized-branch data the user has read (scoped); the outbox holds unsynced writes.
 import Dexie, {type Table} from 'dexie';
-import type {Branch, Company, Invitation, Membership, Permission, Role} from '../../types/db';
+import type {Branch, Company, CropCategory, CropProfile, CropVariety, Invitation, Membership, Permission, PlantingTemplate, Role} from '../../types/db';
 
 export type OutboxState = 'Pending' | 'Uploading' | 'Completed' | 'Failed' | 'Blocked';
 
@@ -42,6 +42,10 @@ export class OfflineDB extends Dexie {
   permissions!: Table<Permission, string>;
   memberships!: Table<Membership, string>;
   invitations!: Table<Invitation, string>;
+  cropCategories!: Table<CropCategory, string>;
+  cropVarieties!: Table<CropVariety, string>;
+  cropProfiles!: Table<CropProfile, string>;
+  plantingTemplates!: Table<PlantingTemplate, string>;
   meta!: Table<MetaRow, string>;
 
   constructor(name = 'PickUrVeggieV3') {
@@ -57,6 +61,13 @@ export class OfflineDB extends Dexie {
       invitations: 'id, company_id, status',
       meta: 'key',
     });
+    // P2-M2 crop tables (additive version — scoped/indexed reads, M1B F2).
+    this.version(2).stores({
+      cropCategories: 'id, company_id, status',
+      cropVarieties: 'id, company_id, category_id, status',
+      cropProfiles: 'id, company_id, variety_id, status',
+      plantingTemplates: 'id, company_id, branch_id, profile_id, status',
+    });
   }
 }
 
@@ -65,15 +76,8 @@ export const offlineDB = new OfflineDB();
 // Purge all scoped/cached data (M1B S1 — on logout, revocation, or company switch). Outbox is preserved
 // only for the same company; everything else is server-re-derivable.
 export async function purgeCache(db: OfflineDB = offlineDB): Promise<void> {
-  await db.transaction('rw', [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.meta], async () => {
-    await Promise.all([
-      db.companies.clear(),
-      db.branches.clear(),
-      db.roles.clear(),
-      db.permissions.clear(),
-      db.memberships.clear(),
-      db.invitations.clear(),
-      db.meta.clear(),
-    ]);
+  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.meta];
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((t) => t.clear()));
   });
 }

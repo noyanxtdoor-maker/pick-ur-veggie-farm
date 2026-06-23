@@ -93,6 +93,9 @@ jobs:
       - name: Organization security tests (authenticated writes · invitations · membership · isolation)
         run: npm run guard:org
 
+      - name: Crop security tests (company · branch isolation · permission · archived-usage · audit)
+        run: npm run guard:crop
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

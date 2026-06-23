@@ -17,6 +17,12 @@ const BranchesScreen = lazy(() => import('../../features/organization/branches/b
 const RolesScreen = lazy(() => import('../../features/organization/roles/roles'));
 const InvitationsScreen = lazy(() => import('../../features/organization/invitations/invitations'));
 const MembersScreen = lazy(() => import('../../features/organization/memberships/memberships'));
+const CropsLayout = lazy(() => import('../../features/crops/CropsLayout'));
+const CropDashboard = lazy(() => import('../../features/crops/CropDashboard'));
+const CategoriesScreen = lazy(() => import('../../features/crops/CategoriesScreen'));
+const VarietiesScreen = lazy(() => import('../../features/crops/VarietiesScreen'));
+const ProfilesScreen = lazy(() => import('../../features/crops/ProfilesScreen'));
+const TemplatesScreen = lazy(() => import('../../features/crops/TemplatesScreen'));
 
 function RequireAuth({children}: {children: ReactNode}) {
   const {status} = useSession();
@@ -57,7 +63,18 @@ export const router = createBrowserRouter([
           {path: 'members', element: <RequirePermission perm="membership.read"><MembersScreen /></RequirePermission>},
         ],
       },
-      {path: 'crops', element: <Placeholder title="Crops" />},
+      {
+        path: 'crops',
+        element: <CropsLayout />,
+        children: [
+          {index: true, element: <Navigate to="/crops/dashboard" replace />},
+          {path: 'dashboard', element: <CropDashboard />},
+          {path: 'categories', element: <CategoriesScreen />},
+          {path: 'varieties', element: <VarietiesScreen />},
+          {path: 'profiles', element: <ProfilesScreen />},
+          {path: 'templates', element: <TemplatesScreen />},
+        ],
+      },
       {path: 'inventory', element: <Placeholder title="Inventory" />},
       {path: 'operations', element: <Placeholder title="Operations" />},
       {path: 'reports', element: <Placeholder title="Reports" />},
