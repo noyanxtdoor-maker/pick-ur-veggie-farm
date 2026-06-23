@@ -12,6 +12,18 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    // Split heavy vendors so per-route chunks stay small and vendors cache independently (M1B F1).
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            supabase: ['@supabase/supabase-js'],
+            radix: ['@radix-ui/react-dialog', '@radix-ui/react-select'],
+          },
+        },
+      },
+    },
     // Vitest reuses this Vite config (C5 §2 — no separate runner). Node env
     // (Phase 0 has no DOM/component tests yet); explicit imports, no globals.
     test: {

@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+/* Tablet-first, sunlight-legible baseline (M1B U2). High-contrast default surface. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 — high contrast */
+  -webkit-text-size-adjust: 100%;
+}
