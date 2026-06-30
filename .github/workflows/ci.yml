@@ -96,6 +96,9 @@ jobs:
       - name: Crop security tests (company · branch isolation · permission · archived-usage · audit)
         run: npm run guard:crop
 
+      - name: Inventory security tests (ledger-derived · tamper-proof · append-only · opening · isolation)
+        run: npm run guard:inventory
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
