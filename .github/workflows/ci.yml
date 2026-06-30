@@ -99,6 +99,9 @@ jobs:
       - name: Inventory security tests (ledger-derived · tamper-proof · append-only · opening · isolation)
         run: npm run guard:inventory
 
+      - name: POS sale security tests (balanced posting · stock decrement · idempotency · no-oversell · price-authority)
+        run: npm run guard:pos
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
