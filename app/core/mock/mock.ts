@@ -11,7 +11,7 @@ import {offlineDB} from '../offline/db';
 import {uuidv7} from '../offline/uuidv7';
 import type {OutboxItem} from '../offline/db';
 import type {SendResult, Sender} from '../offline/queue';
-import type {Branch, Company, Invitation, Membership, Permission, PermissionKey, Role} from '../../types/db';
+import type {Branch, Company, FinishedGood, Invitation, Membership, Permission, PermissionKey, Product, Role} from '../../types/db';
 
 export const MOCK_MODE: boolean =
   !isSupabaseConfigured || (import.meta.env.VITE_USE_MOCK as string | undefined) === 'true';
@@ -19,6 +19,7 @@ export const MOCK_MODE: boolean =
 const ALL_KEYS: PermissionKey[] = [
   'user.read', 'membership.read', 'audit.read', 'company.manage', 'branch.manage',
   'role.manage', 'user.invite', 'membership.manage', 'crop.manage',
+  'product.manage', 'inventory.opening', 'inventory.adjust', 'pos.sell',
 ];
 
 // Fixed, valid-format UUIDs so the create forms (which validate ids as uuid) accept the seeded selections.
@@ -61,12 +62,35 @@ export async function seedMockData(): Promise<void> {
     {id: 'demo-inv-1', company_id: DEMO.companyId, branch_id: DEMO.branchA, role_id: DEMO.workerRole, email: 'invitee@demo.local', token: 'demo-token', status: 'Pending', invited_by: DEMO.userId, accepted_user_id: null, expires_at: expires, created_at: now, updated_at: now},
   ];
 
+  // POS demo data: a small price book + finished-goods stock in Branch A (weigh-POS is usable offline/demo).
+  const products: Product[] = [
+    {id: '00000000-0000-7000-8000-0000000000f1', company_id: DEMO.companyId, product_code: 'LETTUCE', name: 'Lettuce', retail_per_kg: 150, status: 'Active', created_at: now, updated_at: now},
+    {id: '00000000-0000-7000-8000-0000000000f2', company_id: DEMO.companyId, product_code: 'TOMATO', name: 'Tomato', retail_per_kg: 120, status: 'Active', created_at: now, updated_at: now},
+    {id: '00000000-0000-7000-8000-0000000000f3', company_id: DEMO.companyId, product_code: 'CARROT', name: 'Carrots', retail_per_kg: 90, status: 'Active', created_at: now, updated_at: now},
+    {id: '00000000-0000-7000-8000-0000000000f4', company_id: DEMO.companyId, product_code: 'KANGKONG', name: 'Kangkong', retail_per_kg: 60, status: 'Active', created_at: now, updated_at: now},
+  ];
+  const finishedGoods: FinishedGood[] = products.map((p, i) => ({
+    id: `00000000-0000-7000-8000-0000000000e${i + 1}`,
+    company_id: DEMO.companyId,
+    branch_id: DEMO.branchA,
+    finished_goods_code: `FG-${p.product_code}`,
+    product_id: p.id,
+    origin: 'opening_balance',
+    unit: 'kg',
+    cost_per_unit: Math.round(p.retail_per_kg * 0.4 * 100) / 100,
+    status: 'Available',
+    created_at: now,
+    available: 25,
+  }));
+
   await offlineDB.companies.put(company);
   await offlineDB.branches.bulkPut(branches);
   await offlineDB.roles.bulkPut(roles);
   await offlineDB.permissions.bulkPut(permissions);
   await offlineDB.memberships.bulkPut(memberships);
   await offlineDB.invitations.bulkPut(invitations);
+  await offlineDB.products.bulkPut(products);
+  await offlineDB.finishedGoods.bulkPut(finishedGoods);
   await offlineDB.meta.bulkPut([
     {key: 'perm-snapshot', value: {companyId: DEMO.companyId, keys: ALL_KEYS}},
     {key: 'active-company', value: DEMO.companyId},
@@ -100,6 +124,8 @@ const TABLE_MAP: Record<string, Table<AnyRow, string>> = {
   crop_varieties: tbl(offlineDB.cropVarieties),
   crop_profiles: tbl(offlineDB.cropProfiles),
   planting_templates: tbl(offlineDB.plantingTemplates),
+  products: tbl(offlineDB.products),
+  finished_goods_batches: tbl(offlineDB.finishedGoods),
 };
 
 // The mock write adapter: the outbox drains into Dexie (the "server" is the local cache). Validates the full

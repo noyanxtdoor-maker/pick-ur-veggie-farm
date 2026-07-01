@@ -13,6 +13,7 @@ import {
   Package,
   RefreshCw,
   Settings,
+  ShoppingCart,
   Sprout,
   Wifi,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ import {cn} from '../ui';
 
 const MODULES = [
   {to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+  {to: '/pos', label: 'Weigh POS', icon: ShoppingCart},
   {to: '/organization', label: 'Organization', icon: Building2},
   {to: '/crops', label: 'Crops', icon: Sprout},
   {to: '/inventory', label: 'Inventory', icon: Package},

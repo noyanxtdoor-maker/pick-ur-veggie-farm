@@ -19,7 +19,8 @@ describe('mock / offline-dev adapter', () => {
     expect(await offlineDB.branches.where('company_id').equals(DEMO.companyId).count()).toBe(2);
     const snap = (await offlineDB.meta.get('perm-snapshot'))?.value as {keys: string[]} | undefined;
     expect(snap?.keys).toContain('crop.manage');
-    expect(snap?.keys.length).toBe(9);
+    expect(snap?.keys).toContain('pos.sell');
+    expect(snap?.keys.length).toBe(13);
   });
 
   it('drains the outbox into Dexie via mockSender (offline create works, no cloud)', async () => {

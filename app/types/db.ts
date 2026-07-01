@@ -91,7 +91,7 @@ export interface Invitation {
   updated_at: string;
 }
 
-// The permission keys in the catalog after M6 seed + P2-M1 + P2-M2 (M1C §1; crop.manage added by P2-M2).
+// The permission keys in the catalog after M6 seed + P2-M1 + P2-M2 + P2-M2A/M2B.
 export type PermissionKey =
   | 'user.read'
   | 'membership.read'
@@ -101,7 +101,60 @@ export type PermissionKey =
   | 'role.manage'
   | 'user.invite'
   | 'membership.manage'
-  | 'crop.manage';
+  | 'crop.manage'
+  | 'product.manage'
+  | 'inventory.opening'
+  | 'inventory.adjust'
+  | 'pos.sell';
+
+// ── POS / Finished-Goods spine (P2-M2A/M2B) ──
+export interface Product {
+  id: string;
+  company_id: string;
+  product_code: string; // immutable after create
+  name: string;
+  retail_per_kg: number; // NUMERIC on the server; the selling price (server is price authority)
+  status: 'Active' | 'Archived';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinishedGood {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  finished_goods_code: string;
+  product_id: string;
+  origin: 'opening_balance' | 'field_harvest';
+  unit: string;
+  cost_per_unit: number;
+  status: 'Available' | 'Reserved' | 'Sold' | 'Expired';
+  created_at: string;
+  // client-side augmentation: derived availability (server: fg_available(); mock: maintained locally)
+  available: number;
+}
+
+export interface PosInvoiceLine {
+  product_id: string;
+  name: string;
+  weight_kg: number;
+  unit_price: number;
+  line_total: number;
+}
+
+// Local cache/mock render of a sale (the server truth is sales_orders + invoices, 20.17).
+export interface PosInvoice {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  invoice_number: number | null; // null = pending sync (provisional receipt)
+  lines: PosInvoiceLine[];
+  total: number;
+  tender_cash: number;
+  change_amount: number;
+  status: 'Paid' | 'PendingSync';
+  created_at: string;
+}
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──
 export type CropStatus = 'Active' | 'Archived';
