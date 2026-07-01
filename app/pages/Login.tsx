@@ -1,5 +1,6 @@
 // Login (M1B §2). Email + password via Supabase Auth. Offline/unconfigured states are explicit.
 import {useState} from 'react';
+import {Navigate} from 'react-router-dom';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 import {Sprout} from 'lucide-react';
@@ -12,14 +13,17 @@ const schema = z.object({email: z.string().email('Enter a valid email'), passwor
 type LoginInput = z.infer<typeof schema>;
 
 export default function Login() {
-  const {signIn, configured} = useSession();
+  const {signIn, configured, status} = useSession();
   const [error, setError] = useState<string | null>(null);
   const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<LoginInput>({resolver: zodResolver(schema)});
 
+  // Already signed in (or just signed in) → straight to the app.
+  if (status === 'authenticated') return <Navigate to="/dashboard" replace />;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
       <Card className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-2 text-2xl font-extrabold text-emerald-800">
+        <div className="mb-6 flex items-center gap-2 text-2xl font-extrabold text-farm-green">
           <Sprout aria-hidden /> PickUrVeggie ERP
         </div>
         {MOCK_MODE ? (

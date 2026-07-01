@@ -1,6 +1,26 @@
+/* V3 design tokens — ported from the Google AI Studio prototype (src/index.css), the visual authority
+   per owner decision 2026-06-28 (docs/14 UI references set aside for now). Fonts fall back to system
+   offline (field tablets); the @import is a progressive enhancement. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import 'tailwindcss';
 
-/* Tablet-first, sunlight-legible baseline (M1B U2). High-contrast default surface. */
+@theme {
+  --color-farm-green: #003e1c;
+  --color-farm-green-500: #1e5631;
+  --color-farm-green-700: #14401f;
+  --color-farm-accent-soft: #ebefe3;
+  --color-farm-accent: #c0c9be;
+  --color-farm-bg: #f7fbef;
+  --color-farm-muted: #53634f;
+  --color-farm-ink: #181d16;
+  --color-farm-warn: #f59e0b;
+  --color-farm-danger: #ef4444;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 html,
 body,
 #root {
@@ -9,7 +29,32 @@ body,
 
 body {
   margin: 0;
-  background-color: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 — high contrast */
+  background-color: var(--color-farm-bg);
+  color: var(--color-farm-ink);
   -webkit-text-size-adjust: 100%;
+}
+
+/* Prototype typography pairing: display face for headings, tabular mono for money/quantities. */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Print only the slip (prototype pattern). */
+@media print {
+  body * { visibility: hidden; }
+  #pos-slip, #pos-slip * { visibility: visible; }
+  #pos-slip { position: absolute; left: 0; top: 0; width: 100%; }
 }
