@@ -35,11 +35,13 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   goods()` + `fg_available()`; **M2B** `pos_record_sale()` → atomic sales_order+invoice+stock-decrement+COGS+
   **balanced GL** (chart_of_accounts CASH/SALES/COGS/FG_INVENTORY/AR; journals append-only). Guards: static/db/
   rls(23)/bootstrap(8)/org(13)/crop(11)/inventory(12)/pos(8)/drift — all green locally pre-push.
-- **DB (written, UNVERIFIED, uncommitted):** **M2C** — preorder→AR (`invoice_type=credit/status=Unpaid`,
-  server-applied 10% discount + delivery_fee + customer_note), `pos_settle_sale` (Dr Cash/Cr AR, status-idempotent),
-  `pos_void_sale` (append-only reversing journal + stock-return movements, reason mandatory, `pos.void` approval
-  tier), `cash_sessions` + open/close (SERVER-derived expected cash, variance needs reason, one Open per branch),
-  +3 permission keys. Guard extended with ~8 new assertions (incl. same-transaction `now()` note for the session test).
+- **DB (local commit `1c5417d`, VERIFIED — guard:pos 15/15):** **M2C-a** — preorder→AR (`invoice_type=credit/
+  status=Unpaid`, server-applied 10% discount + delivery_fee + customer_note; Dr AR/Cr Sales + COGS pair),
+  `pos_settle_sale` (Dr Cash/Cr AR, status-idempotent), `pos_void_sale` (append-only reversing journal +
+  stock-return movements, reason mandatory, `pos.void` = 26.09 approval tier, idempotent), `cash_sessions`
+  open/close (SERVER-derived expected cash, variance needs reason, one Open per branch), +3 permission keys
+  (`pos.settle`/`pos.void`/`cash.session`). Note: cash-session guard test derives expected as postgres because
+  `now()` is fixed per transaction in the guard's single-tx run.
 - **App (local commits):** V3 `app/` on M1B stack; **runs with no cloud** (mock adapter auto-on when Supabase
   unconfigured; demo login = any credentials); weigh-POS terminal (grid/weigh/slip/checkout/receipt) + Historical
   Sales Journal + dashboard ₱ KPIs; whole app in the **prototype farm theme** (tokens in `app/index.css`:
