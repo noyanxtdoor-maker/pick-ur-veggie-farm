@@ -49,7 +49,7 @@ export default function CropDashboard() {
             <ActionTile label="New category" icon={<Plus size={24} aria-hidden />} onClick={() => navigate('/crops/categories')} />
           </div>
         ) : (
-          <p className="mt-4 text-base text-slate-500">You can view crops. Editing needs the crop.manage permission.</p>
+          <p className="mt-4 text-base text-farm-muted">You can view crops. Editing needs the crop.manage permission.</p>
         )}
       </Card>
     </div>

@@ -40,8 +40,8 @@ export default function ProfilesScreen() {
       matches={(p, q) => p.name.toLowerCase().includes(q) || p.profile_code.toLowerCase().includes(q)}
       renderRow={(p) => (
         <>
-          <span><span className="block text-lg font-semibold text-slate-800">{p.name}</span><span className="text-base text-slate-500">{varName.get(p.variety_id) ?? '—'}{p.growth_duration_days ? ` · ${p.growth_duration_days}d` : ''}</span></span>
-          <span className="flex items-center gap-3"><span className="text-base text-slate-400">{p.profile_code}</span><StatusBadge status={p.status} /></span>
+          <span><span className="block text-lg font-semibold text-farm-ink">{p.name}</span><span className="text-base text-farm-muted">{varName.get(p.variety_id) ?? '—'}{p.growth_duration_days ? ` · ${p.growth_duration_days}d` : ''}</span></span>
+          <span className="flex items-center gap-3"><span className="text-base text-farm-muted">{p.profile_code}</span><StatusBadge status={p.status} /></span>
         </>
       )}
       selected={selected}
@@ -53,7 +53,7 @@ export default function ProfilesScreen() {
         ) : current ? (
           <EditProfile row={current} parent={varName.get(current.variety_id) ?? '—'} canManage={canManage} onDone={triggerSync} notify={notify} />
         ) : (
-          <Card><p className="p-4 text-lg text-slate-500">Select a profile, or create one.</p></Card>
+          <Card><p className="p-4 text-lg text-farm-muted">Select a profile, or create one.</p></Card>
         )
       }
     />

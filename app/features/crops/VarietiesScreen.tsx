@@ -40,8 +40,8 @@ export default function VarietiesScreen() {
       matches={(v, q) => v.name.toLowerCase().includes(q) || v.variety_code.toLowerCase().includes(q)}
       renderRow={(v) => (
         <>
-          <span><span className="block text-lg font-semibold text-slate-800">{v.name}</span><span className="text-base text-slate-500">{catName.get(v.category_id) ?? '—'}</span></span>
-          <span className="flex items-center gap-3"><span className="text-base text-slate-400">{v.variety_code}</span><StatusBadge status={v.status} /></span>
+          <span><span className="block text-lg font-semibold text-farm-ink">{v.name}</span><span className="text-base text-farm-muted">{catName.get(v.category_id) ?? '—'}</span></span>
+          <span className="flex items-center gap-3"><span className="text-base text-farm-muted">{v.variety_code}</span><StatusBadge status={v.status} /></span>
         </>
       )}
       selected={selected}
@@ -53,7 +53,7 @@ export default function VarietiesScreen() {
         ) : current ? (
           <EditVariety row={current} parent={catName.get(current.category_id) ?? '—'} canManage={canManage} onDone={triggerSync} notify={notify} />
         ) : (
-          <Card><p className="p-4 text-lg text-slate-500">Select a variety, or create one.</p></Card>
+          <Card><p className="p-4 text-lg text-farm-muted">Select a variety, or create one.</p></Card>
         )
       }
     />

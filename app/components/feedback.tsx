@@ -5,7 +5,7 @@ import {cn} from './ui';
 
 export function Loading({label = 'Loading…'}: {label?: string}) {
   return (
-    <div className="flex items-center gap-3 p-8 text-lg text-slate-600" role="status" aria-live="polite">
+    <div className="flex items-center gap-3 p-8 text-lg text-farm-muted" role="status" aria-live="polite">
       <Loader2 className="animate-spin" aria-hidden /> {label}
     </div>
   );
@@ -15,7 +15,7 @@ export function Skeleton({rows = 4}: {rows?: number}) {
   return (
     <div className="space-y-3 p-4" aria-hidden>
       {Array.from({length: rows}).map((_, i) => (
-        <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+        <div key={i} className="h-14 animate-pulse rounded-xl bg-farm-accent-soft" />
       ))}
     </div>
   );
@@ -24,9 +24,9 @@ export function Skeleton({rows = 4}: {rows?: number}) {
 export function EmptyState({title, hint, action}: {title: string; hint?: string; action?: ReactNode}) {
   return (
     <div className="flex flex-col items-center gap-3 p-10 text-center">
-      <Inbox className="text-slate-400" size={40} aria-hidden />
-      <p className="text-xl font-semibold text-slate-700">{title}</p>
-      {hint ? <p className="max-w-md text-base text-slate-500">{hint}</p> : null}
+      <Inbox className="text-farm-muted" size={40} aria-hidden />
+      <p className="text-xl font-semibold text-farm-muted">{title}</p>
+      {hint ? <p className="max-w-md text-base text-farm-muted">{hint}</p> : null}
       {action}
     </div>
   );
@@ -36,10 +36,10 @@ export function ErrorState({message, onRetry}: {message: string; onRetry?: () =>
   return (
     <div className="flex flex-col items-center gap-3 p-10 text-center" role="alert">
       <AlertTriangle className="text-red-500" size={40} aria-hidden />
-      <p className="text-xl font-semibold text-slate-800">Something went wrong</p>
-      <p className="max-w-md text-base text-slate-600">{message}</p>
+      <p className="text-xl font-semibold text-farm-ink">Something went wrong</p>
+      <p className="max-w-md text-base text-farm-muted">{message}</p>
       {onRetry ? (
-        <button onClick={onRetry} className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-slate-300 px-5 text-lg font-semibold">
+        <button onClick={onRetry} className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-farm-accent px-5 text-lg font-semibold">
           <RefreshCw size={18} aria-hidden /> Retry
         </button>
       ) : null}
@@ -57,19 +57,19 @@ export function OfflineBanner({pending}: {pending: number}) {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  Active: 'bg-emerald-100 text-emerald-900',
-  Accepted: 'bg-emerald-100 text-emerald-900',
+  Active: 'bg-farm-accent-soft text-farm-green',
+  Accepted: 'bg-farm-accent-soft text-farm-green',
   Pending: 'bg-blue-100 text-blue-900',
   Suspended: 'bg-amber-100 text-amber-900',
-  Archived: 'bg-slate-200 text-slate-700',
-  Deprecated: 'bg-slate-200 text-slate-700',
+  Archived: 'bg-farm-accent-soft text-farm-muted',
+  Deprecated: 'bg-farm-accent-soft text-farm-muted',
   Expired: 'bg-red-100 text-red-900',
   Revoked: 'bg-red-100 text-red-900',
 };
 
 export function StatusBadge({status}: {status: string}) {
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold', STATUS_COLOR[status] ?? 'bg-slate-100 text-slate-700')}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold', STATUS_COLOR[status] ?? 'bg-farm-accent-soft text-farm-muted')}>
       <span className="h-2 w-2 rounded-full bg-current opacity-70" aria-hidden />
       {status}
     </span>
@@ -80,7 +80,7 @@ export function SyncBadge({state}: {state: 'Pending' | 'Uploading' | 'Completed'
   const map: Record<string, string> = {
     Pending: 'bg-blue-100 text-blue-900',
     Uploading: 'bg-blue-100 text-blue-900',
-    Completed: 'bg-emerald-100 text-emerald-900',
+    Completed: 'bg-farm-accent-soft text-farm-green',
     Failed: 'bg-amber-100 text-amber-900',
     Blocked: 'bg-red-100 text-red-900',
   };
@@ -104,7 +104,7 @@ export function ToastProvider({children}: {children: ReactNode}) {
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
-          <div key={t.id} className={cn('rounded-xl px-4 py-3 text-base font-semibold text-white shadow-lg', t.kind === 'success' ? 'bg-emerald-700' : 'bg-red-700')} role="status">
+          <div key={t.id} className={cn('rounded-xl px-4 py-3 text-base font-semibold text-white shadow-lg', t.kind === 'success' ? 'bg-farm-green' : 'bg-red-700')} role="status">
             {t.message}
           </div>
         ))}

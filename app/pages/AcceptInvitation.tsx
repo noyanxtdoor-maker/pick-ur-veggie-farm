@@ -26,11 +26,11 @@ export default function AcceptInvitation() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
       <Card className="w-full max-w-md">
         <h1 className="mb-4 text-2xl font-bold">Accept invitation</h1>
         {state === 'done' ? (
-          <p className="flex items-center gap-2 text-lg text-emerald-800"><CheckCircle2 aria-hidden /> {message}</p>
+          <p className="flex items-center gap-2 text-lg text-farm-green"><CheckCircle2 aria-hidden /> {message}</p>
         ) : (
           <div className="space-y-4">
             <TextInput value={token} onChange={(e) => setToken(e.target.value)} placeholder="Invitation token" className="font-mono text-sm" />

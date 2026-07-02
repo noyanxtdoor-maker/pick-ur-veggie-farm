@@ -53,8 +53,8 @@ export default function TemplatesScreen() {
       matches={(t, q) => t.name.toLowerCase().includes(q) || t.template_code.toLowerCase().includes(q)}
       renderRow={(t) => (
         <>
-          <span><span className="block text-lg font-semibold text-slate-800">{t.name}</span><span className="text-base text-slate-500">{profName.get(t.profile_id) ?? '—'} · {brName.get(t.branch_id) ?? 'branch'} · qty {t.planned_quantity}</span></span>
-          <span className="flex items-center gap-3"><span className="text-base text-slate-400">{t.template_code}</span><StatusBadge status={t.status} /></span>
+          <span><span className="block text-lg font-semibold text-farm-ink">{t.name}</span><span className="text-base text-farm-muted">{profName.get(t.profile_id) ?? '—'} · {brName.get(t.branch_id) ?? 'branch'} · qty {t.planned_quantity}</span></span>
+          <span className="flex items-center gap-3"><span className="text-base text-farm-muted">{t.template_code}</span><StatusBadge status={t.status} /></span>
         </>
       )}
       selected={selected}
@@ -66,7 +66,7 @@ export default function TemplatesScreen() {
         ) : current ? (
           <EditTemplate row={current} branch={brName.get(current.branch_id) ?? '—'} profile={profName.get(current.profile_id) ?? '—'} canManage={canManage} onDone={triggerSync} notify={notify} />
         ) : (
-          <Card><p className="p-4 text-lg text-slate-500">Select a template, or create one.</p></Card>
+          <Card><p className="p-4 text-lg text-farm-muted">Select a template, or create one.</p></Card>
         )
       }
     />

@@ -20,8 +20,8 @@ export function Numpad({value, onChange}: {value: string; onChange: (next: strin
           onClick={() => press(k)}
           className={cn(
             'min-h-14 rounded-xl border text-2xl font-bold transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600',
-            k === '⌫' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500',
+            k === '⌫' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-farm-accent bg-white text-farm-ink hover:bg-farm-bg',
           )}
           aria-label={k === '⌫' ? 'Backspace' : k}
         >

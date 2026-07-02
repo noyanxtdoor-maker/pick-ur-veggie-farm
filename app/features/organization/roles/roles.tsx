@@ -78,11 +78,11 @@ export default function RolesScreen() {
           ) : roles && roles.length === 0 ? (
             <EmptyState title="No roles yet" hint="The Owner role is created at bootstrap. Add roles to delegate work." />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-farm-accent-soft">
               {roles?.map((r) => (
                 <li key={r.id}>
-                  <button onClick={() => setSelected(r.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === r.id && 'bg-emerald-50')}>
-                    <span><span className="block text-lg font-semibold text-slate-800">{r.role_key}</span><span className="text-base text-slate-500">{r.description}</span></span>
+                  <button onClick={() => setSelected(r.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === r.id && 'bg-farm-accent-soft')}>
+                    <span><span className="block text-lg font-semibold text-farm-ink">{r.role_key}</span><span className="text-base text-farm-muted">{r.description}</span></span>
                     <StatusBadge status={r.status} />
                   </button>
                 </li>
@@ -96,7 +96,7 @@ export default function RolesScreen() {
           ) : current ? (
             <RoleDetail role={current} canManage={canManage} onChanged={triggerSync} />
           ) : (
-            <Card><p className="p-4 text-lg text-slate-500">Select a role, or create one.</p></Card>
+            <Card><p className="p-4 text-lg text-farm-muted">Select a role, or create one.</p></Card>
           )}
         </div>
       </div>
@@ -149,16 +149,16 @@ function RoleDetail({role, canManage, onChanged}: {role: Role; canManage: boolea
         <Button type="submit" disabled={!canManage || isSubmitting}>Save</Button>
       </form>
 
-      <div className="mt-6 border-t border-slate-200 pt-4">
+      <div className="mt-6 border-t border-farm-accent-soft pt-4">
         <h3 className="mb-2 text-xl font-bold">Permissions</h3>
         {perms === null ? (
-          <p className="text-base text-slate-500">Loading… (connect to view permissions)</p>
+          <p className="text-base text-farm-muted">Loading… (connect to view permissions)</p>
         ) : perms.length === 0 ? (
-          <p className="text-base text-slate-500">No permissions granted yet.</p>
+          <p className="text-base text-farm-muted">No permissions granted yet.</p>
         ) : (
           <ul className="mb-3 space-y-1">
             {perms.map((p) => (
-              <li key={p.permission_id} className="rounded-lg bg-slate-50 px-3 py-2"><span className="font-semibold">{p.key}</span> <span className="text-slate-500">— {p.description}</span></li>
+              <li key={p.permission_id} className="rounded-lg bg-farm-bg px-3 py-2"><span className="font-semibold">{p.key}</span> <span className="text-farm-muted">— {p.description}</span></li>
             ))}
           </ul>
         )}

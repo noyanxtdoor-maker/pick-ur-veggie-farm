@@ -83,8 +83,8 @@ export function MasterDetail<T extends {id: string}>(props: {
       />
       <div className={cn('grid gap-5', props.widthClass ?? 'lg:grid-cols-[1fr_1.2fr]')}>
         <Card>
-          <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-300 px-3">
-            <Search size={20} className="text-slate-400" aria-hidden />
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-farm-accent px-3">
+            <Search size={20} className="text-farm-muted" aria-hidden />
             <input
               value={props.query}
               onChange={(e) => props.onQuery(e.target.value)}
@@ -98,10 +98,10 @@ export function MasterDetail<T extends {id: string}>(props: {
           ) : filtered.length === 0 ? (
             <EmptyState title={q ? 'No matches' : props.emptyTitle} hint={q ? undefined : props.emptyHint} action={!q && props.canManage ? <Button onClick={() => props.onSelect('new')}>{props.newLabel}</Button> : undefined} />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-farm-accent-soft">
               {filtered.map((item) => (
                 <li key={item.id}>
-                  <button onClick={() => props.onSelect(item.id)} className={cn('flex min-h-16 w-full items-center justify-between gap-2 px-2 text-left', props.selected === item.id && 'bg-emerald-50')}>
+                  <button onClick={() => props.onSelect(item.id)} className={cn('flex min-h-16 w-full items-center justify-between gap-2 px-2 text-left', props.selected === item.id && 'bg-farm-accent-soft')}>
                     {props.renderRow(item)}
                   </button>
                 </li>

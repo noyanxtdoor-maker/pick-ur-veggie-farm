@@ -89,13 +89,13 @@ export default function MembersScreen() {
           ) : rows.length === 0 ? (
             <EmptyState title="No members yet" hint="Assign a role to a user, or invite someone new from the Invitations tab." />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-farm-accent-soft">
               {rows.map((m) => (
                 <li key={m.id}>
-                  <button onClick={() => setSelected(m.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === m.id && 'bg-emerald-50')}>
+                  <button onClick={() => setSelected(m.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === m.id && 'bg-farm-accent-soft')}>
                     <span>
-                      <span className="block text-lg font-semibold text-slate-800">{m.userName}</span>
-                      <span className="text-base text-slate-500">{m.roleKey} · {m.branchName}{m.expires_at ? ` · expires ${new Date(m.expires_at).toLocaleDateString()}` : ''}</span>
+                      <span className="block text-lg font-semibold text-farm-ink">{m.userName}</span>
+                      <span className="text-base text-farm-muted">{m.roleKey} · {m.branchName}{m.expires_at ? ` · expires ${new Date(m.expires_at).toLocaleDateString()}` : ''}</span>
                     </span>
                     <StatusBadge status={m.assignment_status} />
                   </button>
@@ -110,7 +110,7 @@ export default function MembersScreen() {
           ) : current ? (
             <EditMembership member={current} canManage={canManage} onDone={() => {triggerSync(); reload();}} />
           ) : (
-            <Card><p className="p-4 text-lg text-slate-500">Select a member, or assign a new one.</p></Card>
+            <Card><p className="p-4 text-lg text-farm-muted">Select a member, or assign a new one.</p></Card>
           )}
         </div>
       </div>
@@ -146,7 +146,7 @@ function EditMembership({member, canManage, onDone}: {member: MemberRow; canMana
   return (
     <Card>
       <h2 className="mb-1 text-2xl font-bold">{member.userName}</h2>
-      <p className="mb-4 text-base text-slate-500">{member.roleKey} · {member.branchName}</p>
+      <p className="mb-4 text-base text-farm-muted">{member.roleKey} · {member.branchName}</p>
       <form className="space-y-4" onSubmit={handleSubmit((v) => setConfirm(v))}>
         <Field label="Status" error={errors.assignment_status?.message}>
           {/* G3 — Active | Expired only (no "Suspended"). Setting Expired removes access. */}
@@ -160,7 +160,7 @@ function EditMembership({member, canManage, onDone}: {member: MemberRow; canMana
           )} />
         </Field>
         <Button type="submit" disabled={!canManage || isSubmitting}>Save</Button>
-        {!canManage ? <p className="text-base text-slate-500">Needs membership.manage to edit.</p> : null}
+        {!canManage ? <p className="text-base text-farm-muted">Needs membership.manage to edit.</p> : null}
       </form>
       <ConfirmDialog
         open={confirm !== null}

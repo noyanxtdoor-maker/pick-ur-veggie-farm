@@ -67,7 +67,7 @@ function CompanyForm({company, canManage, onSaved, notify}: {company: Company; c
             <TextInput id="cname" disabled={!canManage} {...register('name')} />
           </Field>
           <Button type="submit" disabled={!canManage || isSubmitting}>Save name</Button>
-          {!canManage ? <p className="text-base text-slate-500">You need the company.manage permission to edit.</p> : null}
+          {!canManage ? <p className="text-base text-farm-muted">You need the company.manage permission to edit.</p> : null}
         </form>
       </Card>
       <ConfirmDialog

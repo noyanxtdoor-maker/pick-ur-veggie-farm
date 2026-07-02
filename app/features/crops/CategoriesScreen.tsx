@@ -37,8 +37,8 @@ export default function CategoriesScreen() {
       matches={(c, q) => c.name.toLowerCase().includes(q) || c.category_code.toLowerCase().includes(q)}
       renderRow={(c) => (
         <>
-          <span className="text-lg font-semibold text-slate-800">{c.name}</span>
-          <span className="flex items-center gap-3"><span className="text-base text-slate-400">{c.category_code}</span><StatusBadge status={c.status} /></span>
+          <span className="text-lg font-semibold text-farm-ink">{c.name}</span>
+          <span className="flex items-center gap-3"><span className="text-base text-farm-muted">{c.category_code}</span><StatusBadge status={c.status} /></span>
         </>
       )}
       selected={selected}
@@ -50,7 +50,7 @@ export default function CategoriesScreen() {
         ) : current ? (
           <EditCategory row={current} canManage={canManage} onDone={triggerSync} notify={notify} />
         ) : (
-          <Card><p className="p-4 text-lg text-slate-500">Select a category, or create one.</p></Card>
+          <Card><p className="p-4 text-lg text-farm-muted">Select a category, or create one.</p></Card>
         )
       }
     />
@@ -91,7 +91,7 @@ function EditCategory({row, canManage, onDone, notify}: {row: CropCategory; canM
           <Button type="submit" disabled={!canManage || isSubmitting}>Save</Button>
           {row.status === 'Active' ? <ArchiveButton disabled={!canManage} onArchive={async () => {await cropApi.categories.archive(row); notify('Category archived'); onDone();}} /> : null}
         </div>
-        {!canManage ? <p className="text-base text-slate-500">Needs crop.manage to edit.</p> : null}
+        {!canManage ? <p className="text-base text-farm-muted">Needs crop.manage to edit.</p> : null}
       </form>
     </Card>
   );

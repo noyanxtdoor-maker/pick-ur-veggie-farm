@@ -27,7 +27,7 @@ export default function Login() {
           <Sprout aria-hidden /> PickUrVeggie ERP
         </div>
         {MOCK_MODE ? (
-          <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-base text-emerald-900">
+          <p className="mb-4 rounded-lg bg-farm-accent-soft px-3 py-2 text-base text-farm-green">
             Demo mode — no cloud needed. Sign in with any email &amp; password to explore the app.
           </p>
         ) : !configured ? (

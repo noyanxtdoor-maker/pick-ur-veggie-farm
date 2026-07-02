@@ -7,7 +7,7 @@ export default function Placeholder({title}: {title: string}) {
     <div>
       <PageHeader title={title} />
       <Card>
-        <p className="p-4 text-lg text-slate-500">{title} is part of a later Phase-2 module. The application shell, navigation, auth, offline queue, and Organization module are live now.</p>
+        <p className="p-4 text-lg text-farm-muted">{title} is part of a later Phase-2 module. The application shell, navigation, auth, offline queue, and Organization module are live now.</p>
       </Card>
     </div>
   );

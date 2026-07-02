@@ -84,7 +84,7 @@ export default function Dashboard() {
       </Card>
 
       {!has('membership.read') && !has('user.invite') ? (
-        <p className="mt-6 flex items-center gap-2 text-base text-slate-500"><Mailbox size={18} aria-hidden /> Some widgets are hidden because your role doesn't grant access.</p>
+        <p className="mt-6 flex items-center gap-2 text-base text-farm-muted"><Mailbox size={18} aria-hidden /> Some widgets are hidden because your role doesn't grant access.</p>
       ) : null}
     </div>
   );

@@ -29,8 +29,8 @@ export function ConfirmDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
-          <Dialog.Title className="text-2xl font-bold text-slate-900">{title}</Dialog.Title>
-          <Dialog.Description className="mt-2 text-lg text-slate-600">{description}</Dialog.Description>
+          <Dialog.Title className="text-2xl font-bold text-farm-ink">{title}</Dialog.Title>
+          <Dialog.Description className="mt-2 text-lg text-farm-muted">{description}</Dialog.Description>
           <div className="mt-6 flex justify-end gap-3">
             <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
             <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy}>
@@ -65,19 +65,19 @@ export function SelectField({
     <RSelect.Root value={value && value.length > 0 ? value : undefined} onValueChange={onChange}>
       <RSelect.Trigger
         id={id}
-        className="inline-flex min-h-14 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+        className="inline-flex min-h-14 w-full items-center justify-between rounded-xl border border-farm-accent bg-white px-4 text-lg text-farm-ink focus:outline-none focus:ring-2 focus:ring-farm-green-500"
       >
         <RSelect.Value placeholder={placeholder} />
         <RSelect.Icon><ChevronDown size={20} aria-hidden /></RSelect.Icon>
       </RSelect.Trigger>
       <RSelect.Portal>
-        <RSelect.Content position="popper" sideOffset={4} className="z-50 max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+        <RSelect.Content position="popper" sideOffset={4} className="z-50 max-h-72 overflow-auto rounded-xl border border-farm-accent-soft bg-white shadow-lg">
           <RSelect.Viewport className="p-1">
             {options.map((o) => (
               <RSelect.Item
                 key={o.value}
                 value={o.value}
-                className="flex min-h-14 cursor-pointer select-none items-center justify-between rounded-lg px-3 text-lg text-slate-900 outline-none data-[highlighted]:bg-emerald-50"
+                className="flex min-h-14 cursor-pointer select-none items-center justify-between rounded-lg px-3 text-lg text-farm-ink outline-none data-[highlighted]:bg-farm-accent-soft"
               >
                 <RSelect.ItemText>{o.label}</RSelect.ItemText>
                 <RSelect.ItemIndicator><Check size={18} aria-hidden /></RSelect.ItemIndicator>

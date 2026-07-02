@@ -78,17 +78,17 @@ export default function InvitationsScreen() {
           ) : invitations && invitations.length === 0 ? (
             <EmptyState title="No invitations yet" hint="Invite a user to grant them access to a branch and role." />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-farm-accent-soft">
               {invitations?.map((inv) => (
                 <li key={inv.id} className="flex min-h-16 items-center justify-between px-2 py-2">
                   <span>
-                    <span className="block text-lg font-semibold text-slate-800">{inv.email ?? '(no email)'}</span>
-                    <span className="text-base text-slate-500">Expires {new Date(inv.expires_at).toLocaleDateString()}</span>
+                    <span className="block text-lg font-semibold text-farm-ink">{inv.email ?? '(no email)'}</span>
+                    <span className="text-base text-farm-muted">Expires {new Date(inv.expires_at).toLocaleDateString()}</span>
                   </span>
                   <span className="flex items-center gap-3">
                     <StatusBadge status={inv.status} />
                     {/* G2 — no revoke function yet. */}
-                    <button disabled title="Revocation will be available in a future update." className="cursor-not-allowed rounded-lg px-3 py-1 text-sm font-semibold text-slate-300">
+                    <button disabled title="Revocation will be available in a future update." className="cursor-not-allowed rounded-lg px-3 py-1 text-sm font-semibold text-farm-accent">
                       Revoke
                     </button>
                   </span>
@@ -134,10 +134,10 @@ export default function InvitationsScreen() {
           </form>
 
           {token ? (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-              <p className="mb-2 text-base font-semibold text-emerald-900">Invitation token — copy & share securely (delivered out of band):</p>
+            <div className="mt-4 rounded-xl border border-farm-accent bg-farm-accent-soft p-3">
+              <p className="mb-2 text-base font-semibold text-farm-green">Invitation token — copy & share securely (delivered out of band):</p>
               <div className="flex items-center gap-2">
-                <input readOnly value={token} className="min-h-12 flex-1 rounded-lg border border-emerald-300 bg-white px-3 font-mono text-sm" />
+                <input readOnly value={token} className="min-h-12 flex-1 rounded-lg border border-farm-accent bg-white px-3 font-mono text-sm" />
                 <Button variant="secondary" onClick={() => {void navigator.clipboard?.writeText(token); notify('Token copied');}}><Copy size={18} aria-hidden /></Button>
               </div>
             </div>

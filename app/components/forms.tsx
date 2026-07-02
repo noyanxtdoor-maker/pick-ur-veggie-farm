@@ -35,7 +35,7 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-base font-semibold text-slate-800">
+      <label htmlFor={htmlFor} className="text-base font-semibold text-farm-ink">
         {label}
       </label>
       {children}
@@ -51,8 +51,8 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
         ref={ref}
         {...rest}
         className={cn(
-          'min-h-14 w-full rounded-xl border border-slate-300 bg-white px-4 text-lg text-slate-900',
-          'placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600',
+          'min-h-14 w-full rounded-xl border border-farm-accent bg-white px-4 text-lg text-farm-ink',
+          'placeholder:text-farm-muted focus:outline-none focus:ring-2 focus:ring-farm-green-500',
           className,
         )}
       />
@@ -63,9 +63,9 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
 export function ReadOnlyField({label, value, note}: {label: string; value: string; note?: string}) {
   return (
     <Field label={label}>
-      <div className="flex min-h-14 items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-lg text-slate-600">
+      <div className="flex min-h-14 items-center justify-between rounded-xl border border-farm-accent-soft bg-farm-bg px-4 text-lg text-farm-muted">
         <span>{value}</span>
-        <span className="flex items-center gap-1.5 text-sm text-slate-400" title={note ?? 'Set at creation — cannot be changed'}>
+        <span className="flex items-center gap-1.5 text-sm text-farm-muted" title={note ?? 'Set at creation — cannot be changed'}>
           <Lock size={16} aria-hidden /> {note ?? 'Locked'}
         </span>
       </div>

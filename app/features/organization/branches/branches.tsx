@@ -78,12 +78,12 @@ export default function BranchesScreen() {
           ) : branches && branches.length === 0 ? (
             <EmptyState title="No branches yet" hint="Create your first branch to start organizing operations." action={canManage ? <Button onClick={() => setSelected('new')}>Create branch</Button> : undefined} />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-farm-accent-soft">
               {branches?.map((b) => (
                 <li key={b.id}>
-                  <button onClick={() => setSelected(b.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === b.id && 'bg-emerald-50')}>
-                    <span className="text-lg font-semibold text-slate-800">{b.name}</span>
-                    <span className="flex items-center gap-3"><span className="text-base text-slate-400">{b.branch_code}</span><StatusBadge status={b.status} /></span>
+                  <button onClick={() => setSelected(b.id)} className={cn('flex min-h-16 w-full items-center justify-between px-2 text-left', selected === b.id && 'bg-farm-accent-soft')}>
+                    <span className="text-lg font-semibold text-farm-ink">{b.name}</span>
+                    <span className="flex items-center gap-3"><span className="text-base text-farm-muted">{b.branch_code}</span><StatusBadge status={b.status} /></span>
                   </button>
                 </li>
               ))}
@@ -96,7 +96,7 @@ export default function BranchesScreen() {
           ) : current ? (
             <EditBranch branch={current} canManage={canManage} onDone={() => triggerSync()} notify={notify} />
           ) : (
-            <Card><p className="p-4 text-lg text-slate-500">Select a branch, or create a new one.</p></Card>
+            <Card><p className="p-4 text-lg text-farm-muted">Select a branch, or create a new one.</p></Card>
           )}
         </div>
       </div>
@@ -155,7 +155,7 @@ function EditBranch({branch, canManage, onDone, notify}: {branch: Branch; canMan
           />
         </Field>
         <Button type="submit" disabled={!canManage || isSubmitting}>Save changes</Button>
-        {!canManage ? <p className="text-base text-slate-500">You can view branches but need the branch.manage permission to edit.</p> : null}
+        {!canManage ? <p className="text-base text-farm-muted">You can view branches but need the branch.manage permission to edit.</p> : null}
       </form>
       <ConfirmDialog
         open={confirm !== null}

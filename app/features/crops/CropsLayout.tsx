@@ -14,7 +14,7 @@ const TABS = [
 export default function CropsLayout() {
   return (
     <div>
-      <div className="mb-5 flex flex-wrap gap-2 border-b border-slate-200 pb-2" role="tablist" aria-label="Crop Management">
+      <div className="mb-5 flex flex-wrap gap-2 border-b border-farm-accent-soft pb-2" role="tablist" aria-label="Crop Management">
         {TABS.map((t) => (
           <NavLink
             key={t.to}
