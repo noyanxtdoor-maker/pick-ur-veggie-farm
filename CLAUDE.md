@@ -149,3 +149,13 @@ escalate.** Touching any of these is High-risk (C4 §5).
 - Verification was completed and results reported honestly.
 - No hidden failures remain.
 - Work stopped at the approved boundary.
+
+---
+
+## 8. AI Engineering Company & Session Continuity
+
+The model-agnostic engineering organization (roles, pipeline, delegation policy, standing rules) is defined in
+`docs/28_Enterprise_Architecture_Audit/AI_Company_Charter.md`. Day-to-day resumption state lives in
+`docs/28_Enterprise_Architecture_Audit/Phase_2_Context_Reset_Handoff.md` — **read it at session start; update it
+(and auto-memory) at session end.** These two files are the "AI company"; no per-platform agent roster is
+installed speculatively.
