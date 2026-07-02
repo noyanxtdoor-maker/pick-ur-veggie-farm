@@ -17,7 +17,8 @@ export interface ReportSale {
   discount: number;
   delivery_fee: number;
   status: 'Paid' | 'Unpaid' | 'Voided' | 'PendingSync';
-  created_by: string | null; // null = recorded on this device (the local cache carries no actor)
+  sale_type: 'retail' | 'wholesale'; // wholesale = any bulk (Skip Weigh) line — prototype Transaction.type
+  cashier: string | null; // canonical: created_by user id; device cache: posted_by display name; null = unknown
   created_at: string;
   lines: ReportLine[];
 }
@@ -46,11 +47,13 @@ export interface SalesSummary {
   paid: {count: number; total: number};
   preorder: {count: number; total: number};
   pendingSync: {count: number; total: number};
+  retail: {count: number; total: number};
+  wholesale: {count: number; total: number};
   discountGiven: number;
   deliveryFees: number;
   topProducts: Array<{name: string; peso: number; kg: number}>;
   byBranch: Array<{branchId: string; orders: number; total: number}>;
-  byCashier: Array<{userId: string | null; orders: number; total: number}>;
+  byCashier: Array<{cashier: string | null; orders: number; total: number}>;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -81,10 +84,8 @@ export function summarizeSales(sales: ReportSale[], now: Date, periodDays: Perio
   since.setDate(since.getDate() - (periodDays - 1));
   const period = live.filter((s) => new Date(s.created_at) >= since);
 
-  const split = (st: ReportSale['status']) => {
-    const rows = period.filter((s) => s.status === st);
-    return {count: rows.length, total: round2(rows.reduce((a, s) => a + s.total, 0))};
-  };
+  const sum = (rows: ReportSale[]) => ({count: rows.length, total: round2(rows.reduce((a, s) => a + s.total, 0))});
+  const split = (st: ReportSale['status']) => sum(period.filter((s) => s.status === st));
 
   // 7 local-day buckets ending today (prototype chart; honest zeros — no demo backfill).
   const trend7d = Array.from({length: 7}, (_, i) => {
@@ -115,10 +116,12 @@ export function summarizeSales(sales: ReportSale[], now: Date, periodDays: Perio
     paid: split('Paid'),
     preorder: split('Unpaid'),
     pendingSync: split('PendingSync'),
+    retail: sum(period.filter((s) => s.sale_type !== 'wholesale')),
+    wholesale: sum(period.filter((s) => s.sale_type === 'wholesale')),
     discountGiven: round2(period.reduce((a, s) => a + s.discount, 0)),
     deliveryFees: round2(period.reduce((a, s) => a + s.delivery_fee, 0)),
     topProducts: topProducts(period),
     byBranch: [...group((s) => s.branch_id)].map(([branchId, g]) => ({branchId: branchId as string, ...g})).sort((a, b) => b.total - a.total),
-    byCashier: [...group((s) => s.created_by)].map(([userId, g]) => ({userId, ...g})).sort((a, b) => b.total - a.total),
+    byCashier: [...group((s) => s.cashier)].map(([cashier, g]) => ({cashier, ...g})).sort((a, b) => b.total - a.total),
   };
 }

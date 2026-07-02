@@ -12,10 +12,24 @@ import type {FinishedGood, PosCashSession, PosInvoice, PosInvoiceLine, Product} 
 
 export interface SaleLineInput {
   product_id: string;
-  finished_goods_batch_id: string;
+  finished_goods_batch_id: string | null; // null = bulk (mock "Skip Weigh")
   name: string; // display snapshot for the local receipt
-  weight_kg: number;
-  unit_price: number; // display; server recomputes
+  weight_kg: number | null; // null = bulk flat-price line
+  unit_price: number; // farm ₱/kg (display; server recomputes) — or the negotiated flat ₱ for bulk (server-validated > 0)
+  retail_per_kg: number | null; // prevailing retail snapshot for the saved math; null = bulk
+}
+
+// Cashier display name for the local slip/journal (prototype postedBy). Self users-row is always RLS-visible.
+let ownNameCache: string | null | undefined;
+async function currentDisplayName(): Promise<string | null> {
+  if (MOCK_MODE) return (await mockUsers())[0]?.display_name ?? 'Demo Owner';
+  if (ownNameCache !== undefined) return ownNameCache;
+  const {data} = await supabase.auth.getSession();
+  const authId = data.session?.user?.id;
+  if (!authId) return (ownNameCache = null);
+  const {data: row} = await supabase.from('users').select('display_name').eq('auth_user_id', authId).maybeSingle();
+  ownNameCache = (row?.display_name as string | undefined) ?? null;
+  return ownNameCache;
 }
 
 export interface SaleOptions {
@@ -34,7 +48,7 @@ const online = () => typeof navigator === 'undefined' || navigator.onLine;
 
 export const posApi = {
   async fetchProducts(companyId: string): Promise<Product[]> {
-    if (MOCK_MODE) return mockRead<Product>('products', companyId);
+    if (MOCK_MODE) return (await mockRead<Product>('products', companyId)).filter((p) => p.status === 'Active').sort((a, b) => a.name.localeCompare(b.name));
     const {data, error} = await supabase.from('products').select('*').eq('company_id', companyId).eq('status', 'Active').order('name');
     if (error) throw new Error(error.message);
     return ((data ?? []) as Product[]).map((p) => ({...p, retail_per_kg: Number(p.retail_per_kg)}));
@@ -61,18 +75,24 @@ export const posApi = {
     const kind = opts.kind ?? 'paid';
     const discountRate = opts.discountRate ?? 0;
     const deliveryFee = round2(opts.deliveryFee ?? 0);
-    const subtotal = round2(lines.reduce((s, l) => s + round2(l.weight_kg * l.unit_price), 0));
-    const discount = round2(subtotal * discountRate);
-    const total = round2(subtotal - discount + deliveryFee);
-    if (kind === 'paid' && tenderCash < total) throw new Error('Insufficient cash tendered.');
-    const idem = uuidv7();
     const invoiceLines: PosInvoiceLine[] = lines.map((l) => ({
       product_id: l.product_id, finished_goods_batch_id: l.finished_goods_batch_id, name: l.name,
-      weight_kg: l.weight_kg, unit_price: l.unit_price, line_total: round2(l.weight_kg * l.unit_price),
+      weight_kg: l.weight_kg, unit_price: l.unit_price, retail_per_kg: l.retail_per_kg,
+      line_total: l.weight_kg === null ? round2(l.unit_price) : round2(l.weight_kg * l.unit_price),
     }));
+    const subtotal = round2(invoiceLines.reduce((s, l) => s + l.line_total, 0));
+    // prototype math: retailLine per weighed item (bulk retailLine = its flat price); saved includes the pre-order discount
+    const retailTotal = round2(invoiceLines.reduce((s, l) => s + (l.weight_kg !== null && l.retail_per_kg != null ? round2(l.weight_kg * l.retail_per_kg) : l.line_total), 0));
+    const discount = round2(subtotal * discountRate);
+    const total = round2(subtotal - discount + deliveryFee);
+    const saved = round2(retailTotal - subtotal + discount);
+    const saleType: 'retail' | 'wholesale' = lines.some((l) => l.weight_kg === null) ? 'wholesale' : 'retail';
+    if (kind === 'paid' && tenderCash < total) throw new Error('Insufficient cash tendered.');
+    const idem = uuidv7();
     const base: PosInvoice = {
       id: idem, company_id: companyId, branch_id: branchId, invoice_number: null,
       lines: invoiceLines, subtotal, discount, delivery_fee: deliveryFee, total,
+      retail_total: retailTotal, saved, sale_type: saleType, posted_by: await currentDisplayName(),
       tender_cash: kind === 'paid' ? tenderCash : 0,
       change_amount: kind === 'paid' ? round2(tenderCash - total) : 0,
       note: opts.note ?? null,
@@ -80,11 +100,12 @@ export const posApi = {
     };
 
     if (MOCK_MODE) {
-      for (const l of lines) {
+      const weighed = lines.filter((l): l is SaleLineInput & {weight_kg: number; finished_goods_batch_id: string} => l.weight_kg !== null && l.finished_goods_batch_id !== null);
+      for (const l of weighed) {
         const fg = await offlineDB.finishedGoods.get(l.finished_goods_batch_id);
         if (!fg || fg.available < l.weight_kg) throw new Error(`Not enough stock for ${l.name}.`);
       }
-      for (const l of lines) {
+      for (const l of weighed) {
         const fg = (await offlineDB.finishedGoods.get(l.finished_goods_batch_id))!;
         await offlineDB.finishedGoods.put({...fg, available: round2(fg.available - l.weight_kg)});
       }
@@ -97,7 +118,9 @@ export const posApi = {
 
     const payload = {
       p_branch_id: branchId,
-      p_lines: lines.map((l) => ({product_id: l.product_id, finished_goods_batch_id: l.finished_goods_batch_id, weight_kg: l.weight_kg})),
+      p_lines: lines.map((l) => l.weight_kg === null
+        ? {product_id: l.product_id, bulk_price: l.unit_price}
+        : {product_id: l.product_id, finished_goods_batch_id: l.finished_goods_batch_id, weight_kg: l.weight_kg}),
       p_tender_cash: tenderCash, p_idempotency_key: idem,
       p_sale_kind: kind, p_discount_rate: discountRate, p_delivery_fee: deliveryFee, p_customer_note: opts.note ?? null,
     };
@@ -135,10 +158,11 @@ export const posApi = {
         sales: invs
           .map((i) => ({
             id: i.id, branch_id: i.branch_id, invoice_number: i.invoice_number, total: i.total,
-            // ?? 0: cache rows written before M2C-b predate the discount/delivery_fee fields
-            discount: i.discount ?? 0, delivery_fee: i.delivery_fee ?? 0, status: i.status, created_by: null,
+            // ?? defaults: cache rows written before M2C-b/M2E predate these fields
+            discount: i.discount ?? 0, delivery_fee: i.delivery_fee ?? 0, status: i.status,
+            sale_type: i.sale_type ?? 'retail', cashier: i.posted_by ?? null,
             created_at: i.created_at,
-            lines: i.lines.map((l) => ({name: l.name, weight_kg: l.weight_kg, line_total: l.line_total})),
+            lines: i.lines.map((l) => ({name: l.name, weight_kg: l.weight_kg ?? 0, line_total: l.line_total})),
           }))
           .sort((a, b) => b.created_at.localeCompare(a.created_at)),
         branchNames: Object.fromEntries(branches.map((b) => [b.id, b.name])),
@@ -157,7 +181,7 @@ export const posApi = {
         .order('created_at', {ascending: false}),
       supabase.from('sales_orders').select('id, discount, delivery_fee').eq('company_id', companyId).gte('created_at', sinceIso),
       supabase.from('sales_order_items')
-        .select('sales_order_id, product_id, quantity, line_total, sales_orders!inner(order_date)')
+        .select('sales_order_id, product_id, quantity, line_total, is_bulk, description, sales_orders!inner(order_date)')
         .eq('company_id', companyId)
         .gte('sales_orders.order_date', sinceIso),
       supabase.from('products').select('id, name').eq('company_id', companyId), // all statuses: archived names still render
@@ -168,9 +192,15 @@ export const posApi = {
     const productName = new Map((prods.data ?? []).map((p) => [p.id as string, p.name as string]));
     const orderMeta = new Map((orders.data ?? []).map((o) => [o.id as string, {discount: Number(o.discount), delivery_fee: Number(o.delivery_fee)}]));
     const linesByOrder = new Map<string, ReportLine[]>();
-    for (const it of (items.data ?? []) as Array<{sales_order_id: string; product_id: string; quantity: unknown; line_total: unknown}>) {
+    const bulkOrders = new Set<string>();
+    for (const it of (items.data ?? []) as Array<{sales_order_id: string; product_id: string; quantity: unknown; line_total: unknown; is_bulk: boolean | null; description: string | null}>) {
       const arr = linesByOrder.get(it.sales_order_id) ?? [];
-      arr.push({name: productName.get(it.product_id) ?? 'Unknown', weight_kg: Number(it.quantity), line_total: Number(it.line_total)});
+      if (it.is_bulk) bulkOrders.add(it.sales_order_id);
+      arr.push({
+        name: it.is_bulk ? (it.description ?? 'Bulk Pre-order') : (productName.get(it.product_id) ?? 'Unknown'),
+        weight_kg: it.is_bulk ? 0 : Number(it.quantity),
+        line_total: Number(it.line_total),
+      });
       linesByOrder.set(it.sales_order_id, arr);
     }
     type InvRow = {id: string; branch_id: string; sales_order_id: string; invoice_number: unknown; total: unknown; status: SalesReport['sales'][number]['status']; created_by: string | null; created_at: string};
@@ -181,7 +211,9 @@ export const posApi = {
         total: Number(i.total),
         discount: orderMeta.get(i.sales_order_id)?.discount ?? 0,
         delivery_fee: orderMeta.get(i.sales_order_id)?.delivery_fee ?? 0,
-        status: i.status, created_by: i.created_by, created_at: i.created_at,
+        status: i.status,
+        sale_type: (bulkOrders.has(i.sales_order_id) ? 'wholesale' : 'retail') as 'retail' | 'wholesale',
+        cashier: i.created_by, created_at: i.created_at,
         lines: linesByOrder.get(i.sales_order_id) ?? [],
       })),
       branchNames: Object.fromEntries((brs.data ?? []).map((b) => [b.id as string, b.name as string])),
@@ -214,6 +246,7 @@ export const posApi = {
     if (!reason.trim()) throw new Error('A void reason is required.');
     if (MOCK_MODE) {
       for (const l of invoice.lines) {
+        if (l.weight_kg === null || l.finished_goods_batch_id === null) continue; // bulk lines never moved stock
         const fg = await offlineDB.finishedGoods.get(l.finished_goods_batch_id);
         if (fg) await offlineDB.finishedGoods.put({...fg, available: round2(fg.available + l.weight_kg)});
       }
@@ -228,6 +261,49 @@ export const posApi = {
       await enqueue({companyId, kind: 'pos.void', request: {type: 'rpc', rpc: 'pos_void_sale', payload}});
     }
     await offlineDB.posInvoices.put({...invoice, status: 'Voided'});
+  },
+
+  // ── Crop Pricing Menu (prototype Catalog Manager; product.manage; M2A client write grants) ──
+  // Same seam as sales: MOCK → Dexie; real+online → direct PostgREST (authoritative, immediate); real+offline →
+  // outbox-queued. Prototype "Delete" maps to Archive (no hard delete; historical sales stay valid).
+  async addProduct(companyId: string, name: string, retailPerKg: number): Promise<void> {
+    const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'PRODUCT';
+    const payload = {company_id: companyId, product_code: code, name: name.trim(), retail_per_kg: retailPerKg};
+    if (MOCK_MODE) {
+      const now = new Date().toISOString();
+      await offlineDB.products.put({id: uuidv7(), ...payload, status: 'Active', created_at: now, updated_at: now});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.from('products').insert(payload);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId, kind: 'product.create', request: {type: 'insert', table: 'products', payload}});
+  },
+  async updateProductPrice(row: Product, retailPerKg: number): Promise<void> {
+    if (MOCK_MODE) {
+      await offlineDB.products.put({...row, retail_per_kg: retailPerKg, updated_at: new Date().toISOString()});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.from('products').update({retail_per_kg: retailPerKg}).eq('id', row.id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId: row.company_id, kind: 'product.update', request: {type: 'update', table: 'products', match: {id: row.id, baseUpdatedAt: row.updated_at}, payload: {retail_per_kg: retailPerKg}}});
+  },
+  async archiveProduct(row: Product): Promise<void> {
+    if (MOCK_MODE) {
+      await offlineDB.products.put({...row, status: 'Archived', updated_at: new Date().toISOString()});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.from('products').update({status: 'Archived'}).eq('id', row.id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId: row.company_id, kind: 'product.archive', request: {type: 'update', table: 'products', match: {id: row.id, baseUpdatedAt: row.updated_at}, payload: {status: 'Archived'}}});
   },
 
   // Cash session (22.09): current Open session for a branch, open, close (returns variance).

@@ -21,7 +21,8 @@ const sale = (over: Partial<ReportSale>): ReportSale => ({
   discount: 0,
   delivery_fee: 0,
   status: 'Paid',
-  created_by: 'u1',
+  sale_type: 'retail',
+  cashier: 'u1',
   created_at: daysAgo(0),
   lines: [],
   ...over,
@@ -101,9 +102,9 @@ describe('summarizeSales', () => {
   it('groups by branch and cashier, sorted by total desc, null cashier preserved', () => {
     const s = summarizeSales(
       [
-        sale({branch_id: 'br-1', created_by: 'u1', total: 100}),
-        sale({branch_id: 'br-2', created_by: null, total: 300}),
-        sale({branch_id: 'br-1', created_by: 'u1', total: 50}),
+        sale({branch_id: 'br-1', cashier: 'u1', total: 100}),
+        sale({branch_id: 'br-2', cashier: null, total: 300}),
+        sale({branch_id: 'br-1', cashier: 'u1', total: 50}),
       ],
       NOW, 7,
     );
@@ -112,8 +113,21 @@ describe('summarizeSales', () => {
       {branchId: 'br-1', orders: 2, total: 150},
     ]);
     expect(s.byCashier).toEqual([
-      {userId: null, orders: 1, total: 300},
-      {userId: 'u1', orders: 2, total: 150},
+      {cashier: null, orders: 1, total: 300},
+      {cashier: 'u1', orders: 2, total: 150},
     ]);
+  });
+
+  it('splits retail vs wholesale by sale type (voided excluded)', () => {
+    const s = summarizeSales(
+      [
+        sale({sale_type: 'retail', total: 270}),
+        sale({sale_type: 'wholesale', total: 500}),
+        sale({sale_type: 'wholesale', total: 999, status: 'Voided'}),
+      ],
+      NOW, 7,
+    );
+    expect(s.retail).toEqual({count: 1, total: 270});
+    expect(s.wholesale).toEqual({count: 1, total: 500});
   });
 });

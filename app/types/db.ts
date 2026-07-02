@@ -139,14 +139,16 @@ export interface FinishedGood {
 
 export interface PosInvoiceLine {
   product_id: string;
-  finished_goods_batch_id: string; // lets mock-mode void restore stock; server does this itself
+  finished_goods_batch_id: string | null; // null = bulk line; lets mock-mode void restore stock
   name: string;
-  weight_kg: number;
-  unit_price: number;
+  weight_kg: number | null; // null = bulk flat-price line (mock "Skip Weigh", P2-M2E)
+  unit_price: number; // farm ₱/kg for weighed lines; the negotiated flat ₱ for bulk
+  retail_per_kg?: number | null; // prevailing retail snapshot (saved = retail − farm); null/absent = bulk or legacy row
   line_total: number;
 }
 
 // Local cache/mock render of a sale (the server truth is sales_orders + invoices, 20.17).
+// P2-M2E fields are optional: cache rows written by earlier milestones lack them (reads default them).
 export interface PosInvoice {
   id: string;
   company_id: string;
@@ -157,6 +159,10 @@ export interface PosInvoice {
   discount: number;
   delivery_fee: number;
   total: number;
+  retail_total?: number; // Σ weight × retail (prototype retailTotal)
+  saved?: number; // retail_total − subtotal + pre-order discount (prototype "Farm Discount Saved")
+  sale_type?: 'retail' | 'wholesale'; // wholesale = any bulk line (prototype Transaction.type)
+  posted_by?: string | null; // cashier display-name snapshot (prototype postedBy)
   tender_cash: number;
   change_amount: number;
   note: string | null;

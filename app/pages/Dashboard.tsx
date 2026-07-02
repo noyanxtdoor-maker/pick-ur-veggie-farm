@@ -45,8 +45,10 @@ export default function Dashboard() {
 
   const summary = useMemo(() => (report ? summarizeSales(report.sales, new Date(), period) : null), [report, period]);
   const scopeHint = report?.source === 'canonical' ? 'your branches' : 'this device';
-  const cashierLabel = (userId: string | null) =>
-    userId === null ? 'This device' : report?.userNames[userId] ?? `Cashier …${userId.slice(-4)}`;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // cashier is a user id in canonical mode (resolved via userNames under user.read) or a display-name snapshot from the device cache
+  const cashierLabel = (cashier: string | null) =>
+    cashier === null ? 'This device' : report?.userNames[cashier] ?? (UUID_RE.test(cashier) ? `Cashier …${cashier.slice(-4)}` : cashier);
   const recent = (report?.sales ?? []).slice(0, 5);
 
   useEffect(() => {
@@ -140,6 +142,7 @@ export default function Dashboard() {
               <dl className="space-y-2 text-base">
                 <div className="flex justify-between"><dt className="text-farm-muted">Paid sales</dt><dd className="font-bold text-farm-ink">{summary?.paid.count ?? 0} · {formatPeso(summary?.paid.total ?? 0)}</dd></div>
                 <div className="flex justify-between"><dt className="text-farm-muted">Pre-orders (unpaid)</dt><dd className="font-bold text-farm-ink">{summary?.preorder.count ?? 0} · {formatPeso(summary?.preorder.total ?? 0)}</dd></div>
+                <div className="flex justify-between"><dt className="text-farm-muted">Retail / Wholesale</dt><dd className="font-bold text-farm-ink">{formatPeso(summary?.retail.total ?? 0)} / {formatPeso(summary?.wholesale.total ?? 0)}</dd></div>
                 {summary && summary.pendingSync.count > 0 ? (
                   <div className="flex justify-between"><dt className="text-farm-muted">Pending sync</dt><dd className="font-bold text-amber-700">{summary.pendingSync.count} · {formatPeso(summary.pendingSync.total)}</dd></div>
                 ) : null}
@@ -214,8 +217,8 @@ export default function Dashboard() {
                 {summary && summary.byCashier.length > 0 ? (
                   <ul className="divide-y divide-farm-accent-soft">
                     {summary.byCashier.map((c) => (
-                      <li key={c.userId ?? 'device'} className="flex items-center justify-between py-1.5 text-base">
-                        <span className="font-semibold text-farm-ink">{cashierLabel(c.userId)}</span>
+                      <li key={c.cashier ?? 'device'} className="flex items-center justify-between py-1.5 text-base">
+                        <span className="font-semibold text-farm-ink">{cashierLabel(c.cashier)}</span>
                         <span className="text-farm-muted">{c.orders} · <span className="font-bold text-farm-green">{formatPeso(c.total)}</span></span>
                       </li>
                     ))}
