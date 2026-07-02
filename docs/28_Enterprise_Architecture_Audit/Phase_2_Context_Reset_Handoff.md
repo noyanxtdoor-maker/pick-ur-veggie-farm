@@ -17,20 +17,17 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
 
 ## 2. Git state (verify on session start)
 - Branch `feature/phase-0-foundation`. Protected: `develop`=`d1c1f04`, `main`=`7833c9f` (NEVER touch).
-- **Pushed (origin tip `0c327ae`):** M1–M6 (locked #11–#21) · P2-M1 org backend (locked #23, `a26b667`) ·
-  M1B/M1C docs (`3e345d5`/`01e35e0`) · `5daee3d` M1D app · `a67ca58` crops · `439421e` M2-prep docs ·
-  `147d37b` **M2A finished-goods spine** · `0c327ae` **M2B POS sale + minimal GL**.
-  **⚠️ CI RESULTS FOR THIS PUSH NEVER AUDITED** — owner must paste the GitHub Actions run (this env cannot fetch
-  Actions); audit per §5 before declaring M1D/crops/M2A/M2B *locked*. Never assert CI green unseen.
-- **Local-only (ahead 3, push needs explicit owner go):** `7f3b7cd` weigh-POS UI · `8f8daf5` AI-Studio design
-  adoption + sales journal + dashboard KPIs (E2E-verified in browser) · `9aa75f3` farm-theme sweep + M2C spec.
-- **`1c5417d` M2C-a COMMITTED (local, verified):** migration `20260702090000_p2m2c_pos_preorder_
-  cashsession.sql` + extended `guard:pos` (15/15 green after Docker restart; static float false-positive fixed via opening_cash rename).
-- **`11d8db0` M2C-b COMMITTED (local, BROWSER-VERIFIED):** pre-order checkout tabs (10% discount/fee/note),
-  journal Mark-Paid settle pane + Void (reason required, VOID pill), cash-session strip (open/close/count/
-  variance); posApi settle/voidSale/session (mock | rpc | offline-queued); PermissionKey = 16; seedMockData
-  now always refreshes the perm snapshot (heals stale demo devices). Live E2E: drawer 1000 → preorder 290
-  Unpaid → settled → voided → close "no variance". **Module 2 (POS) is now FEATURE-COMPLETE locally.**
+- **Pushed (origin tip `375f8ad`, pushed 2026-07-02 on owner go):** M1–M6 (locked #11–#21) · P2-M1 org backend
+  (locked #23) · M1B/M1C docs · `5daee3d` M1D app · `a67ca58` crops · `439421e` M2-prep docs · `147d37b` **M2A** ·
+  `0c327ae` **M2B** · `7f3b7cd` weigh-POS UI · `8f8daf5` AI-Studio design + journal + KPIs · `9aa75f3` farm-theme
+  sweep + M2C spec · `1c5417d` **M2C-a** (migration `20260702090000_p2m2c…` + guard:pos 15/15) · `11d8db0`
+  **M2C-b** (pre-order/settle/void/cash-session UI, browser-E2E) · docs/charter commits.
+  **⚠️ CI FOR THIS PUSH (and the prior `0c327ae` push) NEVER AUDITED** — owner pastes the Actions run (this env
+  cannot fetch Actions); audit per §5 before declaring M1D/crops/M2A/M2B/M2C *locked*. One green run at `375f8ad`
+  covers the whole tree. Never assert CI green unseen.
+- **Local-only (ahead 3, push = owner gate):** `56ede52` M2D spec · `cfda1da` **M2D dashboard reporting reads**
+  (BROWSER-VERIFIED) · `102f20f` chore: preview auto-port (launch.json + vite PORT; `npm run dev` unchanged).
+- **Module 2 (POS) is FEATURE-COMPLETE locally (M2A–M2D).**
   
   
 
@@ -52,7 +49,15 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   Sales Journal + dashboard ₱ KPIs; whole app in the **prototype farm theme** (tokens in `app/index.css`:
   farm-green #003e1c etc.). `pos_record_sale` charges `products.retail_per_kg` (server price authority — the
   prototype's 10% "farm discount" display was NOT faked; dual pricing = future owner decision).
-  Launch: `.claude/launch.json` → `v3-app` (npm run dev, port 3000). Tests 14/14; tsc clean; build OK.
+  Launch: `.claude/launch.json` → `v3-app` (auto-port; `npm run dev` = port 3000). Tests 22/22; tsc clean; build OK.
+- **App (local `cfda1da`): M2D dashboard reporting reads** — app-only (NO migration/permission; reads reuse
+  member RLS; cross-branch owner reporting reserved behind future `pos.read.all`; spec `Phase_2_M2D_Dashboard_
+  Reporting_Spec.md`). Pure `summarizeSales()` (`app/features/pos/report.ts`, 7 unit tests): voided excluded,
+  receivables = all-Unpaid balance, Today/7d/30d periods, 7-day trend (honest zeros), top products ₱+kg,
+  by-branch/by-cashier. `posApi.fetchSalesReport()`: canonical selects online (30d window + all Unpaid; cashier
+  names only via users RLS `user.read`); mock/offline → device cache labeled "this device". Dashboard: receivables
+  KPI, voided-exclusion bug fixed, recharts trend (lazy chunk), insights panel, recent-sales stream.
+  Browser E2E: paid 240 + preorder 263 (10% disc + 20 fee) + prior void → KPIs 878/3/263 exact.
 
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
@@ -65,17 +70,16 @@ tsc/vitest/build) → LOCAL commit → owner pushes → owner pastes CI → audi
 evolve via new migrations (`create or replace` / additive `alter` — the M4/M2C pattern).
 
 ## 5. CI audit checklist (when owner pastes a run)
-verify: npm ci · tsc · vitest (14 tests) · build, no skips/continue-on-error. secrets: full-history gitleaks.
-db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying ALL migrations → guard steps
-static/db/rls/bootstrap/org/crop/**inventory**/**pos**/drift each visibly executed → stop. No `|| true`.
+verify: npm ci · tsc · vitest (22 tests at `375f8ad`+; 15 at `375f8ad` itself) · build, no skips/continue-on-error.
+secrets: full-history gitleaks. db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying ALL
+migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/drift each visibly executed →
+stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Owner gates (all work is now gated):** paste CI for `0c327ae` (audit → lock M1D/crops/M2A/M2B) ·
-   authorize push of the **7 local commits** (7f3b7cd/8f8daf5/9aa75f3/1c5417d/061cd57/e1d25ee/11d8db0) →
-   CI runs → audit → lock M2C.
-
-
-3. Then: **M2D** dashboard/report reads → **Inventory module** (03/20.07-20.12) → Accounting (22) → Payroll (21)
+1. **Owner gates:** paste CI for the `375f8ad` push (one green run audits the whole tree → lock
+   M1D/crops/M2A/M2B/M2C) · authorize push of the **3 local commits** (56ede52/cfda1da/102f20f) → CI → audit →
+   lock M2D.
+2. Then: **Inventory module** (03/20.07-20.12, spec-first) → Accounting (22) → Payroll (21)
    → Scheduling → Settings Hub (theme system: dark/cream/green tokens exist in src/index.css; only light ported).
 
 
