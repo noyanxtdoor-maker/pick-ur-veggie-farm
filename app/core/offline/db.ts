@@ -1,7 +1,7 @@
 // Local-first store (B5 §4) + the durable write-ahead outbox (M1B O1). IndexedDB via Dexie.
 // Cache holds only authorized-branch data the user has read (scoped); the outbox holds unsynced writes.
 import Dexie, {type Table} from 'dexie';
-import type {Branch, Company, CropCategory, CropProfile, CropVariety, FinishedGood, Invitation, Membership, Permission, PlantingTemplate, PosInvoice, Product, Role} from '../../types/db';
+import type {Branch, Company, CropCategory, CropProfile, CropVariety, EquipmentAsset, EquipmentLog, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, PurchaseReceiving, Role} from '../../types/db';
 
 export type OutboxState = 'Pending' | 'Uploading' | 'Completed' | 'Failed' | 'Blocked';
 
@@ -49,6 +49,12 @@ export class OfflineDB extends Dexie {
   products!: Table<Product, string>;
   finishedGoods!: Table<FinishedGood, string>;
   posInvoices!: Table<PosInvoice, string>;
+  itemCategories!: Table<ItemCategory, string>;
+  inventoryItems!: Table<Omit<InventoryItem, 'available'>, string>;
+  materialStock!: Table<{id: string; company_id: string; branch_id: string; item_id: string; available: number}, string>; // mock-mode balances (server derives from the ledger)
+  purchaseReceivings!: Table<PurchaseReceiving, string>;
+  equipmentAssets!: Table<EquipmentAsset, string>;
+  equipmentLogs!: Table<EquipmentLog, string>;
   meta!: Table<MetaRow, string>;
 
   constructor(name = 'PickUrVeggieV3') {
@@ -77,6 +83,15 @@ export class OfflineDB extends Dexie {
       finishedGoods: 'id, company_id, branch_id, product_id, status',
       posInvoices: 'id, company_id, branch_id, created_at',
     });
+    // P2-M3B materials/equipment inventory (additive).
+    this.version(4).stores({
+      itemCategories: 'id, company_id, category_key',
+      inventoryItems: 'id, company_id, category_id, status',
+      materialStock: 'id, company_id, branch_id, item_id',
+      purchaseReceivings: 'id, company_id, branch_id, item_id, received_date',
+      equipmentAssets: 'id, company_id, branch_id, condition',
+      equipmentLogs: 'id, company_id, equipment_id',
+    });
   }
 }
 
@@ -85,7 +100,7 @@ export const offlineDB = new OfflineDB();
 // Purge all scoped/cached data (M1B S1 — on logout, revocation, or company switch). Outbox is preserved
 // only for the same company; everything else is server-re-derivable.
 export async function purgeCache(db: OfflineDB = offlineDB): Promise<void> {
-  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.meta];
+  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.meta];
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
   });

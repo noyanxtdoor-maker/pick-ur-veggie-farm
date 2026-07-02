@@ -21,7 +21,8 @@ describe('mock / offline-dev adapter', () => {
     expect(snap?.keys).toContain('crop.manage');
     expect(snap?.keys).toContain('pos.sell');
     expect(snap?.keys).toContain('cash.session');
-    expect(snap?.keys.length).toBe(16);
+    expect(snap?.keys).toContain('inventory.purchase');
+    expect(snap?.keys.length).toBe(18);
   });
 
   it('drains the outbox into Dexie via mockSender (offline create works, no cloud)', async () => {

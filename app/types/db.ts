@@ -108,7 +108,9 @@ export type PermissionKey =
   | 'pos.sell'
   | 'pos.settle'
   | 'pos.void'
-  | 'cash.session';
+  | 'cash.session'
+  | 'inventory.purchase'
+  | 'equipment.manage';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -177,6 +179,70 @@ export interface PosCashSession {
   opening_cash: number;
   opened_at: string;
   status: 'Open' | 'Closed';
+}
+
+// ── Materials & Equipment Inventory (P2-M3A/M3B) — identity in the master, balances DERIVED (20.09). ──
+export interface ItemCategory {
+  id: string;
+  company_id: string;
+  category_key: string; // seeds|substrate|packaging|utilities|transport|misc|equipment (mock set)
+  name: string;
+  status: 'Active' | 'Archived';
+  created_at: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  company_id: string;
+  category_id: string;
+  item_code: string;
+  name: string;
+  inventory_type: 'Consumable' | 'Equipment';
+  base_unit: string; // 'pcs' (mock; unit conversion deferred)
+  reorder_level: number; // the mock's low-stock limit (per item; default 10)
+  status: 'Active' | 'Inactive' | 'Archived';
+  created_at: string;
+  updated_at: string;
+  // client-side augmentation for the selected branch (server: material_available(); mock: materialStock)
+  available: number;
+}
+
+export interface PurchaseReceiving {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  item_id: string;
+  quantity: number;
+  total_amount: number;
+  source_type: 'online' | 'physical';
+  source_name: string;
+  source_contact: string | null;
+  received_date: string; // date
+  created_at: string;
+}
+
+export interface EquipmentAsset {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  asset_code: string;
+  name: string;
+  purchase_date: string | null;
+  purchase_cost: number;
+  condition: 'Good' | 'Needs Maintenance' | 'Broken' | 'Retired';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EquipmentLog {
+  id: string;
+  company_id: string;
+  equipment_id: string;
+  working: boolean;
+  needs_maintenance: boolean;
+  performed_by_name: string;
+  performed_date: string;
+  notes: string | null;
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──

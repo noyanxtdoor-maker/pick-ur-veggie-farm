@@ -12,6 +12,7 @@ import {offlineDB} from '../core/offline/db';
 import {usePermissions} from '../core/permissions/permissions';
 import {MOCK_MODE} from '../core/mock/mock';
 import {posApi} from '../features/pos/api';
+import {inventoryApi} from '../features/inventory/api';
 import {summarizeSales, type PeriodDays, type SalesReport} from '../features/pos/report';
 import {ActionTile, Card, cn, PageHeader, StatCard} from '../components/ui';
 import {ErrorState, StatusBadge} from '../components/feedback';
@@ -34,6 +35,16 @@ export default function Dashboard() {
 
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
   const branchCount = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).count() : 0), [companyId], 0);
+
+  // Low-Stock tile (M3B — the prototype KPI reserved in M2D): materials at/below their reorder level.
+  const [lowStock, setLowStock] = useState<number | null>(null);
+  useEffect(() => {
+    if (!companyId) return;
+    offlineDB.branches.where('company_id').equals(companyId).toArray()
+      .then((bs) => inventoryApi.lowStockCount(companyId, bs.map((b) => b.id)))
+      .then(setLowStock)
+      .catch(() => setLowStock(null));
+  }, [companyId]);
 
   const loadReport = (cid: string) => {
     setReportError(null);
@@ -73,7 +84,7 @@ export default function Dashboard() {
       <PageHeader title="Home Dashboard" subtitle={company ? `${company.name} · ${company.company_code}` : 'Your farm at a glance'} />
 
       {/* Operational KPIs (prototype Home Dashboard; voided excluded, receivables = open balance) */}
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Daily Sales Volume"
           value={formatPeso(summary?.todayVolume ?? 0)}
@@ -86,6 +97,13 @@ export default function Dashboard() {
           value={formatPeso(summary?.receivablesTotal ?? 0)}
           hint={summary?.receivablesCount ? `${summary.receivablesCount} unpaid pre-order${summary.receivablesCount === 1 ? '' : 's'}` : 'no open pre-orders'}
         />
+        <button onClick={() => navigate('/inventory')} className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500">
+          <StatCard
+            label="Low Stock Alerts"
+            value={<span className={lowStock ? 'text-farm-danger' : undefined}>{lowStock ?? '—'}</span>}
+            hint={lowStock ? 'materials need reorder restock' : 'all materials sufficient'}
+          />
+        </button>
       </div>
 
       {reportError ? (
