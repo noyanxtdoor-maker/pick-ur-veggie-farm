@@ -26,6 +26,11 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   adoption + sales journal + dashboard KPIs (E2E-verified in browser) · `9aa75f3` farm-theme sweep + M2C spec.
 - **`1c5417d` M2C-a COMMITTED (local, verified):** migration `20260702090000_p2m2c_pos_preorder_
   cashsession.sql` + extended `guard:pos` (15/15 green after Docker restart; static float false-positive fixed via opening_cash rename).
+- **`11d8db0` M2C-b COMMITTED (local, BROWSER-VERIFIED):** pre-order checkout tabs (10% discount/fee/note),
+  journal Mark-Paid settle pane + Void (reason required, VOID pill), cash-session strip (open/close/count/
+  variance); posApi settle/voidSale/session (mock | rpc | offline-queued); PermissionKey = 16; seedMockData
+  now always refreshes the perm snapshot (heals stale demo devices). Live E2E: drawer 1000 → preorder 290
+  Unpaid → settled → voided → close "no variance". **Module 2 (POS) is now FEATURE-COMPLETE locally.**
   
   
 
@@ -65,9 +70,9 @@ db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying A
 static/db/rls/bootstrap/org/crop/**inventory**/**pos**/drift each visibly executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **M2C-b UI** (app-only, local commits): checkout classification (Direct Cash | Pre-order w/ 10% discount toggle +
-   delivery fee + note), journal **Mark Paid** + **Void (reason)** actions, cash-session strip; mock paths; tsc/tests/build.
-2. Owner gates: paste CI for `0c327ae` (audit → lock) · authorize push of the 4 local commits (7f3b7cd/8f8daf5/9aa75f3/1c5417d).
+1. **Owner gates (all work is now gated):** paste CI for `0c327ae` (audit → lock M1D/crops/M2A/M2B) ·
+   authorize push of the **7 local commits** (7f3b7cd/8f8daf5/9aa75f3/1c5417d/061cd57/e1d25ee/11d8db0) →
+   CI runs → audit → lock M2C.
 
 
 3. Then: **M2D** dashboard/report reads → **Inventory module** (03/20.07-20.12) → Accounting (22) → Payroll (21)
