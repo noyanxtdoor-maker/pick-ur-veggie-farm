@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "v3-app",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host=0.0.0.0"],
+      "autoPort": true
     }
   ]
 }

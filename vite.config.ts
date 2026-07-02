@@ -31,6 +31,8 @@ export default defineConfig(() => {
       environment: 'node', // default; component tests opt into jsdom via a per-file `// @vitest-environment jsdom`.
     },
     server: {
+      // Tooling (preview harness) assigns a port via PORT; `npm run dev`'s explicit --port=3000 still wins.
+      port: process.env.PORT ? Number(process.env.PORT) : undefined,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
