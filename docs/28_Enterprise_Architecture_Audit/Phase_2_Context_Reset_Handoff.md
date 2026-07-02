@@ -25,12 +25,13 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   **⚠️ CI FOR THIS PUSH (and the prior `0c327ae` push) NEVER AUDITED** — owner pastes the Actions run (this env
   cannot fetch Actions); audit per §5 before declaring M1D/crops/M2A/M2B/M2C *locked*. One green run at `375f8ad`
   covers the whole tree. Never assert CI green unseen.
-- **Local-only (ahead 7, push = owner gate):** `56ede52` M2D spec · `cfda1da` **M2D dashboard reporting reads**
-  (BROWSER-VERIFIED) · `102f20f` chore: preview auto-port · `f8199ae` handoff · `0fc089f` M2E spec ·
-  `ea7c2ac` **M2E db: farm pricing + bulk wholesale** (guard-proven) · `5157aed` **M2E app UI** (browser-verified).
-- **Module 2 (POS) is FEATURE-COMPLETE locally (M2A–M2E) and PROTOTYPE-PARITY per the owner's 2026-07-02
-  decision** ("fully follow the logic of the google ai mock app; architecture still considered"). Migrations
-  immutable through `20260702180000_p2m2e`.
+- **Pushed 2026-07-02 evening (origin tip `169eed8`, owner "continue in order"):** everything through M2E —
+  M2D dashboard reads (`cfda1da`) · M2E prototype-parity farm pricing + bulk (`ea7c2ac` db / `5157aed` app) ·
+  docs/chore commits. **CI for BOTH pushes (`375f8ad`, `169eed8`) still awaiting owner paste + audit.**
+- **Local-only (ahead 3, push = owner gate):** `ccf70f9` **Module 3 Inventory spec** · `e6f999a` **M3A materials
+  & equipment db spine** (guard-proven) · `de05e5e` **M3B Inventory UI + real Low-Stock tile** (browser-verified).
+- **Module 2 (POS) = prototype-parity feature-complete (M2A–M2E). Module 3 (Inventory) = feature-complete
+  locally (M3A+M3B).** Migrations immutable through `20260702220000_p2m3a`.
   
   
 
@@ -72,6 +73,19 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   archive — prototype Delete = Archive), dashboard Retail/Wholesale split. tsc clean; vitest 25/25; build OK;
   live E2E: 2kg Tomato 216 farm + bulk 500 → 716/saved 24; pricing menu loop; dashboard 878/716 split.
 
+- **Module 3 Inventory (local `e6f999a` db + `de05e5e` app; spec `Phase_2_M3_Inventory_Module_Spec.md`):**
+  **M3A** — item_categories (mock set seeded)/inventory_items (identity only; reorder_level = mock limit)/
+  purchase_receivings (20.12; PO+partners reserved)/material_batches (FIFO, qty DERIVED); the locked M2A
+  `inventory_movements` evolved additively into the ONE ledger (item_id/material_batch_id, fg-XOR-material);
+  functions inventory_record_purchase (atomic receiving+item+batch+movement+Dr RAW_MATERIALS|EQUIPMENT/Cr CASH
+  +asset), inventory_adjust_material (reason mandatory; FIFO drain + shrinkage at consumed cost; increase =
+  zero-cost found stock), equipment_log_check; +2 permissions (inventory.purchase/equipment.manage; snapshot=18).
+  guard:inventory **24/24** (+12: FIFO order, idempotent purchase, function-only writes, one-domain ledger).
+  **M3B** — prototype-parity Inventory UI (category cards/low-stock/purchase modal w/ autocomplete/audit
+  adjustment/equipment checklist + history) + **real Dashboard Low-Stock tile** (consumables only). Browser E2E:
+  seeds 12pcs/₱600 → Sufficient; pump ₱3500 → checklist → Needs Maintenance; adjust −7 → 5pcs Critical + banner;
+  tile = 1. Tests 30/30.
+
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
 PATH → run guards via `docker exec -i supabase_db_pick-ur-veggie-farm psql -U postgres -d postgres -v
@@ -89,11 +103,12 @@ migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos*
 stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Owner gates:** paste CI for the `375f8ad` push (one green run audits M1D/crops/M2A/M2B/M2C) · authorize
-   push of the **7 local commits** (M2D + M2E) → CI → audit → lock M2D+M2E. **M2E changed the charged price
-   (farm = retail×0.90) — money path: run the cross-vendor reviewer (charter §4.6) before declaring M2E locked.**
-2. Then: **Inventory module** (03/20.07-20.12, spec-first, owner module-start go) → Accounting (22) → Payroll (21)
-   → Scheduling → Settings Hub (theme system: dark/cream/green tokens exist in src/index.css; only light ported).
+1. **Owner gates:** paste CI for the `169eed8` push (one green run audits everything through M2E → lock
+   M1D/crops/M2A–M2E) · **M2E changed the charged price (farm = retail×0.90) — run the cross-vendor money
+   reviewer (charter §4.6) before declaring M2E locked** · authorize push of the **3 local commits** (Module 3
+   Inventory: ccf70f9/e6f999a/de05e5e) → CI → audit → lock M3.
+2. Then: **Accounting module** (Systems 22, spec-first vs mock src/features/Accounting.tsx, owner go) →
+   Payroll (21) → Scheduling → Settings Hub (dark/cream/green tokens exist in src/index.css; only light ported).
 
 
 
