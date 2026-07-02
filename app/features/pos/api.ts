@@ -5,8 +5,9 @@ import {supabase} from '../../core/supabase/client';
 import {offlineDB} from '../../core/offline/db';
 import {enqueue} from '../../core/offline/queue';
 import {uuidv7} from '../../core/offline/uuidv7';
-import {MOCK_MODE, mockRead} from '../../core/mock/mock';
+import {MOCK_MODE, mockRead, mockUsers} from '../../core/mock/mock';
 import {round2} from './money';
+import {REPORT_WINDOW_DAYS, type ReportLine, type SalesReport} from './report';
 import type {FinishedGood, PosCashSession, PosInvoice, PosInvoiceLine, Product} from '../../types/db';
 
 export interface SaleLineInput {
@@ -121,6 +122,72 @@ export const posApi = {
     await enqueue({companyId, kind: 'pos.sale', request: {type: 'rpc', rpc: 'pos_record_sale', payload}});
     await offlineDB.posInvoices.put(base);
     return {invoice: base, provisional: true};
+  },
+
+  // M2D reporting read (spec: Phase_2_M2D_Dashboard_Reporting_Spec.md). Canonical member-scoped selects when
+  // online; mock/offline fall back to the device cache (labeled source:'device'). Aggregation is summarizeSales().
+  async fetchSalesReport(companyId: string): Promise<SalesReport> {
+    const fromCache = async (): Promise<SalesReport> => {
+      const invs = await offlineDB.posInvoices.where('company_id').equals(companyId).toArray();
+      const branches = await offlineDB.branches.where('company_id').equals(companyId).toArray();
+      const users = MOCK_MODE ? await mockUsers() : [];
+      return {
+        sales: invs
+          .map((i) => ({
+            id: i.id, branch_id: i.branch_id, invoice_number: i.invoice_number, total: i.total,
+            // ?? 0: cache rows written before M2C-b predate the discount/delivery_fee fields
+            discount: i.discount ?? 0, delivery_fee: i.delivery_fee ?? 0, status: i.status, created_by: null,
+            created_at: i.created_at,
+            lines: i.lines.map((l) => ({name: l.name, weight_kg: l.weight_kg, line_total: l.line_total})),
+          }))
+          .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+        branchNames: Object.fromEntries(branches.map((b) => [b.id, b.name])),
+        userNames: Object.fromEntries(users.map((u) => [u.id, u.display_name])),
+        source: 'device',
+      };
+    };
+    if (MOCK_MODE || !online()) return fromCache();
+
+    const sinceIso = new Date(Date.now() - REPORT_WINDOW_DAYS * 86_400_000).toISOString();
+    const [inv, orders, items, prods, brs, us] = await Promise.all([
+      supabase.from('invoices')
+        .select('id, branch_id, sales_order_id, invoice_number, total, status, created_by, created_at')
+        .eq('company_id', companyId)
+        .or(`created_at.gte.${sinceIso},status.eq.Unpaid`) // period + ALL open receivables (a balance)
+        .order('created_at', {ascending: false}),
+      supabase.from('sales_orders').select('id, discount, delivery_fee').eq('company_id', companyId).gte('created_at', sinceIso),
+      supabase.from('sales_order_items')
+        .select('sales_order_id, product_id, quantity, line_total, sales_orders!inner(order_date)')
+        .eq('company_id', companyId)
+        .gte('sales_orders.order_date', sinceIso),
+      supabase.from('products').select('id, name').eq('company_id', companyId), // all statuses: archived names still render
+      supabase.from('branches').select('id, name').eq('company_id', companyId),
+      supabase.from('users').select('id, display_name'), // users RLS filters rows (self + user.read); never widened here
+    ]);
+    for (const r of [inv, orders, items, prods, brs]) if (r.error) throw new Error(r.error.message);
+    const productName = new Map((prods.data ?? []).map((p) => [p.id as string, p.name as string]));
+    const orderMeta = new Map((orders.data ?? []).map((o) => [o.id as string, {discount: Number(o.discount), delivery_fee: Number(o.delivery_fee)}]));
+    const linesByOrder = new Map<string, ReportLine[]>();
+    for (const it of (items.data ?? []) as Array<{sales_order_id: string; product_id: string; quantity: unknown; line_total: unknown}>) {
+      const arr = linesByOrder.get(it.sales_order_id) ?? [];
+      arr.push({name: productName.get(it.product_id) ?? 'Unknown', weight_kg: Number(it.quantity), line_total: Number(it.line_total)});
+      linesByOrder.set(it.sales_order_id, arr);
+    }
+    type InvRow = {id: string; branch_id: string; sales_order_id: string; invoice_number: unknown; total: unknown; status: SalesReport['sales'][number]['status']; created_by: string | null; created_at: string};
+    return {
+      sales: ((inv.data ?? []) as InvRow[]).map((i) => ({
+        id: i.id, branch_id: i.branch_id,
+        invoice_number: i.invoice_number == null ? null : Number(i.invoice_number),
+        total: Number(i.total),
+        discount: orderMeta.get(i.sales_order_id)?.discount ?? 0,
+        delivery_fee: orderMeta.get(i.sales_order_id)?.delivery_fee ?? 0,
+        status: i.status, created_by: i.created_by, created_at: i.created_at,
+        lines: linesByOrder.get(i.sales_order_id) ?? [],
+      })),
+      branchNames: Object.fromEntries((brs.data ?? []).map((b) => [b.id as string, b.name as string])),
+      userNames: us.error ? {} : Object.fromEntries((us.data ?? []).map((u) => [u.id as string, u.display_name as string])),
+      source: 'canonical',
+    };
   },
 
   // Settle a pre-order (Mark Paid). Returns change. Status-idempotent server-side.
