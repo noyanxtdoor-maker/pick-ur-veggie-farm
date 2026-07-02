@@ -25,9 +25,12 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   **⚠️ CI FOR THIS PUSH (and the prior `0c327ae` push) NEVER AUDITED** — owner pastes the Actions run (this env
   cannot fetch Actions); audit per §5 before declaring M1D/crops/M2A/M2B/M2C *locked*. One green run at `375f8ad`
   covers the whole tree. Never assert CI green unseen.
-- **Local-only (ahead 3, push = owner gate):** `56ede52` M2D spec · `cfda1da` **M2D dashboard reporting reads**
-  (BROWSER-VERIFIED) · `102f20f` chore: preview auto-port (launch.json + vite PORT; `npm run dev` unchanged).
-- **Module 2 (POS) is FEATURE-COMPLETE locally (M2A–M2D).**
+- **Local-only (ahead 7, push = owner gate):** `56ede52` M2D spec · `cfda1da` **M2D dashboard reporting reads**
+  (BROWSER-VERIFIED) · `102f20f` chore: preview auto-port · `f8199ae` handoff · `0fc089f` M2E spec ·
+  `ea7c2ac` **M2E db: farm pricing + bulk wholesale** (guard-proven) · `5157aed` **M2E app UI** (browser-verified).
+- **Module 2 (POS) is FEATURE-COMPLETE locally (M2A–M2E) and PROTOTYPE-PARITY per the owner's 2026-07-02
+  decision** ("fully follow the logic of the google ai mock app; architecture still considered"). Migrations
+  immutable through `20260702180000_p2m2e`.
   
   
 
@@ -58,6 +61,16 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   names only via users RLS `user.read`); mock/offline → device cache labeled "this device". Dashboard: receivables
   KPI, voided-exclusion bug fixed, recharts trend (lazy chunk), insights panel, recent-sales stream.
   Browser E2E: paid 240 + preorder 263 (10% disc + 20 fee) + prior void → KPIs 878/3/263 exact.
+- **M2E (local `ea7c2ac` db + `5157aed` app): PROTOTYPE-LOGIC PARITY** (spec `Phase_2_M2E_Prototype_Parity_
+  Spec.md`; owner ordered "fully follow the mock's logic"). DB: `pos_record_sale` charges the **FARM price
+  round(retail×0.90,2)** per weighed line (retail snapshotted in `sales_order_items.retail_unit_price`); **bulk
+  Skip-Weigh lines** `{product_id, bulk_price}` = revenue-only (no movement/COGS — spec §3 reconciliation);
+  pre-order 10% stacks on the farm subtotal (mock formula); `pos_void_sale` skips bulk lines. guard:pos **18/18**
+  (farm 270/263/237/740 + bulk batteries); all other tiers green; drift clean. App: dual-price grid (farm +
+  struck-through Reg), Skip Weigh flow, Farm-Discount-Saved on slip+receipt (+cashier/permit lines), journal
+  Sale-Type filter + Type/Posted-By columns + CSV export, **Crop Pricing Menu** (product.manage; add/reprice/
+  archive — prototype Delete = Archive), dashboard Retail/Wholesale split. tsc clean; vitest 25/25; build OK;
+  live E2E: 2kg Tomato 216 farm + bulk 500 → 716/saved 24; pricing menu loop; dashboard 878/716 split.
 
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
@@ -76,10 +89,10 @@ migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos*
 stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Owner gates:** paste CI for the `375f8ad` push (one green run audits the whole tree → lock
-   M1D/crops/M2A/M2B/M2C) · authorize push of the **3 local commits** (56ede52/cfda1da/102f20f) → CI → audit →
-   lock M2D.
-2. Then: **Inventory module** (03/20.07-20.12, spec-first) → Accounting (22) → Payroll (21)
+1. **Owner gates:** paste CI for the `375f8ad` push (one green run audits M1D/crops/M2A/M2B/M2C) · authorize
+   push of the **7 local commits** (M2D + M2E) → CI → audit → lock M2D+M2E. **M2E changed the charged price
+   (farm = retail×0.90) — money path: run the cross-vendor reviewer (charter §4.6) before declaring M2E locked.**
+2. Then: **Inventory module** (03/20.07-20.12, spec-first, owner module-start go) → Accounting (22) → Payroll (21)
    → Scheduling → Settings Hub (theme system: dark/cream/green tokens exist in src/index.css; only light ported).
 
 
