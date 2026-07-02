@@ -20,6 +20,7 @@ const ALL_KEYS: PermissionKey[] = [
   'user.read', 'membership.read', 'audit.read', 'company.manage', 'branch.manage',
   'role.manage', 'user.invite', 'membership.manage', 'crop.manage',
   'product.manage', 'inventory.opening', 'inventory.adjust', 'pos.sell',
+  'pos.settle', 'pos.void', 'cash.session',
 ];
 
 // Fixed, valid-format UUIDs so the create forms (which validate ids as uuid) accept the seeded selections.
@@ -41,7 +42,9 @@ export interface MockUser {
 // Idempotent seed of a demo company/branches/roles/permissions/membership/invitation + the permission snapshot.
 export async function seedMockData(): Promise<void> {
   if (!MOCK_MODE) return;
-  if (await offlineDB.companies.get(DEMO.companyId)) return; // already seeded
+  // Always refresh the permission snapshot (heals devices seeded before newer keys existed).
+  await offlineDB.meta.put({key: 'perm-snapshot', value: {companyId: DEMO.companyId, keys: ALL_KEYS}});
+  if (await offlineDB.companies.get(DEMO.companyId)) return; // data already seeded
   const now = new Date().toISOString();
   const expires = new Date(Date.now() + 7 * 86_400_000).toISOString();
 

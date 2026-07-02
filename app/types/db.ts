@@ -105,7 +105,10 @@ export type PermissionKey =
   | 'product.manage'
   | 'inventory.opening'
   | 'inventory.adjust'
-  | 'pos.sell';
+  | 'pos.sell'
+  | 'pos.settle'
+  | 'pos.void'
+  | 'cash.session';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -136,6 +139,7 @@ export interface FinishedGood {
 
 export interface PosInvoiceLine {
   product_id: string;
+  finished_goods_batch_id: string; // lets mock-mode void restore stock; server does this itself
   name: string;
   weight_kg: number;
   unit_price: number;
@@ -149,11 +153,24 @@ export interface PosInvoice {
   branch_id: string;
   invoice_number: number | null; // null = pending sync (provisional receipt)
   lines: PosInvoiceLine[];
+  subtotal: number;
+  discount: number;
+  delivery_fee: number;
   total: number;
   tender_cash: number;
   change_amount: number;
-  status: 'Paid' | 'PendingSync';
+  note: string | null;
+  status: 'Paid' | 'Unpaid' | 'Voided' | 'PendingSync';
   created_at: string;
+}
+
+// Local view of the branch cash session (server truth = cash_sessions, 22.09).
+export interface PosCashSession {
+  id: string;
+  branch_id: string;
+  opening_cash: number;
+  opened_at: string;
+  status: 'Open' | 'Closed';
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──
