@@ -24,10 +24,10 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   Actions); audit per §5 before declaring M1D/crops/M2A/M2B *locked*. Never assert CI green unseen.
 - **Local-only (ahead 3, push needs explicit owner go):** `7f3b7cd` weigh-POS UI · `8f8daf5` AI-Studio design
   adoption + sales journal + dashboard KPIs (E2E-verified in browser) · `9aa75f3` farm-theme sweep + M2C spec.
-- **UNCOMMITTED (deliberately — verification blocked):** `supabase/migrations/20260702090000_p2m2c_pos_preorder_
-  cashsession.sql` + extended `scripts/guards/pos-security.sql` (M2C battery). **Docker Desktop went down
-  2026-07-02 and would not restart from CLI** → `db reset` + guards could not run → NOT committed per
-  verify-before-commit. Also uncommitted: this handoff + `Phase_2_M2C_..._Spec.md` was committed in 9aa75f3.
+- **`1c5417d` M2C-a COMMITTED (local, verified):** migration `20260702090000_p2m2c_pos_preorder_
+  cashsession.sql` + extended `guard:pos` (15/15 green after Docker restart; static float false-positive fixed via opening_cash rename).
+  
+  
 
 ## 3. What is BUILT
 - **DB (pushed):** M1–M6 foundation; org setup; crop catalog (frozen); **M2A** `products` + `finished_goods_batches`
@@ -63,16 +63,16 @@ db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying A
 static/db/rls/bootstrap/org/crop/**inventory**/**pos**/drift each visibly executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Start Docker Desktop** (owner/manual) → `npx supabase db reset` → run ALL guards (esp. extended `guard:pos`)
-   → fix any DEFECT → tsc/vitest/build → **local commit M2C-a** (migration + guard + this-handoff updates).
-2. **M2C-b UI** (app-only, local commits): checkout classification (Direct Cash | Pre-order w/ discount toggle +
-   delivery fee + note — prototype pattern), journal **Mark Paid** + **Void (reason)** actions, cash-session strip;
-   mock-adapter paths for all three; tsc/tests/build.
-3. Owner gates: paste CI for `0c327ae` (→ audit → lock M1D/crops/M2A/M2B) · authorize UI-stack push ·
-   authorize M2C push after verification.
-4. Then: **M2D** dashboard/report reads → **Inventory module** (03/20.07-20.12: receiving, materials, low-stock)
-   → Accounting (22) → Payroll (21) → Scheduling → Settings Hub (theme system — dark/cream/green tokens exist in
-   `src/index.css`, only light is ported).
+1. **M2C-b UI** (app-only, local commits): checkout classification (Direct Cash | Pre-order w/ 10% discount toggle +
+   delivery fee + note), journal **Mark Paid** + **Void (reason)** actions, cash-session strip; mock paths; tsc/tests/build.
+2. Owner gates: paste CI for `0c327ae` (audit → lock) · authorize push of the 4 local commits (7f3b7cd/8f8daf5/9aa75f3/1c5417d).
+
+
+3. Then: **M2D** dashboard/report reads → **Inventory module** (03/20.07-20.12) → Accounting (22) → Payroll (21)
+   → Scheduling → Settings Hub (theme system: dark/cream/green tokens exist in src/index.css; only light ported).
+
+
+
 
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
