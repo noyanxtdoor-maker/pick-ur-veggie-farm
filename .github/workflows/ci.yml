@@ -102,6 +102,9 @@ jobs:
       - name: POS sale security tests (balanced posting · stock decrement · idempotency · no-oversell · price-authority)
         run: npm run guard:pos
 
+      - name: Accounting security tests (balanced cash postings · void-not-delete · GL-reconciled statements)
+        run: npm run guard:accounting
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
