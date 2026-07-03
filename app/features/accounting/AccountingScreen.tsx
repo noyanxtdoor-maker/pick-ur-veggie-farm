@@ -5,10 +5,10 @@
 // Chart of Accounts) · Cash Ledger (log/void non-operating movements). Statement of Cash Flows, Cost Schedule,
 // Statement of Operations, Retained Earnings tab, Management Reports, and the GL/vendor ledgers are deferred
 // (spec §2 table) — not silently dropped.
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState, type ReactNode} from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
-import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, Plus, TrendingUp, Wallet, X} from 'lucide-react';
+import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, PieChart, Plus, TrendingUp, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, StatCard, cn} from '../../components/ui';
@@ -17,10 +17,11 @@ import {SelectField} from '../../components/overlay';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {formatPeso, round2} from '../pos/money';
 import {accountingApi} from './api';
+import {accountBreakdown, equityRollforward} from './reports';
 import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-type Tab = 'dashboard' | 'statements' | 'cash_ledger';
+type Tab = 'dashboard' | 'statements' | 'reports' | 'cash_ledger';
 type Statement = 'income' | 'balance_sheet' | 'trial_balance' | 'chart_accounts';
 
 const IN_CATEGORIES: CashEntryCategory[] = ['Owner Investment', 'Other Income', 'Loan Received'];
@@ -82,6 +83,11 @@ export default function AccountingScreen() {
   }, [months]);
   const netMargin = yearlyTotals.revenue === 0 ? 0 : yearlyTotals.netIncome / yearlyTotals.revenue;
 
+  // Management reports (M4C) — composed from the already-loaded GL reads; honour the statement branch filter.
+  const expenseBreakdown = useMemo(() => accountBreakdown(trialBalance ?? [], 'Expense'), [trialBalance]);
+  const revenueBreakdown = useMemo(() => accountBreakdown(trialBalance ?? [], 'Revenue'), [trialBalance]);
+  const equity = useMemo(() => (balanceSheet ? equityRollforward(balanceSheet) : null), [balanceSheet]);
+
   async function submitCashEntry() {
     if (!companyId || !branchId) return;
     const amt = parseFloat(cAmount);
@@ -132,6 +138,7 @@ export default function AccountingScreen() {
         <p className="text-sm font-semibold text-farm-green-700">
           {tab === 'dashboard' ? 'Company-wide KPIs compiled from every posted sale, purchase, and cash movement — live and always balanced.' : null}
           {tab === 'statements' ? 'Statutory statements read directly from the balanced general ledger. Filter by branch or view the whole company.' : null}
+          {tab === 'reports' ? 'Management reports composed live from the same posted ledger — where the money goes, where it comes from, and how equity has changed.' : null}
           {tab === 'cash_ledger' ? "Log cash movements that are NOT crop sales and NOT standard purchases — Owner Investment, Loans, Drawings — to complete the equity and liability picture." : null}
         </p>
       </Card>
@@ -140,6 +147,7 @@ export default function AccountingScreen() {
         {([
           ['dashboard', 'General Ledger Dashboard', BarChart3],
           ['statements', 'Financial Statements', FileText],
+          ['reports', 'Management Reports', PieChart],
           ['cash_ledger', 'Cash Flow Inputs', Wallet],
         ] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
@@ -341,6 +349,33 @@ export default function AccountingScreen() {
             )}
           </Card>
         </div>
+      ) : tab === 'reports' ? (
+        <div className="animate-fade-in space-y-6">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="w-48">
+              <SelectField value={statementBranch} onChange={setStatementBranch} options={[{value: 'all', label: 'All Branches'}, ...(branches ?? []).map((b) => ({value: b.id, label: b.name}))]} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <BreakdownCard title="Where the money goes" subtitle="Expenses by ledger account" icon={<PieChart className="h-4 w-4" aria-hidden />} loading={trialBalance === null} breakdown={expenseBreakdown} tone="danger" />
+            <BreakdownCard title="Where the money comes from" subtitle="Revenue by ledger account" icon={<TrendingUp className="h-4 w-4" aria-hidden />} loading={trialBalance === null} breakdown={revenueBreakdown} tone="green" />
+          </div>
+          <Card>
+            <h4 className="mb-1 flex items-center gap-2 text-sm font-extrabold text-farm-green"><BookOpen className="h-4 w-4" aria-hidden /> Statement of Changes in Equity</h4>
+            <p className="mb-4 text-xs text-farm-muted">How owner’s equity moved — contributed capital plus accumulated earnings, less drawings.</p>
+            {equity === null ? <Skeleton rows={3} /> : (
+              <dl className="mx-auto max-w-xl space-y-1.5 text-sm">
+                {equity.lines.map((l) => (
+                  <div key={l.label} className={cn('flex justify-between border-b border-dashed border-farm-accent-soft pb-1', l.kind === 'total' && 'border-farm-green border-solid border-b-2 pt-1 font-black')}>
+                    <dt className={cn('text-farm-muted', l.kind === 'total' && 'text-farm-ink')}>{l.label}</dt>
+                    <dd className={cn('tabular font-bold', l.kind === 'less' && 'text-farm-danger', l.kind === 'total' && 'text-farm-green')}>{l.kind === 'less' ? `(${formatPeso(l.amount)})` : formatPeso(l.amount)}</dd>
+                  </div>
+                ))}
+                {!equity.ties ? <p className="pt-2 text-xs font-bold text-farm-danger">⚠ Roll-forward does not tie to the balance sheet total — investigate the ledger.</p> : null}
+              </dl>
+            )}
+          </Card>
+        </div>
       ) : (
         <div className="animate-fade-in space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -435,8 +470,36 @@ export default function AccountingScreen() {
         </Card>
       ) : null}
 
-      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> Cash Flow Statement, Cost Schedule, and Vendor/Customer ledgers are reserved for a later milestone (spec §2) — not built yet.</p>
+      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> The full Statement of Cash Flows, Cost Schedule, and Vendor/Customer ledgers are reserved for a later milestone (spec §2) — not built yet.</p>
     </div>
+  );
+}
+
+function BreakdownCard({title, subtitle, icon, loading, breakdown, tone}: {title: string; subtitle: string; icon: ReactNode; loading: boolean; breakdown: {lines: {code: string; name: string; amount: number; pct: number}[]; total: number}; tone: 'green' | 'danger'}) {
+  const bar = tone === 'danger' ? 'bg-farm-danger' : 'bg-farm-green';
+  return (
+    <Card>
+      <h4 className="flex items-center gap-2 text-sm font-extrabold text-farm-green">{icon} {title}</h4>
+      <p className="mb-4 text-xs text-farm-muted">{subtitle}</p>
+      {loading ? <Skeleton rows={3} /> : breakdown.lines.length === 0 ? (
+        <p className="py-8 text-center text-xs italic text-farm-muted">Nothing posted yet.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {breakdown.lines.map((l) => (
+            <div key={l.code}>
+              <div className="mb-1 flex items-baseline justify-between text-xs">
+                <span className="font-bold text-farm-ink">{l.name}</span>
+                <span className="tabular font-bold text-farm-green">{formatPeso(l.amount)} <span className="text-[10px] font-semibold text-farm-muted">{l.pct.toFixed(1)}%</span></span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-farm-accent-soft"><div className={cn('h-full rounded-full', bar)} style={{width: `${Math.min(l.pct, 100)}%`}} /></div>
+            </div>
+          ))}
+          <div className="flex justify-between border-t-2 border-farm-green pt-2 text-sm font-black">
+            <span>Total</span><span className="tabular text-farm-green">{formatPeso(breakdown.total)}</span>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
