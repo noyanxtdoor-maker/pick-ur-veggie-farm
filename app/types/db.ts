@@ -110,7 +110,9 @@ export type PermissionKey =
   | 'pos.void'
   | 'cash.session'
   | 'inventory.purchase'
-  | 'equipment.manage';
+  | 'equipment.manage'
+  | 'accounting.read'
+  | 'accounting.manage';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -147,6 +149,7 @@ export interface PosInvoiceLine {
   unit_price: number; // farm ₱/kg for weighed lines; the negotiated flat ₱ for bulk
   retail_per_kg?: number | null; // prevailing retail snapshot (saved = retail − farm); null/absent = bulk or legacy row
   line_total: number;
+  cost_per_unit?: number; // batch cost at sale time (P2-M4A, mock-mode COGS for the accounting reads); 0/absent for bulk lines
 }
 
 // Local cache/mock render of a sale (the server truth is sales_orders + invoices, 20.17).
@@ -243,6 +246,62 @@ export interface EquipmentLog {
   performed_by_name: string;
   performed_date: string;
   notes: string | null;
+}
+
+// ── Accounting (P2-M4A/M4B) — non-operating cash movements + statements READ from the real GL. ──
+export type CashFlowDirection = 'in' | 'out';
+export type CashEntryCategory = 'Owner Investment' | 'Other Income' | 'Loan Received' | 'Loan Payment' | "Owner's Drawings";
+
+export interface CashEntry {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  entry_date: string; // yyyy-mm-dd
+  flow: CashFlowDirection;
+  category: CashEntryCategory;
+  description: string | null;
+  amount: number;
+  status: 'Posted' | 'Voided';
+  void_reason: string | null;
+  created_at: string;
+}
+
+export interface TrialBalanceRow {
+  account_code: string;
+  account_name: string;
+  account_type: 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+  normal_balance: 'debit' | 'credit';
+  total_debit: number;
+  total_credit: number;
+}
+
+export interface IncomeStatementMonth {
+  month_num: number;
+  month_name: string;
+  retail_revenue: number;
+  wholesale_revenue: number;
+  total_revenue: number;
+  cogs: number;
+  gross_profit: number;
+  shrinkage: number;
+  operating_expenses: number;
+  total_opex: number;
+  net_income: number;
+}
+
+export interface BalanceSheet {
+  cash: number;
+  accounts_receivable: number;
+  raw_materials: number;
+  finished_goods: number;
+  equipment: number;
+  total_assets: number;
+  loans_payable: number;
+  total_liabilities: number;
+  owner_investment: number;
+  owners_drawings: number;
+  retained_earnings: number;
+  total_equity: number;
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──

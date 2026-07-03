@@ -105,6 +105,13 @@ export const posApi = {
         const fg = await offlineDB.finishedGoods.get(l.finished_goods_batch_id);
         if (!fg || fg.available < l.weight_kg) throw new Error(`Not enough stock for ${l.name}.`);
       }
+      // cost snapshot per line (P2-M4A: mock-mode COGS for the accounting reads; server derives this itself)
+      const costed: PosInvoiceLine[] = [];
+      for (const l of base.lines) {
+        const fg = l.finished_goods_batch_id ? await offlineDB.finishedGoods.get(l.finished_goods_batch_id) : undefined;
+        costed.push({...l, cost_per_unit: fg?.cost_per_unit ?? 0});
+      }
+      base.lines = costed;
       for (const l of weighed) {
         const fg = (await offlineDB.finishedGoods.get(l.finished_goods_batch_id))!;
         await offlineDB.finishedGoods.put({...fg, available: round2(fg.available - l.weight_kg)});

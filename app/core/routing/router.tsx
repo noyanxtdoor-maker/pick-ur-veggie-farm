@@ -19,6 +19,7 @@ const InvitationsScreen = lazy(() => import('../../features/organization/invitat
 const MembersScreen = lazy(() => import('../../features/organization/memberships/memberships'));
 const PosScreen = lazy(() => import('../../features/pos/PosScreen'));
 const InventoryScreen = lazy(() => import('../../features/inventory/InventoryScreen'));
+const AccountingScreen = lazy(() => import('../../features/accounting/AccountingScreen'));
 const CropsLayout = lazy(() => import('../../features/crops/CropsLayout'));
 const CropDashboard = lazy(() => import('../../features/crops/CropDashboard'));
 const CategoriesScreen = lazy(() => import('../../features/crops/CategoriesScreen'));
@@ -79,6 +80,7 @@ export const router = createBrowserRouter([
         ],
       },
       {path: 'inventory', element: <InventoryScreen />},
+      {path: 'accounting', element: <AccountingScreen />},
       {path: 'operations', element: <Placeholder title="Operations" />},
       {path: 'reports', element: <Placeholder title="Reports" />},
       {path: 'settings', element: <Placeholder title="Settings" />},

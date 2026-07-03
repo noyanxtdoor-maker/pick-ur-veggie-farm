@@ -1,7 +1,7 @@
 // Local-first store (B5 §4) + the durable write-ahead outbox (M1B O1). IndexedDB via Dexie.
 // Cache holds only authorized-branch data the user has read (scoped); the outbox holds unsynced writes.
 import Dexie, {type Table} from 'dexie';
-import type {Branch, Company, CropCategory, CropProfile, CropVariety, EquipmentAsset, EquipmentLog, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, PurchaseReceiving, Role} from '../../types/db';
+import type {Branch, CashEntry, Company, CropCategory, CropProfile, CropVariety, EquipmentAsset, EquipmentLog, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, PurchaseReceiving, Role} from '../../types/db';
 
 export type OutboxState = 'Pending' | 'Uploading' | 'Completed' | 'Failed' | 'Blocked';
 
@@ -55,6 +55,7 @@ export class OfflineDB extends Dexie {
   purchaseReceivings!: Table<PurchaseReceiving, string>;
   equipmentAssets!: Table<EquipmentAsset, string>;
   equipmentLogs!: Table<EquipmentLog, string>;
+  cashEntries!: Table<CashEntry, string>;
   meta!: Table<MetaRow, string>;
 
   constructor(name = 'PickUrVeggieV3') {
@@ -92,6 +93,10 @@ export class OfflineDB extends Dexie {
       equipmentAssets: 'id, company_id, branch_id, condition',
       equipmentLogs: 'id, company_id, equipment_id',
     });
+    // P2-M4A/M4B accounting (additive): non-operating cash movements.
+    this.version(5).stores({
+      cashEntries: 'id, company_id, branch_id, entry_date, status',
+    });
   }
 }
 
@@ -100,7 +105,7 @@ export const offlineDB = new OfflineDB();
 // Purge all scoped/cached data (M1B S1 — on logout, revocation, or company switch). Outbox is preserved
 // only for the same company; everything else is server-re-derivable.
 export async function purgeCache(db: OfflineDB = offlineDB): Promise<void> {
-  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.meta];
+  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.cashEntries, db.meta];
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
   });
