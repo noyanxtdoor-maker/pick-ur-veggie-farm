@@ -44,7 +44,8 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   `7a3bda8` **mockup reference + backlog** · M5 Payroll (`ad4f81a` spec / `f68b634` db / `661f949` app) ·
   `bdb80af` handoff · M6 Scheduling (`1da7d60` spec+db / `e9c27ad` app) ·
   M7 Projects (`93b626e` spec / `390e3f4` db / `3f7a38b` app) · `57ab658` handoff ·
-  M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db).
+  M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db) · `1f6fe06` handoff ·
+  `6960615` external ERP reference scan · M4C accounting reports (`77d2a5d` — app-only, read-only over GL).
 - **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
   5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B) · 8 Settings (M8, client-only).**
   ✅ **ALL 8 ROADMAP CORE MODULES COMPLETE.** Migrations immutable through `20260703160000_p2m7a`
@@ -175,6 +176,9 @@ backlog, not new core modules.
    THREE items before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance
    postings** · authorize push of the **local commits** (M4 + docs + mockup + M5 + M6 + M7 + M8) → CI → audit →
    lock M4/M5/M6/M7/M8.
+   **B3 first slice DONE (M4C, `77d2a5d`):** Accounting → Management Reports tab — expense breakdown, revenue
+   breakdown, and a Statement of Changes in Equity roll-forward, composed read-only over the existing GL reads
+   (no SQL/migration/money-path). Still deferred: full Statement of Cash Flows, Cost Schedule, vendor/customer ledgers.
 2. **After the roadmap:** the backlog is the only remaining build work, all **owner-timed** (see
    `Phase_2_Mockup_Reference_and_Backlog.md`): **B1–B9** (customer credit standing, GCash/Maya/bank digital
    payments, full accounting statements + management reports + ledgers, governed backup/export **B7** — which
