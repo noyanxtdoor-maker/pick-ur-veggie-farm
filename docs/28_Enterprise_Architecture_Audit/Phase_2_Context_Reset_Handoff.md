@@ -47,7 +47,9 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db) · `1f6fe06` handoff ·
   `6960615` external ERP reference scan · M4C accounting reports (`77d2a5d` — app-only, read-only over GL) ·
   `8147da1` handoff · M4D cash flow statement (`984560f` db + guard / `8d22a43` app — guard-proven, ties by construction).
-- **Migrations immutable through `20260703170000_p2m4d` (adds the read-only `cash_flow_statement` fn).**
+  `e37dc04` handoff · M9A Customers & Credit (`8928769` db+guard / `7680b05` app — B1, guard-proven, non-money).
+- **Migrations immutable through `20260703180000_p2m9a` (cash_flow_statement fn + customers master + additive
+  invoices.customer_id).**
 - **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
   5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B) · 8 Settings (M8, client-only).**
   ✅ **ALL 8 ROADMAP CORE MODULES COMPLETE.** Migrations immutable through `20260703160000_p2m7a`
@@ -183,11 +185,15 @@ backlog, not new core modules.
    read-only `cash_flow_statement` fn (direct method, ties by construction) + a Cash Flows statement in the app.
    guard:accounting now 19. Only Cost Schedule + vendor/customer subledgers remain deferred (the latter need
    customer/supplier masters = money-path B1, owner-timed).
-2. **After the roadmap:** the backlog is the only remaining build work, all **owner-timed** (see
-   `Phase_2_Mockup_Reference_and_Backlog.md`): **B1–B9** (customer credit standing, GCash/Maya/bank digital
-   payments, full accounting statements + management reports + ledgers, governed backup/export **B7** — which
-   also absorbs the Settings prototype's Drive-sync/JSON-export/factory-reset), then the **VeggieGenius AI Copilot**
-   (local LM Studio). None is started; each brings its own spec + (where money/data) migration + guard.
+2. **Backlog progress (building in priority order, non-money slices first):**
+   - **B1 customer credit — first slice DONE (M9A, `8928769`/`7680b05`):** customers master + read-only AR/credit
+     standing + non-money invoice attribution; guard:customers 6. *Deferred (money path → review):* credit-limit
+     ENFORCEMENT in the sale.
+   - **Remaining, owner-timed:** **B2** GCash/Maya/bank digital payments (money path — needs Bank/e-wallet accounts
+     + modified settlement, and the cross-vendor review); **B7** governed backup/export (a simple client-side JSON
+     export is a safe first slice; also absorbs the Settings prototype's Drive-sync/import/factory-reset); customer
+     statements-of-account / payment allocation; then the **VeggieGenius AI Copilot** (local LM Studio).
+     Note: a Supplier/AP master is NOT worth building yet — all purchases are cash, so there is no AP to show (YAGNI).
    **Settings (M8) is DONE** — live theme switcher (light/dark/cream/green via `html[data-theme]` CSS-var
    overrides) + per-device station labels consumed by the shell; client-only, no migration/permission/RLS;
    browser-verified; committed `216c01b` (spec) / `d590a91` (app).
