@@ -105,6 +105,9 @@ jobs:
       - name: Accounting security tests (balanced cash postings · void-not-delete · GL-reconciled statements)
         run: npm run guard:accounting
 
+      - name: Payroll security tests (balanced wage/advance postings · wage authority · derived balance · statements tie)
+        run: npm run guard:payroll
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
