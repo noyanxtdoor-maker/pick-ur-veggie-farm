@@ -7,6 +7,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   ClipboardList,
   CloudOff,
   Landmark,
@@ -35,6 +36,7 @@ const CORE_MODULES = [
   {to: '/inventory', label: 'Stock Inventories', icon: Package},
   {to: '/accounting', label: 'Automated Accounting', icon: Landmark},
   {to: '/payroll', label: 'Salaries & Payroll', icon: Users2},
+  {to: '/schedules', label: 'Schedules & Plans', icon: CalendarDays},
   {to: '/crops', label: 'Crops & Plans', icon: Sprout},
   {to: '/operations', label: 'Operations', icon: ClipboardList},
   {to: '/reports', label: 'Reports', icon: BarChart3},

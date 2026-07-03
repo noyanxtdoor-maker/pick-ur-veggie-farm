@@ -114,7 +114,9 @@ export type PermissionKey =
   | 'accounting.read'
   | 'accounting.manage'
   | 'payroll.read'
-  | 'payroll.manage';
+  | 'payroll.manage'
+  | 'schedule.read'
+  | 'schedule.manage';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -346,6 +348,25 @@ export interface WagePayment {
   net: number;
   notes: string | null;
   created_at: string;
+}
+
+// ── Scheduling / Calendar (P2-M6A/M6B) — branch-owned farm calendar (20.19). No GL. ──
+export type CalendarEventType = 'Planting' | 'Fertigation' | 'Harvest' | 'Maintenance' | 'Delivery' | 'Meeting' | 'Inspection' | 'Training' | 'Deadline' | 'Project';
+
+export interface CalendarEvent {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  event_type: CalendarEventType;
+  title: string;
+  description: string | null;
+  event_date: string; // yyyy-mm-dd
+  priority: 'Low' | 'Normal' | 'High' | 'Critical';
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Overdue';
+  project_id: string | null; // reserved (Projects module M7)
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──
