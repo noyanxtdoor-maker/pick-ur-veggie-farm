@@ -15,11 +15,17 @@ export function assembleExport(tableData: Record<string, unknown[]>, isoNow: str
   return {format: 'PickUrVeggieERP_Export', version: 3, exportedAt: isoNow, tables: tableData};
 }
 
-/** Gather every local table into one JSON file and trigger a download. Returns the row count exported. */
+// The outbox is the internal write-ahead sync queue, not user data — and because it is deliberately preserved
+// across logout (purgeCache keeps it so unsynced writes aren't lost), on a shared terminal it can still hold a
+// previous operator's queued write payloads. Never include it in a user-facing "export my data" dump.
+const EXPORT_EXCLUDE = new Set(['outbox']);
+
+/** Gather every local DATA table into one JSON file and trigger a download. Returns the row count exported. */
 export async function exportLocalData(): Promise<number> {
   const tableData: Record<string, unknown[]> = {};
   let rows = 0;
   for (const t of offlineDB.tables) {
+    if (EXPORT_EXCLUDE.has(t.name)) continue;
     const data = await t.toArray();
     tableData[t.name] = data;
     rows += data.length;
