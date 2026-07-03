@@ -4,11 +4,13 @@
 // IndexedDB — Google-Drive sync, JSON export/import, factory reset — is deliberately backlog here (B7): in a
 // multi-tenant server world those are governed server operations, not a client button. No migration, no new
 // permission, no RLS surface: a device configuring its own look and labels.
-import {Palette, Check, Store, Cloud, LogOut, MonitorCog} from 'lucide-react';
+import {useState} from 'react';
+import {Palette, Check, Store, Cloud, Download, LogOut, MonitorCog} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
 import {THEMES, useTheme, usePref, type ThemeId} from '../../core/prefs/prefs';
+import {exportLocalData} from './export';
 
 const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> = {
   light: {name: 'Fresh Wood', desc: 'Default forest-green daylight palette', swatch: '#003e1c'},
@@ -23,6 +25,15 @@ export default function SettingsScreen() {
   const [theme, setTheme] = useTheme();
   const [farmName, setFarmName] = usePref('farm_display_name');
   const [terminalId, setTerminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
+  const [exporting, setExporting] = useState(false);
+
+  async function doExport() {
+    setExporting(true);
+    try {
+      const rows = await exportLocalData();
+      notify(`Exported ${rows} records`);
+    } catch (e) { notify(e instanceof Error ? e.message : 'Export failed', 'error'); } finally { setExporting(false); }
+  }
 
   return (
     <div className="space-y-6">
@@ -95,10 +106,11 @@ export default function SettingsScreen() {
           {/* Data & backup — backlog */}
           <Card>
             <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Cloud className="h-5 w-5" aria-hidden /> Data &amp; Backup</h3>
-            <p className="text-xs text-farm-muted">
-              Your data lives in the company cloud and syncs automatically — no manual export needed. Governed backup,
-              restore, and CSV/JSON export are planned as a dedicated, permission-gated feature (backlog).
+            <p className="mb-3 text-xs text-farm-muted">
+              Your data lives in the company cloud and syncs automatically. You can also download a JSON copy of this
+              device's records for your own safekeeping. (Governed cloud backup + restore is a planned follow-up.)
             </p>
+            <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
           </Card>
 
           {/* Session */}
