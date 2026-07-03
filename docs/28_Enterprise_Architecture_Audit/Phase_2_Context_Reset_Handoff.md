@@ -14,6 +14,14 @@ technical authority** (esp. 20 schema, 22 accounting, 03 inventory, 26 posting/p
 `ERP_Knowledge_Traceability_Audit.md` + `POS_Enterprise_Reconciliation_Audit.md` (why: prevent "a second ERP
 inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, not the product).
 **Priority order:** POS → Inventory → Dashboard → Accounting → Payroll → Scheduling → Projects → Settings.
+- **Refined mockup (owner, 2026-07-03):** a newer, more complete Google AI Studio mockup ("95% accurate to my
+  target") lives at `C:\Users\sherl\Documents\UI and System Workflow Reference\` (35 screenshots, intentionally NOT
+  in git). Catalogued in **`Phase_2_Mockup_Reference_and_Backlog.md`** — read that before building any remaining
+  module. It confirms the built modules and reveals deferred features now **backlogged (priority order unchanged)**:
+  customer master + credit standing, GCash/Maya/bank digital payments, full accounting statements + management
+  reports, plus unbuilt modules Schedules/Projects/Payroll/Settings and a future **VeggieGenius AI Copilot**
+  (local LM Studio AI — recorded intent, **owner decides timing later**; security stance unchanged: AI assists,
+  ERP authorizes, runs under the user's permissions, never bypasses RLS/finance).
 
 ## 2. Git state (verify on session start)
 - Branch `feature/phase-0-foundation`. Protected: `develop`=`d1c1f04`, `main`=`7833c9f` (NEVER touch).
@@ -114,6 +122,8 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   (₱8,200=₱8,200) independently confirms the same fix the SQL guard proved.**
   **Deferred (spec §2, recorded not forgotten):** Statement of Cash Flows, Cost Schedule, Statement of
   Operations, standalone Retained Earnings tab, Management Reports tab, GL/vendor ledgers (need 20.11 partners).
+  These + customer-credit + digital-payments are now consolidated in `Phase_2_Mockup_Reference_and_Backlog.md`
+  (§4 B1–B9) as the reconciled backlog — priority order unchanged.
 
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
