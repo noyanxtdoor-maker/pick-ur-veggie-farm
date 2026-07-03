@@ -26,6 +26,7 @@ import {
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSession} from '../../core/auth/session';
+import {usePref} from '../../core/prefs/prefs';
 import {offlineDB} from '../../core/offline/db';
 import type {PermissionKey} from '../../types/db';
 import {Loading, OfflineBanner} from '../feedback';
@@ -107,13 +108,15 @@ function TopBar() {
   const {online, pending, syncing, triggerSync} = useSync();
   const {companyId} = usePermissions();
   const {signOut} = useSession();
+  const [farmName] = usePref('farm_display_name');
+  const [terminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-farm-accent-soft bg-white px-4 py-3 md:px-6">
       <div>
         <h2 className="flex items-center gap-1.5 text-sm font-black leading-tight text-farm-ink md:text-lg">
-          <span>{company?.name ?? 'PickUrVeggie'}</span>
+          <span>{farmName || company?.name || 'PickUrVeggie'}</span>
           <span className="whitespace-nowrap rounded-full border border-farm-accent/40 bg-farm-accent-soft px-1.5 py-0.5 text-[9px] font-bold text-farm-green">
             {online ? 'BRANCH LIVE' : 'OFFLINE MODE'}
           </span>
@@ -132,7 +135,7 @@ function TopBar() {
         </button>
         <div className="hidden min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-ink md:inline-flex">
           <span className="h-2 w-2 animate-pulse rounded-full bg-farm-green" aria-hidden />
-          <span>Session: <strong className="font-mono text-farm-green">active</strong></span>
+          <span>Station: <strong className="font-mono text-farm-green">{terminalId}</strong></span>
         </div>
         <button
           onClick={() => void signOut()}

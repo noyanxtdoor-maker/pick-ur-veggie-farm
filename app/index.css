@@ -21,6 +21,34 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* M8 Settings — runtime theme variants (ported verbatim from the prototype src/index.css). Tailwind v4
+   emits utilities as var(--color-farm-*) references, so overriding these under html[data-theme] recolors
+   the whole app live. "light" / no attribute = the @theme defaults above. */
+html[data-theme='dark'] {
+  --color-farm-green: #5affbb;
+  --color-farm-green-500: #2de2a0;
+  --color-farm-green-700: #006c49;
+  --color-farm-accent-soft: #1d201f;
+  --color-farm-accent: #3c4a41;
+  --color-farm-bg: #101413;
+  --color-farm-muted: #bacabf;
+  --color-farm-ink: #e0e3e1;
+}
+html[data-theme='cream'] {
+  --color-farm-green: #b45309;
+  --color-farm-green-500: #d97706;
+  --color-farm-green-700: #92400e;
+  --color-farm-accent-soft: #f4efe2;
+  --color-farm-accent: #d7c9a5;
+  --color-farm-bg: #faf6ea;
+  --color-farm-muted: #786040;
+  --color-farm-ink: #2b1f0d;
+}
+html[data-theme='green'] {
+  --color-farm-accent-soft: #e3efd8;
+  --color-farm-accent: #d7decb;
+}
+
 html,
 body,
 #root {
