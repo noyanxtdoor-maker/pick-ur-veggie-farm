@@ -45,7 +45,9 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   `bdb80af` handoff · M6 Scheduling (`1da7d60` spec+db / `e9c27ad` app) ·
   M7 Projects (`93b626e` spec / `390e3f4` db / `3f7a38b` app) · `57ab658` handoff ·
   M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db) · `1f6fe06` handoff ·
-  `6960615` external ERP reference scan · M4C accounting reports (`77d2a5d` — app-only, read-only over GL).
+  `6960615` external ERP reference scan · M4C accounting reports (`77d2a5d` — app-only, read-only over GL) ·
+  `8147da1` handoff · M4D cash flow statement (`984560f` db + guard / `8d22a43` app — guard-proven, ties by construction).
+- **Migrations immutable through `20260703170000_p2m4d` (adds the read-only `cash_flow_statement` fn).**
 - **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
   5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B) · 8 Settings (M8, client-only).**
   ✅ **ALL 8 ROADMAP CORE MODULES COMPLETE.** Migrations immutable through `20260703160000_p2m7a`
@@ -176,9 +178,11 @@ backlog, not new core modules.
    THREE items before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance
    postings** · authorize push of the **local commits** (M4 + docs + mockup + M5 + M6 + M7 + M8) → CI → audit →
    lock M4/M5/M6/M7/M8.
-   **B3 first slice DONE (M4C, `77d2a5d`):** Accounting → Management Reports tab — expense breakdown, revenue
-   breakdown, and a Statement of Changes in Equity roll-forward, composed read-only over the existing GL reads
-   (no SQL/migration/money-path). Still deferred: full Statement of Cash Flows, Cost Schedule, vendor/customer ledgers.
+   **B3 accounting-reports arc DONE:** M4C (`77d2a5d`) Management Reports tab (expense/revenue breakdown + equity
+   roll-forward, read-only over GL) **and** M4D (`984560f`/`8d22a43`) Statement of Cash Flows — a guard-proven
+   read-only `cash_flow_statement` fn (direct method, ties by construction) + a Cash Flows statement in the app.
+   guard:accounting now 19. Only Cost Schedule + vendor/customer subledgers remain deferred (the latter need
+   customer/supplier masters = money-path B1, owner-timed).
 2. **After the roadmap:** the backlog is the only remaining build work, all **owner-timed** (see
    `Phase_2_Mockup_Reference_and_Backlog.md`): **B1–B9** (customer credit standing, GCash/Maya/bank digital
    payments, full accounting statements + management reports + ledgers, governed backup/export **B7** — which
