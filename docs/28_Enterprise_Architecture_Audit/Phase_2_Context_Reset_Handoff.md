@@ -47,9 +47,16 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db) · `1f6fe06` handoff ·
   `6960615` external ERP reference scan · M4C accounting reports (`77d2a5d` — app-only, read-only over GL) ·
   `8147da1` handoff · M4D cash flow statement (`984560f` db + guard / `8d22a43` app — guard-proven, ties by construction).
-  `e37dc04` handoff · M9A Customers & Credit (`8928769` db+guard / `7680b05` app — B1, guard-proven, non-money).
+  `e37dc04` handoff · M9A Customers & Credit (`8928769` db+guard / `7680b05` app — B1, guard-proven, non-money) ·
+  `75e96b8`/`04b4b6c` M9A statement-of-account · B7 export (`3b8fbb3`) + `effbc67` handoff · `c3949b1` deepened scan ·
+  **`c80f167` security fix (export excludes outbox) · `c896566` PWA foundation (manifest+SW+icons, Google Play step 1).**
 - **Migrations immutable through `20260703180000_p2m9a` (cash_flow_statement fn + customers master + additive
   invoices.customer_id).**
+- **Security sweep (2026-07-03, clean):** no committed secrets (only `.env.example`; anon-key-only from env,
+  service_role never bundled); no XSS sinks (no dangerouslySetInnerHTML/innerHTML/eval in `app/`); **all 38 tables
+  RLS enabled + forced**, zero `anon` grants; `purgeCache` covers every cached table (outbox intentionally kept);
+  M9A customer/credit fns are search_path-empty SECURITY DEFINER with actor + `has_permission` + cross-tenant guards.
+  One real fix applied: `exportLocalData` no longer dumps the write-ahead outbox (shared-terminal leak vector).
 - **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
   5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B) · 8 Settings (M8, client-only).**
   ✅ **ALL 8 ROADMAP CORE MODULES COMPLETE.** Migrations immutable through `20260703160000_p2m7a`
@@ -175,6 +182,13 @@ migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos*
 **✅ ALL 8 ROADMAP CORE MODULES ARE FEATURE-COMPLETE LOCALLY** (POS · Inventory · Dashboard · Accounting ·
 Payroll · Scheduling · Projects · Settings). The operational build is done; what remains is owner gates +
 backlog, not new core modules.
+
+0. **Google Play (owner asked "how close?") — see `Phase_2_Google_Play_Readiness.md`.** Path = PWA → Trusted Web
+   Activity → AAB. **Step 1 SHIPPED (`c896566`):** installable-PWA foundation (manifest + service worker + icons,
+   prod-only SW registration, browser-verified). **Remaining is owner/infra, not app code:** stand up Supabase +
+   HTTPS hosting (app still runs mock-mode, no `VITE_SUPABASE_*` set) → PNG icons + Bubblewrap wrap → assetlinks.json
+   → Play account/privacy-policy/data-safety paperwork. Also a **security sweep ran clean** this session (see §2) —
+   one fix landed (`c80f167`, export no longer dumps the outbox).
 1. **Owner gates (cannot self-serve):** paste CI for the `362657f` push (one green run audits everything through
    Module 3 → lock M1D/crops/M2A–M2E/M3A/M3B) · **money-path cross-vendor review (charter §4.6) still pending on
    THREE items before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance
