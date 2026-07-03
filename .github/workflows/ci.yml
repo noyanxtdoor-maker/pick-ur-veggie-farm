@@ -114,6 +114,9 @@ jobs:
       - name: Projects security tests (tenant · branch isolation · task parent-scoping · permission gating · audit)
         run: npm run guard:projects
 
+      - name: Customers security tests (tenant isolation · customer.manage/read gates · non-money attribution · AR standing)
+        run: npm run guard:customers
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

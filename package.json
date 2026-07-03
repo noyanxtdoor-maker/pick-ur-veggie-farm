@@ -32,6 +32,7 @@
     "guard:payroll": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/payroll-security.sql",
     "guard:scheduling": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/scheduling-security.sql",
     "guard:projects": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/projects-security.sql",
+    "guard:customers": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/customers-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {
