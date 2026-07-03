@@ -43,10 +43,12 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
 - **Local-only (ahead 11, push = owner gate):** M4 (`9de0d51`/`912b0fc`/`5555078`) · `f975f26` handoff ·
   `7a3bda8` **mockup reference + backlog** · M5 Payroll (`ad4f81a` spec / `f68b634` db / `661f949` app) ·
   `bdb80af` handoff · M6 Scheduling (`1da7d60` spec+db / `e9c27ad` app) ·
-  M7 Projects (`93b626e` spec / `390e3f4` db / `3f7a38b` app).
+  M7 Projects (`93b626e` spec / `390e3f4` db / `3f7a38b` app) · `57ab658` handoff ·
+  M8 Settings Hub (`216c01b` spec / `d590a91` app — client-only, no db).
 - **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
-  5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B).** Migrations immutable through
-  `20260703160000_p2m7a`.
+  5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B) · 7 Projects (M7A+M7B) · 8 Settings (M8, client-only).**
+  ✅ **ALL 8 ROADMAP CORE MODULES COMPLETE.** Migrations immutable through `20260703160000_p2m7a`
+  (M8 adds none).
 
 ## 3. What is BUILT
 - **DB (pushed):** M1–M6 foundation; org setup; crop catalog (frozen); **M2A** `products` + `finished_goods_batches`
@@ -165,16 +167,22 @@ migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos*
 **scheduling**/drift each visibly executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Owner gates:** paste CI for the `362657f` push (one green run audits everything through Module 3 → lock
-   M1D/crops/M2A–M2E/M3A/M3B) · **money-path cross-vendor review (charter §4.6) still pending on THREE items
-   before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance postings** ·
-   authorize push of the **local commits** (M4 + docs + mockup + M5 + M6 + M7) → CI → audit → lock M4/M5/M6/M7.
-2. Then per roadmap: **Settings Hub** — the LAST core module. Prototype `src/` has a theme system
-   (dark/cream/green tokens in `src/index.css`); the app ported only the light farm theme. Build a Settings screen
-   that surfaces theme choice + branch/profile basics (non-money, no new RLS surface). Backlog (B1–B9) +
-   VeggieGenius AI Copilot remain owner-timed (see `Phase_2_Mockup_Reference_and_Backlog.md`).
-   **Projects (M7) is DONE** — board UI + `projects`/`project_tasks` spine, guard:projects 7/7, browser-verified,
-   committed `390e3f4` (db) / `3f7a38b` (app).
+**✅ ALL 8 ROADMAP CORE MODULES ARE FEATURE-COMPLETE LOCALLY** (POS · Inventory · Dashboard · Accounting ·
+Payroll · Scheduling · Projects · Settings). The operational build is done; what remains is owner gates +
+backlog, not new core modules.
+1. **Owner gates (cannot self-serve):** paste CI for the `362657f` push (one green run audits everything through
+   Module 3 → lock M1D/crops/M2A–M2E/M3A/M3B) · **money-path cross-vendor review (charter §4.6) still pending on
+   THREE items before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance
+   postings** · authorize push of the **local commits** (M4 + docs + mockup + M5 + M6 + M7 + M8) → CI → audit →
+   lock M4/M5/M6/M7/M8.
+2. **After the roadmap:** the backlog is the only remaining build work, all **owner-timed** (see
+   `Phase_2_Mockup_Reference_and_Backlog.md`): **B1–B9** (customer credit standing, GCash/Maya/bank digital
+   payments, full accounting statements + management reports + ledgers, governed backup/export **B7** — which
+   also absorbs the Settings prototype's Drive-sync/JSON-export/factory-reset), then the **VeggieGenius AI Copilot**
+   (local LM Studio). None is started; each brings its own spec + (where money/data) migration + guard.
+   **Settings (M8) is DONE** — live theme switcher (light/dark/cream/green via `html[data-theme]` CSS-var
+   overrides) + per-device station labels consumed by the shell; client-only, no migration/permission/RLS;
+   browser-verified; committed `216c01b` (spec) / `d590a91` (app).
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
 (`stage-d-phase1-continuity.md`) AND this handoff current every session.
