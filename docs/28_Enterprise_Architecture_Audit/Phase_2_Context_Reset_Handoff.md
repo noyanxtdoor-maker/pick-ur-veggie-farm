@@ -1,6 +1,6 @@
 # Phase 2 — Context Reset Handoff (STANDING continuity artifact — keep updated every session)
 
-**Type:** Continuity artifact (not a summary) · **Updated:** 2026-07-02 · **Branch:** `feature/phase-0-foundation`
+**Type:** Continuity artifact (not a summary) · **Updated:** 2026-07-03 · **Branch:** `feature/phase-0-foundation`
 **Owner standing instruction (2026-07-02):** *always update this handoff for the next AI session before usage runs out.*
 
 > Read this FIRST in a fresh session. Verify git reality, then continue at §6 (Immediate next step).
@@ -27,12 +27,17 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   covers the whole tree. Never assert CI green unseen.
 - **Pushed 2026-07-02 evening (origin tip `169eed8`, owner "continue in order"):** everything through M2E —
   M2D dashboard reads (`cfda1da`) · M2E prototype-parity farm pricing + bulk (`ea7c2ac` db / `5157aed` app) ·
-  docs/chore commits. **CI for BOTH pushes (`375f8ad`, `169eed8`) still awaiting owner paste + audit.**
-- **Local-only (ahead 3, push = owner gate):** `ccf70f9` **Module 3 Inventory spec** · `e6f999a` **M3A materials
-  & equipment db spine** (guard-proven) · `de05e5e` **M3B Inventory UI + real Low-Stock tile** (browser-verified).
+  docs/chore commits.
+- **Pushed 2026-07-03 (origin tip `362657f`, owner "go continue"):** **Module 3 Inventory** — spec (`ccf70f9`) ·
+  M3A materials/equipment db spine (`e6f999a`, guard-proven) · M3B Inventory UI + real Low-Stock tile (`de05e5e`,
+  browser-verified). **CI for ALL THREE pushes (`375f8ad`, `169eed8`, `362657f`) still awaiting owner paste +
+  audit — one green run at `362657f` covers the entire tree through Module 3.**
+- **Local-only (ahead 3, push = owner gate):** `9de0d51` **Module 4 Accounting spec** · `912b0fc` **M4A
+  accounting core** (cash entries + GL-truth statements, guard-proven) · `5555078` **M4B Accounting UI**
+  (browser-verified).
 - **Module 2 (POS) = prototype-parity feature-complete (M2A–M2E). Module 3 (Inventory) = feature-complete
-  locally (M3A+M3B).** Migrations immutable through `20260702220000_p2m3a`.
-  
+  (M3A+M3B). Module 4 (Accounting) = feature-complete locally (M4A+M4B).** Migrations immutable through
+  `20260703090000_p2m4a`.
   
 
 ## 3. What is BUILT
@@ -86,6 +91,30 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   seeds 12pcs/₱600 → Sufficient; pump ₱3500 → checklist → Needs Maintenance; adjust −7 → 5pcs Critical + banner;
   tile = 1. Tests 30/30.
 
+- **Module 4 Accounting (local `912b0fc` db + `5555078` app; spec `Phase_2_M4_Accounting_Module_Spec.md`):**
+  central finding — V3 already has a real posted GL (journal_entries/lines since M2B); Accounting does NOT
+  recompute like the mock, it (a) closes the one posting gap (non-operating cash movements) and (b) **reads**
+  the GL for statements. **M4A** — `cash_entries` (22.09: Owner Investment/Other Income/Loan Received/Loan
+  Payment/Owner's Drawings; Equipment Purchase deliberately excluded — already `inventory_record_purchase`'s
+  domain) + `record_cash_entry`/`void_cash_entry` (atomic balanced; reason-mandatory reversal not delete, 22.24)
+  + `trial_balance`/`income_statement_monthly`/`balance_sheet` (STABLE SECURITY DEFINER, company-wide + optional
+  branch filter, permission-gated); +2 permissions (`accounting.read`/`accounting.manage`; snapshot=20).
+  **Two cross-module GL-completeness bugs found+fixed:** M3A was posting utilities/transport/misc purchases to
+  the RAW_MATERIALS inventory asset (per 22.03 those are opex) — evolved to a new `OPERATING_EXPENSES` account;
+  M2A's `record_opening_finished_goods` (predates the GL) never posted anything — evolved to post Dr
+  FG_INVENTORY/Cr Owner's Equity (capital-in-kind, ODR-001). **A third bug — `balance_sheet()` double-subtracting
+  Owner's Drawings from `total_equity` — was caught by the guard's own non-zero-drawings fixture** (invisible in
+  earlier all-zero-drawings manual testing); fixed in both the SQL and the mock (`mockLedger.ts` had the same bug).
+  guard:accounting **17/17**; all other tiers green; drift clean. **M4B** — Dashboard (4 KPIs + net-income-trend
+  + sales-vs-opex charts), Financial Statements (Income Statement/Balance Sheet/Trial Balance/Chart of Accounts,
+  year+branch filters), Cash Ledger (log/void, mandatory reason). `mockLedger.ts` reconstructs the same figures
+  from existing Dexie caches for the no-cloud demo path (documented approximation; SQL guard is the audited
+  truth). vitest 40/40. Browser E2E: POS sale → accounting picks up revenue/COGS exactly; Owner Investment entry
+  → Balance Sheet/Trial Balance tie out to the peso; void reverses exactly; **Owner's Drawings scenario
+  (₱8,200=₱8,200) independently confirms the same fix the SQL guard proved.**
+  **Deferred (spec §2, recorded not forgotten):** Statement of Cash Flows, Cost Schedule, Statement of
+  Operations, standalone Retained Earnings tab, Management Reports tab, GL/vendor ledgers (need 20.11 partners).
+
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
 PATH → run guards via `docker exec -i supabase_db_pick-ur-veggie-farm psql -U postgres -d postgres -v
@@ -97,22 +126,19 @@ tsc/vitest/build) → LOCAL commit → owner pushes → owner pastes CI → audi
 evolve via new migrations (`create or replace` / additive `alter` — the M4/M2C pattern).
 
 ## 5. CI audit checklist (when owner pastes a run)
-verify: npm ci · tsc · vitest (22 tests at `375f8ad`+; 15 at `375f8ad` itself) · build, no skips/continue-on-error.
+verify: npm ci · tsc · vitest (40 tests at `362657f`+/`5555078`) · build, no skips/continue-on-error.
 secrets: full-history gitleaks. db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying ALL
-migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/drift each visibly executed →
-stop. No `|| true`.
+migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/**accounting**/drift each visibly
+executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
-1. **Owner gates:** paste CI for the `169eed8` push (one green run audits everything through M2E → lock
-   M1D/crops/M2A–M2E) · **M2E changed the charged price (farm = retail×0.90) — run the cross-vendor money
-   reviewer (charter §4.6) before declaring M2E locked** · authorize push of the **3 local commits** (Module 3
-   Inventory: ccf70f9/e6f999a/de05e5e) → CI → audit → lock M3.
-2. Then: **Accounting module** (Systems 22, spec-first vs mock src/features/Accounting.tsx, owner go) →
-   Payroll (21) → Scheduling → Settings Hub (dark/cream/green tokens exist in src/index.css; only light ported).
-
-
-
-
+1. **Owner gates:** paste CI for the `362657f` push (one green run audits everything through Module 3 → lock
+   M1D/crops/M2A–M2E/M3A/M3B) · **M2E changed the charged price (farm = retail×0.90) — run the cross-vendor
+   money reviewer (charter §4.6) before declaring M2E locked; M4A's cash-entry/balance-sheet postings are a new
+   money path and need the same review before locking M4** · authorize push of the **3 local commits** (Module 4
+   Accounting: 9de0d51/912b0fc/5555078) → CI → audit → lock M4.
+2. Then: **Payroll module** (System 21, spec-first vs mock src/features/Payroll.tsx, owner go) → Scheduling →
+   Settings Hub (dark/cream/green tokens exist in src/index.css; only light ported).
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
 (`stage-d-phase1-continuity.md`) AND this handoff current every session.
