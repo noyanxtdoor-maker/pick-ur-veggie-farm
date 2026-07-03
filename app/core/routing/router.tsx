@@ -22,6 +22,7 @@ const InventoryScreen = lazy(() => import('../../features/inventory/InventoryScr
 const AccountingScreen = lazy(() => import('../../features/accounting/AccountingScreen'));
 const PayrollScreen = lazy(() => import('../../features/payroll/PayrollScreen'));
 const SchedulesScreen = lazy(() => import('../../features/scheduling/SchedulesScreen'));
+const ProjectsScreen = lazy(() => import('../../features/projects/ProjectsScreen'));
 const CropsLayout = lazy(() => import('../../features/crops/CropsLayout'));
 const CropDashboard = lazy(() => import('../../features/crops/CropDashboard'));
 const CategoriesScreen = lazy(() => import('../../features/crops/CategoriesScreen'));
@@ -85,6 +86,7 @@ export const router = createBrowserRouter([
       {path: 'accounting', element: <AccountingScreen />},
       {path: 'payroll', element: <PayrollScreen />},
       {path: 'schedules', element: <SchedulesScreen />},
+      {path: 'projects', element: <ProjectsScreen />},
       {path: 'operations', element: <Placeholder title="Operations" />},
       {path: 'reports', element: <Placeholder title="Reports" />},
       {path: 'settings', element: <Placeholder title="Settings" />},

@@ -116,7 +116,9 @@ export type PermissionKey =
   | 'payroll.read'
   | 'payroll.manage'
   | 'schedule.read'
-  | 'schedule.manage';
+  | 'schedule.manage'
+  | 'project.read'
+  | 'project.manage';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -367,6 +369,35 @@ export interface CalendarEvent {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ── Projects (P2-M7A/M7B) — checklist board (branch-owned). No GL. ──
+export interface ProjectTask {
+  id: string;
+  company_id: string;
+  project_id: string;
+  text: string;
+  completed: boolean;
+  completed_by: string | null;
+  completed_at: string | null;
+  position: number;
+  created_at: string;
+}
+
+export interface Project {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: 'Planning' | 'In Progress' | 'Completed' | 'On Hold';
+  visibility: 'Public' | 'Restricted';
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  tasks: ProjectTask[]; // client-side augmentation (joined checklist)
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──
