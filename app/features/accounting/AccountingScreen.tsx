@@ -18,11 +18,11 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {formatPeso, round2} from '../pos/money';
 import {accountingApi} from './api';
 import {accountBreakdown, equityRollforward} from './reports';
-import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
+import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, CashFlowLine, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 type Tab = 'dashboard' | 'statements' | 'reports' | 'cash_ledger';
-type Statement = 'income' | 'balance_sheet' | 'trial_balance' | 'chart_accounts';
+type Statement = 'income' | 'balance_sheet' | 'cash_flow' | 'trial_balance' | 'chart_accounts';
 
 const IN_CATEGORIES: CashEntryCategory[] = ['Owner Investment', 'Other Income', 'Loan Received'];
 const OUT_CATEGORIES: CashEntryCategory[] = ['Loan Payment', "Owner's Drawings"];
@@ -47,6 +47,7 @@ export default function AccountingScreen() {
 
   const [months, setMonths] = useState<IncomeStatementMonth[] | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
+  const [cashFlow, setCashFlow] = useState<CashFlowLine[] | null>(null);
   const [trialBalance, setTrialBalance] = useState<TrialBalanceRow[] | null>(null);
   const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function AccountingScreen() {
     setLoadError(null);
     accountingApi.incomeStatementMonthly(companyId, year, branchFilter).then(setMonths).catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
     accountingApi.balanceSheet(companyId, branchFilter).then(setBalanceSheet).catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
+    accountingApi.cashFlowStatement(companyId, branchFilter, year).then(setCashFlow).catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
     accountingApi.trialBalance(companyId, branchFilter).then(setTrialBalance).catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
     if (branchId) accountingApi.fetchCashEntries(companyId, branchId).then(setCashEntries).catch(() => setCashEntries([]));
   }, [companyId, canRead, year, branchFilter, branchId]);
@@ -204,7 +206,7 @@ export default function AccountingScreen() {
         <div className="animate-fade-in space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2 text-sm">
-              {([['income', 'Income Statement'], ['balance_sheet', 'Balance Sheet'], ['trial_balance', 'Compound Trial Balance'], ['chart_accounts', 'Chart of Accounts']] as const).map(([key, label]) => (
+              {([['income', 'Income Statement'], ['balance_sheet', 'Balance Sheet'], ['cash_flow', 'Cash Flows'], ['trial_balance', 'Compound Trial Balance'], ['chart_accounts', 'Chart of Accounts']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setStatement(key)} className={cn('rounded-xl border px-4 py-2 font-bold transition', statement === key ? 'border-transparent bg-farm-green text-white' : 'border-farm-accent bg-white text-farm-green hover:bg-farm-accent-soft')}>
                   {label}
                 </button>
@@ -225,6 +227,7 @@ export default function AccountingScreen() {
                 <h4 className="text-sm font-bold uppercase text-farm-green">
                   {statement === 'income' && 'Income Statement'}
                   {statement === 'balance_sheet' && 'Balance Sheet'}
+                  {statement === 'cash_flow' && 'Statement of Cash Flows'}
                   {statement === 'trial_balance' && 'Compound Trial Balance'}
                   {statement === 'chart_accounts' && 'Chart of Accounts'}
                 </h4>
@@ -298,6 +301,8 @@ export default function AccountingScreen() {
                   </div>
                 </div>
               )
+            ) : statement === 'cash_flow' ? (
+              cashFlow === null ? <Skeleton rows={4} /> : <CashFlowView lines={cashFlow} />
             ) : statement === 'trial_balance' ? (
               trialBalance === null ? <Skeleton rows={4} /> : (
                 <div className="overflow-x-auto">
@@ -470,7 +475,48 @@ export default function AccountingScreen() {
         </Card>
       ) : null}
 
-      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> The full Statement of Cash Flows, Cost Schedule, and Vendor/Customer ledgers are reserved for a later milestone (spec §2) — not built yet.</p>
+      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> Cost Schedule and Vendor/Customer ledgers are reserved for a later milestone (spec §2) — not built yet.</p>
+    </div>
+  );
+}
+
+function CashFlowView({lines}: {lines: CashFlowLine[]}) {
+  const opening = lines.find((l) => l.line_label === 'Opening cash balance')?.amount ?? 0;
+  const closing = lines.find((l) => l.line_label === 'Closing cash balance')?.amount ?? 0;
+  const activities = (['Operating', 'Investing', 'Financing'] as const).map((act) => {
+    const items = lines.filter((l) => l.activity === act);
+    return {act, items, subtotal: round2(items.reduce((s, l) => s + l.amount, 0))};
+  }).filter((a) => a.items.length > 0);
+  const netChange = round2(activities.reduce((s, a) => s + a.subtotal, 0));
+  const ties = round2(opening + netChange) === round2(closing);
+  const SECTION_LABEL: Record<string, string> = {Operating: 'Operating Activities', Investing: 'Investing Activities', Financing: 'Financing Activities'};
+
+  return (
+    <div className="mx-auto max-w-xl space-y-4 text-sm">
+      {activities.map(({act, items, subtotal}) => (
+        <div key={act}>
+          <h5 className="mb-1 text-xs font-black uppercase tracking-wider text-farm-green">{SECTION_LABEL[act]}</h5>
+          <dl className="space-y-1">
+            {items.map((l) => (
+              <div key={l.line_label} className="flex justify-between border-b border-dashed border-farm-accent-soft pb-1">
+                <dt className="text-farm-muted">{l.line_label}</dt>
+                <dd className={cn('tabular font-bold', l.amount < 0 && 'text-farm-danger')}>{l.amount < 0 ? `(${formatPeso(Math.abs(l.amount))})` : formatPeso(l.amount)}</dd>
+              </div>
+            ))}
+            <div className="flex justify-between pt-0.5 font-black">
+              <dt>Net cash from {act.toLowerCase()}</dt>
+              <dd className={cn('tabular', subtotal < 0 ? 'text-farm-danger' : 'text-farm-green')}>{subtotal < 0 ? `(${formatPeso(Math.abs(subtotal))})` : formatPeso(subtotal)}</dd>
+            </div>
+          </dl>
+        </div>
+      ))}
+      <dl className="space-y-1 border-t-2 border-farm-green pt-2">
+        <div className="flex justify-between font-black"><dt>Net change in cash</dt><dd className={cn('tabular', netChange < 0 ? 'text-farm-danger' : 'text-farm-green')}>{netChange < 0 ? `(${formatPeso(Math.abs(netChange))})` : formatPeso(netChange)}</dd></div>
+        <div className="flex justify-between text-farm-muted"><dt>Opening cash balance</dt><dd className="tabular">{formatPeso(opening)}</dd></div>
+        <div className="flex justify-between font-black text-farm-green"><dt>Closing cash balance</dt><dd className="tabular">{formatPeso(closing)}</dd></div>
+      </dl>
+      {!ties ? <p className="text-xs font-bold text-farm-danger">⚠ Cash flow does not reconcile to the closing cash balance — investigate the ledger.</p> : null}
+      {activities.length === 0 ? <p className="py-8 text-center italic text-farm-muted">No cash movements posted yet.</p> : null}
     </div>
   );
 }

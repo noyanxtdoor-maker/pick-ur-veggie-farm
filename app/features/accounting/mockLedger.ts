@@ -6,7 +6,7 @@
 // always 0 — mock-mode inventory adjustments don't track a cost basis (recorded limitation, not silently faked).
 import {round2} from '../pos/money';
 import type {CashAdvance, InventoryItem, ItemCategory, PosInvoice, PurchaseReceiving, WagePayment} from '../../types/db';
-import type {BalanceSheet, CashEntry, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
+import type {BalanceSheet, CashEntry, CashFlowLine, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 export interface MockLedgerInputs {
   invoices: PosInvoice[];
@@ -138,6 +138,46 @@ export function mockBalanceSheet(input: MockLedgerInputs): BalanceSheet {
     owner_investment: investment, owners_drawings: drawings, retained_earnings: netIncomeCum,
     total_equity: round2(investment - drawings + netIncomeCum),
   };
+}
+
+// Statement of Cash Flows (P2-M4D) — mirrors the SQL cash_flow_statement classification, reconstructed from the
+// same raw caches. Mock is all-time (no as-of/year filter, like the balances above), so Opening = 0 and Closing =
+// the derived CASH balance. Ties by construction: Operating + Investing + Financing = Closing (verified in tests).
+export function mockCashFlowStatement(input: MockLedgerInputs): CashFlowLine[] {
+  const itemsById = new Map(input.items.map((i) => [i.id, i]));
+  const categoriesById = new Map(input.categories.map((c) => [c.id, c]));
+  const posted = input.cashEntries.filter((c) => c.status === 'Posted');
+  const byCat = (cat: CashEntry['category']) => sum(posted.filter((c) => c.category === cat));
+
+  const receiptsFromCustomers = round2(input.invoices.filter((i) => i.status === 'Paid').reduce((s, i) => s + i.tender_cash - i.change_amount, 0));
+  let supplierCash = 0, equipmentCash = 0;
+  for (const r of input.receivings) {
+    if (purchaseAccount(r, itemsById, categoriesById) === 'EQUIPMENT') equipmentCash = round2(equipmentCash + r.total_amount);
+    else supplierCash = round2(supplierCash + r.total_amount);
+  }
+  const payrollCashOut = round2(input.cashAdvances.reduce((s, a) => s + a.amount, 0) + input.wagePayments.reduce((s, w) => s + w.net, 0));
+  const ownerNet = round2(byCat('Owner Investment') - byCat("Owner's Drawings"));
+  const loanNet = round2(byCat('Loan Received') - byCat('Loan Payment'));
+
+  const operating = round2(receiptsFromCustomers - supplierCash - payrollCashOut + byCat('Other Income'));
+  const investing = round2(-equipmentCash);
+  const financing = round2(ownerNet + loanNet);
+  const net = round2(operating + investing + financing);
+
+  const lines: CashFlowLine[] = [];
+  const push = (activity: CashFlowLine['activity'], line_label: string, amount: number, sort_order: number) => {
+    if (round2(amount) !== 0) lines.push({activity, line_label, amount: round2(amount), sort_order});
+  };
+  push('Operating', 'Receipts from customers', receiptsFromCustomers, 1);
+  push('Operating', 'Payments to suppliers', -supplierCash, 1);
+  push('Operating', 'Payments to employees', -payrollCashOut, 1);
+  push('Operating', 'Other operating receipts', byCat('Other Income'), 1);
+  push('Investing', 'Equipment purchases', -equipmentCash, 2);
+  push('Financing', 'Owner investment / drawings', ownerNet, 3);
+  push('Financing', 'Loan proceeds / repayments', loanNet, 3);
+  lines.push({activity: 'Reconciliation', line_label: 'Opening cash balance', amount: 0, sort_order: 10});
+  lines.push({activity: 'Reconciliation', line_label: 'Closing cash balance', amount: net, sort_order: 11});
+  return lines;
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

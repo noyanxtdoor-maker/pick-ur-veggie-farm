@@ -2,6 +2,7 @@
 // and that the equity roll-forward ties to the balance sheet's own total_equity.
 import {describe, expect, it} from 'vitest';
 import {accountBreakdown, equityRollforward} from '@/app/features/accounting/reports';
+import {mockCashFlowStatement, type MockLedgerInputs} from '@/app/features/accounting/mockLedger';
 import type {BalanceSheet, TrialBalanceRow} from '@/app/types/db';
 
 const tb = (code: string, name: string, account_type: TrialBalanceRow['account_type'], d: number, c: number): TrialBalanceRow => ({
@@ -51,5 +52,38 @@ describe('equityRollforward', () => {
 
   it('flags a non-tying balance sheet (guards against upstream drift)', () => {
     expect(equityRollforward({...bs, total_equity: 9999}).ties).toBe(false);
+  });
+});
+
+describe('mockCashFlowStatement', () => {
+  // A cash sale (₱270 received), an ₱8,000 equipment purchase, ₱1,000 materials, ₱50,000 owner investment,
+  // ₱2,000 loan repayment. Mirrors the SQL cash_flow_statement classification.
+  const inputs = {
+    invoices: [{status: 'Paid', tender_cash: 500, change_amount: 230}],
+    receivings: [{item_id: 'eq1', total_amount: 8000}, {item_id: 'mat1', total_amount: 1000}],
+    items: [{id: 'eq1', inventory_type: 'Equipment', category_id: 'c-eq'}, {id: 'mat1', inventory_type: 'Consumable', category_id: 'c-seed'}],
+    categories: [{id: 'c-eq', category_key: 'equipment'}, {id: 'c-seed', category_key: 'seeds'}],
+    cashEntries: [{status: 'Posted', category: 'Owner Investment', amount: 50000}, {status: 'Posted', category: 'Loan Payment', amount: 2000}],
+    finishedGoods: [],
+    cashAdvances: [],
+    wagePayments: [],
+  } as unknown as MockLedgerInputs;
+
+  const lines = mockCashFlowStatement(inputs);
+  const find = (label: string) => lines.find((l) => l.line_label === label);
+
+  it('classifies each cash movement into the right activity', () => {
+    expect(find('Receipts from customers')).toMatchObject({activity: 'Operating', amount: 270});
+    expect(find('Payments to suppliers')).toMatchObject({activity: 'Operating', amount: -1000});
+    expect(find('Equipment purchases')).toMatchObject({activity: 'Investing', amount: -8000});
+    expect(find('Owner investment / drawings')).toMatchObject({activity: 'Financing', amount: 50000});
+    expect(find('Loan proceeds / repayments')).toMatchObject({activity: 'Financing', amount: -2000});
+  });
+
+  it('ties: Operating + Investing + Financing = Closing cash, Opening = 0', () => {
+    const activitySum = lines.filter((l) => l.activity !== 'Reconciliation').reduce((s, l) => s + l.amount, 0);
+    expect(find('Opening cash balance')!.amount).toBe(0);
+    expect(activitySum).toBe(find('Closing cash balance')!.amount);
+    expect(find('Closing cash balance')!.amount).toBe(39270); // 270 − 1000 − 8000 + 50000 − 2000
   });
 });

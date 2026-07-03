@@ -295,6 +295,13 @@ export interface IncomeStatementMonth {
   net_income: number;
 }
 
+export interface CashFlowLine {
+  activity: 'Operating' | 'Investing' | 'Financing' | 'Reconciliation';
+  line_label: string;
+  amount: number;
+  sort_order: number;
+}
+
 export interface BalanceSheet {
   cash: number;
   accounts_receivable: number;

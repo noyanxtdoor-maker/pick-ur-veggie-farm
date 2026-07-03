@@ -8,8 +8,8 @@ import {enqueue} from '../../core/offline/queue';
 import {uuidv7} from '../../core/offline/uuidv7';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {round2} from '../pos/money';
-import {deriveMockAccountBalances, mockBalanceSheet, mockIncomeStatementMonthly, mockTrialBalance} from './mockLedger';
-import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
+import {deriveMockAccountBalances, mockBalanceSheet, mockCashFlowStatement, mockIncomeStatementMonthly, mockTrialBalance} from './mockLedger';
+import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, CashFlowLine, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 const online = () => typeof navigator === 'undefined' || navigator.onLine;
 
@@ -100,6 +100,14 @@ export const accountingApi = {
     const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | undefined;
     if (!row) throw new Error('No balance sheet data returned.');
     return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)])) as unknown as BalanceSheet;
+  },
+
+  async cashFlowStatement(companyId: string, branchId?: string, year?: number): Promise<CashFlowLine[]> {
+    // Mock is all-time (year ignored — the local cache has no historical as-of view); real mode filters by year.
+    if (MOCK_MODE) return mockCashFlowStatement(await mockInputs(companyId, branchId));
+    const {data, error} = await supabase.rpc('cash_flow_statement', {p_company: companyId, p_branch_id: branchId ?? null, p_year: year ?? null});
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as CashFlowLine[]).map((r) => ({...r, amount: Number(r.amount), sort_order: Number(r.sort_order)}));
   },
 
   // internal export for tests only
