@@ -224,4 +224,53 @@ begin
   raise notice 'PASS acct: balance sheet ties out — Assets(%) = Liabilities(%) + Equity(%)', v_assets, v_liab, v_eq;
 end $$;
 
+-- ── Statement of Cash Flows (M4D): ties by construction + reconciles independently to the CASH balance ──
+do $$
+declare v_op numeric; v_inv numeric; v_fin numeric; v_open numeric; v_close numeric; v_net numeric;
+        v_cash_bs numeric; v_inv_before numeric;
+begin
+  set local role authenticated; set local request.jwt.claims = '{"sub":"0a000000-0000-0000-0000-00000000000a"}';  -- owner A
+  -- Investing total BEFORE an equipment purchase (all-time)
+  select coalesce(sum(amount) filter (where activity = 'Investing'), 0)
+    into v_inv_before from public.cash_flow_statement('11111111-1111-1111-1111-111111111111');
+  -- buy equipment for cash → Dr EQUIPMENT / Cr CASH (an Investing outflow of 8000)
+  perform public.inventory_record_purchase('a1111111-1111-1111-1111-111111111111','equipment','Water Pump', true, 1, 8000.00, 'physical','Hardware','', '2026-02-01','cf-equip');
+  select coalesce(sum(amount) filter (where activity = 'Operating'), 0),
+         coalesce(sum(amount) filter (where activity = 'Investing'), 0),
+         coalesce(sum(amount) filter (where activity = 'Financing'), 0),
+         coalesce(max(amount) filter (where line_label = 'Opening cash balance'), 0),
+         coalesce(max(amount) filter (where line_label = 'Closing cash balance'), 0)
+    into v_op, v_inv, v_fin, v_open, v_close
+    from public.cash_flow_statement('11111111-1111-1111-1111-111111111111');
+  v_net := v_op + v_inv + v_fin;
+  -- (1) ties by construction: Operating + Investing + Financing = Closing − Opening
+  if round(v_net - (v_close - v_open), 2) <> 0 then
+    raise exception 'DEFECT cashflow: activities % do not reconcile to net change % (open % close %)', v_net, v_close - v_open, v_open, v_close;
+  end if;
+  -- (2) closing cash = the CASH balance the balance sheet derives independently (cross-function agreement)
+  select cash into v_cash_bs from public.balance_sheet('11111111-1111-1111-1111-111111111111');
+  if round(v_close - v_cash_bs, 2) <> 0 then
+    raise exception 'DEFECT cashflow: closing cash % <> balance-sheet cash %', v_close, v_cash_bs;
+  end if;
+  -- (3) the equipment purchase landed in Investing, exactly −8000
+  if round(v_inv - (v_inv_before - 8000.00), 2) <> 0 then
+    raise exception 'DEFECT cashflow: equipment purchase not classified as Investing −8000 (before % after %)', v_inv_before, v_inv;
+  end if;
+  -- (4) owner investment (+50000 earlier this tx) makes Financing a net inflow
+  if v_fin <= 0 then raise exception 'DEFECT cashflow: Financing should be a net inflow after owner investment (got %)', v_fin; end if;
+  raise notice 'PASS cashflow: ties (net=% = close−open), closing=BS cash=%, equipment→Investing, financing inflow=%', v_net, v_cash_bs, v_fin;
+end $$;
+
+-- permission gate: a worker without accounting.read cannot read the cash flow statement
+do $$ declare v_denied boolean := false;
+begin
+  set local role authenticated; set local request.jwt.claims = '{"sub":"0c000000-0000-0000-0000-00000000000c"}';  -- worker, no accounting perms
+  begin
+    perform * from public.cash_flow_statement('11111111-1111-1111-1111-111111111111');
+  exception when insufficient_privilege then v_denied := true;
+  end;
+  if not v_denied then raise exception 'DEFECT cashflow: worker without accounting.read read the cash flow statement'; end if;
+  raise notice 'PASS cashflow: accounting.read gate enforced (worker denied)';
+end $$;
+
 rollback;
