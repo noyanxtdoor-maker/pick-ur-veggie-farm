@@ -40,13 +40,12 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   M3A materials/equipment db spine (`e6f999a`, guard-proven) · M3B Inventory UI + real Low-Stock tile (`de05e5e`,
   browser-verified). **CI for ALL THREE pushes (`375f8ad`, `169eed8`, `362657f`) still awaiting owner paste +
   audit — one green run at `362657f` covers the entire tree through Module 3.**
-- **Local-only (ahead 3, push = owner gate):** `9de0d51` **Module 4 Accounting spec** · `912b0fc` **M4A
-  accounting core** (cash entries + GL-truth statements, guard-proven) · `5555078` **M4B Accounting UI**
-  (browser-verified).
+- **Local-only (ahead 8, push = owner gate):** `9de0d51` **M4 Accounting spec** · `912b0fc` **M4A** · `5555078`
+  **M4B** · `f975f26` handoff · `7a3bda8` **mockup reference + backlog** · `ad4f81a` **M5 Payroll spec** ·
+  `f68b634` **M5A payroll db** (guard-proven) · `661f949` **M5B Payroll UI** (browser-verified).
 - **Module 2 (POS) = prototype-parity feature-complete (M2A–M2E). Module 3 (Inventory) = feature-complete
-  (M3A+M3B). Module 4 (Accounting) = feature-complete locally (M4A+M4B).** Migrations immutable through
-  `20260703090000_p2m4a`.
-  
+  (M3A+M3B). Module 4 (Accounting) = feature-complete (M4A+M4B). Module 5 (Payroll) = feature-complete locally
+  (M5A+M5B).** Migrations immutable through `20260703120000_p2m5a`.
 
 ## 3. What is BUILT
 - **DB (pushed):** M1–M6 foundation; org setup; crop catalog (frozen); **M2A** `products` + `finished_goods_batches`
@@ -125,6 +124,20 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   These + customer-credit + digital-payments are now consolidated in `Phase_2_Mockup_Reference_and_Backlog.md`
   (§4 B1–B9) as the reconciled backlog — priority order unchanged.
 
+- **Module 5 Payroll (local `f68b634` db + `661f949` app; spec `Phase_2_M5_Payroll_Module_Spec.md`):** lean
+  daily-wage payroll matching the prototype. **M5A** — `employees` (company master, payroll.manage RLS) +
+  `cash_advances` + `wage_payments` (branch-owned, function-only) + `payroll_record_cash_advance` (Dr Employee
+  Advances/Cr Cash) + `payroll_disburse_wage` (gross = days×rate server-recomputed = wage authority; Dr Wages/Cr
+  Cash net/Cr Employee Advances deduction; net≥0; deduction≤outstanding) + `employee_advance_balance` (derived,
+  never stored); +2 permissions (payroll.read/manage — salary reads hidden from Worker/Operator). **22.20
+  integration:** evolved `income_statement_monthly` (+wages OpEx) and `balance_sheet` (+Employee Advances asset,
+  new column) additively. guard:payroll **14/14**; all tiers green; drift clean. **M5B** — Payroll screen (roster
+  w/ live undeducted-advance pill, Hire/Log-Advance/Disburse-Wage modals w/ gross/net preview, Wage Journal,
+  resign/reactivate); threaded payroll into the mock accounting reconstruction + added the Employee-Advances
+  balance-sheet row. vitest 46/46. Browser E2E: hire Juan 550/day → advance 500 → wage 2d (gross 1100, deduct 500,
+  net 600) → journal exact → **balance sheet ties 3,100=3,100 with Employee Advances asset + wages in RE**.
+  **Money path → cross-vendor review before lock (charter §4.6), same as M2E/M4A.**
+
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
 PATH → run guards via `docker exec -i supabase_db_pick-ur-veggie-farm psql -U postgres -d postgres -v
@@ -136,19 +149,20 @@ tsc/vitest/build) → LOCAL commit → owner pushes → owner pastes CI → audi
 evolve via new migrations (`create or replace` / additive `alter` — the M4/M2C pattern).
 
 ## 5. CI audit checklist (when owner pastes a run)
-verify: npm ci · tsc · vitest (40 tests at `362657f`+/`5555078`) · build, no skips/continue-on-error.
+verify: npm ci · tsc · vitest (46 tests at `661f949`) · build, no skips/continue-on-error.
 secrets: full-history gitleaks. db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying ALL
-migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/**accounting**/drift each visibly
-executed → stop. No `|| true`.
+migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/**accounting**/**payroll**/drift
+each visibly executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
 1. **Owner gates:** paste CI for the `362657f` push (one green run audits everything through Module 3 → lock
-   M1D/crops/M2A–M2E/M3A/M3B) · **M2E changed the charged price (farm = retail×0.90) — run the cross-vendor
-   money reviewer (charter §4.6) before declaring M2E locked; M4A's cash-entry/balance-sheet postings are a new
-   money path and need the same review before locking M4** · authorize push of the **3 local commits** (Module 4
-   Accounting: 9de0d51/912b0fc/5555078) → CI → audit → lock M4.
-2. Then: **Payroll module** (System 21, spec-first vs mock src/features/Payroll.tsx, owner go) → Scheduling →
-   Settings Hub (dark/cream/green tokens exist in src/index.css; only light ported).
+   M1D/crops/M2A–M2E/M3A/M3B) · **money-path cross-vendor review (charter §4.6) still pending on THREE items
+   before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance postings** ·
+   authorize push of the **8 local commits** (M4 + docs + mockup + M5) → CI → audit → lock M4/M5.
+2. Then per roadmap: **Scheduling** (Schedules & Plans — System 20.19 calendar, spec-first vs mock
+   src/features/Schedules.tsx) → **Projects** (Project Checklists, src/features/Projects.tsx) → **Settings Hub**
+   (dark/cream/green theme tokens exist in src/index.css; only light ported). Backlog (B1–B9) + VeggieGenius AI
+   Copilot remain owner-timed (see `Phase_2_Mockup_Reference_and_Backlog.md`).
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
 (`stage-d-phase1-continuity.md`) AND this handoff current every session.
