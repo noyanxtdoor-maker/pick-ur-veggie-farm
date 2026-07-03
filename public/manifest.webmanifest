@@ -1,0 +1,17 @@
+{
+  "name": "PickUrVeggie ERP",
+  "short_name": "PickUrVeggie",
+  "description": "Farm ERP — Weigh POS, inventory, accounting, payroll and more. Works offline.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#003e1c",
+  "background_color": "#f7fbef",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

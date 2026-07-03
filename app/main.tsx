@@ -20,3 +20,11 @@ async function start(): Promise<void> {
   );
 }
 void start();
+
+// PWA: register the service worker in production only (keeps Vite HMR untouched in dev). Enables offline
+// shell load + install/TWA eligibility — the first step toward Google Play (docs Phase_2_Google_Play_Readiness.md).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js');
+  });
+}

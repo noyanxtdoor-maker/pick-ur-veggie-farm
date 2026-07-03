@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PickUrVeggie">
+  <!-- Maskable: full-bleed background; logo kept inside the central 80% safe zone so it survives circle/squircle crops. -->
+  <rect width="512" height="512" fill="#003e1c"/>
+  <text x="256" y="312" font-family="'Space Grotesk','Segoe UI',system-ui,sans-serif" font-size="180" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="-6">PV</text>
+</svg>
