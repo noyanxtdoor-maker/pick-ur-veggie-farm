@@ -111,6 +111,9 @@ jobs:
       - name: Scheduling security tests (tenant · branch isolation · permission gating · audit)
         run: npm run guard:scheduling
 
+      - name: Projects security tests (tenant · branch isolation · task parent-scoping · permission gating · audit)
+        run: npm run guard:projects
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
