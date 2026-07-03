@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto';
 import {describe, expect, it, beforeAll} from 'vitest';
 import {offlineDB} from '@/app/core/offline/db';
 import {DEMO, seedMockData} from '@/app/core/mock/mock';
-import {customersApi} from '@/app/features/customers/api';
+import {customersApi, computeStatement} from '@/app/features/customers/api';
 
 describe('customers (mock mode)', () => {
   beforeAll(async () => {
@@ -50,5 +50,25 @@ describe('customers (mock mode)', () => {
     const s = (await customersApi.fetchStanding(DEMO.companyId)).find((x) => x.name === 'Walk-in Wholesaler')!;
     expect(s.credit_limit).toBeNull();
     expect(s.available_credit).toBeNull();
+  });
+});
+
+describe('computeStatement', () => {
+  const mk = (id: string, day: string, total: number, status: 'Paid' | 'Unpaid' | 'Voided') =>
+    ({id, invoice_number: Number(id), created_at: `2026-07-${day}T00:00:00Z`, total, status});
+
+  it('runs the outstanding balance oldest→newest, counting only Unpaid', () => {
+    const {lines, outstanding} = computeStatement([
+      mk('3', '03', 500, 'Unpaid'),
+      mk('1', '01', 1000, 'Unpaid'),
+      mk('2', '02', 800, 'Paid'), // settled → adds 0 to the running balance
+    ]);
+    expect(lines.map((l) => l.id)).toEqual(['1', '2', '3']); // sorted by date
+    expect(lines.map((l) => l.running_outstanding)).toEqual([1000, 1000, 1500]);
+    expect(outstanding).toBe(1500);
+  });
+
+  it('is empty for a customer with no invoices', () => {
+    expect(computeStatement([])).toEqual({lines: [], outstanding: 0});
   });
 });

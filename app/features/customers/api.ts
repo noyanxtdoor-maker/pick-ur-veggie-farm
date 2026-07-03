@@ -18,6 +18,31 @@ export interface CustomerInput {
   notes?: string;
 }
 
+export interface StatementLine {
+  id: string;
+  invoice_number: number | null;
+  created_at: string;
+  total: number;
+  status: PosInvoice['status'];
+  running_outstanding: number; // cumulative unpaid balance up to and including this row
+}
+export interface CustomerStatement {
+  lines: StatementLine[];
+  outstanding: number; // Σ unpaid (final running balance)
+}
+
+// Pure: build a statement of account (oldest→newest) with a running outstanding balance. Only 'Unpaid' invoices
+// add to the balance; Paid/Voided rows are shown for history but contribute 0. Kept pure for a unit test.
+export function computeStatement(invoices: Array<Pick<PosInvoice, 'id' | 'invoice_number' | 'created_at' | 'total' | 'status'>>): CustomerStatement {
+  const sorted = [...invoices].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  let running = 0;
+  const lines: StatementLine[] = sorted.map((i) => {
+    if (i.status === 'Unpaid') running = round2(running + i.total);
+    return {id: i.id, invoice_number: i.invoice_number, created_at: i.created_at, total: i.total, status: i.status, running_outstanding: running};
+  });
+  return {lines, outstanding: running};
+}
+
 export const customersApi = {
   async fetchCustomers(companyId: string): Promise<Customer[]> {
     if (MOCK_MODE) {
@@ -98,6 +123,20 @@ export const customersApi = {
     const {data, error} = await q;
     if (error) throw new Error(error.message);
     return ((data ?? []) as unknown as PosInvoice[]);
+  },
+
+  // Read-only statement of account for one customer (their invoices + running outstanding balance).
+  async fetchStatement(companyId: string, customerId: string, branchId?: string): Promise<CustomerStatement> {
+    if (MOCK_MODE) {
+      const rows = await offlineDB.posInvoices.where('company_id').equals(companyId).toArray();
+      const mine = rows.filter((i) => i.customer_id === customerId && (!branchId || i.branch_id === branchId));
+      return computeStatement(mine);
+    }
+    let q = supabase.from('invoices').select('id,invoice_number,created_at,total,status').eq('company_id', companyId).eq('customer_id', customerId).order('created_at');
+    if (branchId) q = q.eq('branch_id', branchId);
+    const {data, error} = await q;
+    if (error) throw new Error(error.message);
+    return computeStatement(((data ?? []) as Array<Pick<PosInvoice, 'id' | 'invoice_number' | 'created_at' | 'total' | 'status'>>).map((i) => ({...i, total: Number(i.total)})));
   },
 
   // Attribution only — tags an invoice with a customer; posts NO journal, changes NO amount.

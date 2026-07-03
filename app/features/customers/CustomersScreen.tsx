@@ -4,15 +4,17 @@
 import {useCallback, useEffect, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Archive, CreditCard, Pencil, Plus, UserPlus, Users2, X} from 'lucide-react';
+import {Archive, CreditCard, FileText, Pencil, Plus, UserPlus, Users2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso} from '../pos/money';
-import {customersApi, type CustomerInput} from './api';
+import {customersApi, type CustomerInput, type CustomerStatement} from './api';
 import type {Customer, CustomerStanding, PosInvoice} from '../../types/db';
+
+const STATUS_TONE: Record<string, string> = {Paid: 'text-farm-green', Unpaid: 'text-farm-danger', Voided: 'text-farm-muted', PendingSync: 'text-farm-warn'};
 
 export default function CustomersScreen() {
   const {companyId, has} = usePermissions();
@@ -45,6 +47,15 @@ export default function CustomersScreen() {
     catch (e) { notify(e instanceof Error ? e.message : 'Failed', 'error'); }
     finally { setBusy(false); }
   };
+
+  // statement of account viewer
+  const [stmtName, setStmtName] = useState<string | null>(null);
+  const [statement, setStatement] = useState<CustomerStatement | null>(null);
+  function openStatement(s: CustomerStanding) {
+    if (!companyId) return;
+    setStmtName(s.name); setStatement(null);
+    customersApi.fetchStatement(companyId, s.customer_id).then(setStatement).catch(() => setStatement({lines: [], outstanding: 0}));
+  }
 
   // create / edit modal
   const [open, setOpen] = useState(false);
@@ -121,6 +132,7 @@ export default function CustomersScreen() {
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-farm-accent-soft"><div className={cn('h-full rounded-full', over ? 'bg-farm-danger' : 'bg-farm-green')} style={{width: `${pct}%`}} /></div>
                 ) : null}
                 {over ? <p className="mt-1 text-[11px] font-bold text-farm-danger">Over credit limit</p> : null}
+                <button onClick={() => openStatement(s)} className="mt-3 inline-flex items-center gap-1.5 self-start text-xs font-bold text-farm-green hover:underline"><FileText className="h-3.5 w-3.5" aria-hidden /> View statement</button>
               </Card>
             );
           })}
@@ -142,6 +154,49 @@ export default function CustomersScreen() {
           </ul>
         </Card>
       ) : null}
+
+      {/* Statement of account viewer */}
+      <Dialog.Root open={stmtName !== null} onOpenChange={(o) => {if (!o) setStmtName(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><FileText className="h-5 w-5" aria-hidden /> Statement — {stmtName}</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-4 text-xs text-farm-muted">Their credit sales with a running outstanding balance. Read-only.</p>
+            {statement === null ? <Skeleton rows={3} /> : statement.lines.length === 0 ? (
+              <EmptyState title="No sales on record" hint="This customer has no attributed invoices yet." />
+            ) : (
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-farm-accent text-left font-bold tracking-wider text-farm-muted">
+                    <th className="pb-2">Date</th><th className="pb-2">Invoice</th><th className="pb-2">Status</th>
+                    <th className="pb-2 text-right">Amount</th><th className="pb-2 text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-farm-accent-soft">
+                  {statement.lines.map((l) => (
+                    <tr key={l.id}>
+                      <td className="py-2 font-mono">{new Date(l.created_at).toLocaleDateString()}</td>
+                      <td className="py-2">#{l.invoice_number ?? '—'}</td>
+                      <td className={cn('py-2 font-bold', STATUS_TONE[l.status])}>{l.status}</td>
+                      <td className="tabular py-2 text-right">{formatPeso(l.total)}</td>
+                      <td className="tabular py-2 text-right font-bold">{formatPeso(l.running_outstanding)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-farm-green font-black">
+                    <td colSpan={4} className="pt-2">Total outstanding</td>
+                    <td className={cn('tabular pt-2 text-right', statement.outstanding > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(statement.outstanding)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Create / edit modal */}
       <Dialog.Root open={open} onOpenChange={setOpen}>
