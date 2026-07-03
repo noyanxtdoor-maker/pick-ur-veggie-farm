@@ -189,11 +189,15 @@ backlog, not new core modules.
    - **B1 customer credit — first slice DONE (M9A, `8928769`/`7680b05`):** customers master + read-only AR/credit
      standing + non-money invoice attribution; guard:customers 6. *Deferred (money path → review):* credit-limit
      ENFORCEMENT in the sale.
-   - **Remaining, owner-timed:** **B2** GCash/Maya/bank digital payments (money path — needs Bank/e-wallet accounts
-     + modified settlement, and the cross-vendor review); **B7** governed backup/export (a simple client-side JSON
-     export is a safe first slice; also absorbs the Settings prototype's Drive-sync/import/factory-reset); customer
-     statements-of-account / payment allocation; then the **VeggieGenius AI Copilot** (local LM Studio).
-     Note: a Supplier/AP master is NOT worth building yet — all purchases are cash, so there is no AP to show (YAGNI).
+   - **B7 governed export — first slice DONE (`3b8fbb3`):** the Settings "Data & Backup" card downloads a JSON copy
+     of this device's local records (read-only, client-only, no server/money/permission). Restore/import + governed
+     cloud backup deferred (import overwrites data = the reviewed follow-up).
+   - **Remaining — mostly money-path or owner-timed:** **B2** GCash/Maya/bank digital payments (MONEY path — needs
+     Bank/e-wallet financial_accounts + modified pos_record_sale/pos_settle + the cross-vendor review); credit-limit
+     enforcement (money path); customer statements-of-account / payment allocation; then the **VeggieGenius AI
+     Copilot** (local LM Studio). **The safe non-money backlog is now largely exhausted** — building more money-path
+     modules locally before the owner runs the pending review + push on the ~30 accumulated commits just compounds
+     the unreviewed money surface. Supplier/AP master is NOT worth building yet (all purchases are cash → no AP; YAGNI).
    **Settings (M8) is DONE** — live theme switcher (light/dark/cream/green via `html[data-theme]` CSS-var
    overrides) + per-device station labels consumed by the shell; client-only, no migration/permission/RLS;
    browser-verified; committed `216c01b` (spec) / `d590a91` (app).
