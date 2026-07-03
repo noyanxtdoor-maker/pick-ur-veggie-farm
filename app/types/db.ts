@@ -118,7 +118,30 @@ export type PermissionKey =
   | 'schedule.read'
   | 'schedule.manage'
   | 'project.read'
-  | 'project.manage';
+  | 'project.manage'
+  | 'customer.read'
+  | 'customer.manage';
+
+// ── Customers & Credit (P2-M9A / backlog B1) ──
+export interface Customer {
+  id: string;
+  company_id: string;
+  name: string;
+  contact: string | null;
+  credit_limit: number | null; // null = no explicit limit
+  notes: string | null;
+  status: 'Active' | 'Archived';
+  created_at: string;
+}
+
+export interface CustomerStanding {
+  customer_id: string;
+  name: string;
+  status: 'Active' | 'Archived';
+  credit_limit: number | null;
+  outstanding_ar: number; // Σ unpaid invoice totals (derived)
+  available_credit: number | null; // credit_limit − outstanding, null when no limit
+}
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -177,6 +200,7 @@ export interface PosInvoice {
   tender_cash: number;
   change_amount: number;
   note: string | null;
+  customer_id?: string | null; // P2-M9A: optional customer attribution (credit sales)
   status: 'Paid' | 'Unpaid' | 'Voided' | 'PendingSync';
   created_at: string;
 }
