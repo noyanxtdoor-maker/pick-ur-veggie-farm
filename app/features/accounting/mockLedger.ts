@@ -5,7 +5,7 @@
 // source of truth is the real GL, proven balanced by scripts/guards/accounting-security.sql. Mock SHRINKAGE is
 // always 0 — mock-mode inventory adjustments don't track a cost basis (recorded limitation, not silently faked).
 import {round2} from '../pos/money';
-import type {InventoryItem, ItemCategory, PosInvoice, PurchaseReceiving} from '../../types/db';
+import type {CashAdvance, InventoryItem, ItemCategory, PosInvoice, PurchaseReceiving, WagePayment} from '../../types/db';
 import type {BalanceSheet, CashEntry, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 export interface MockLedgerInputs {
@@ -15,6 +15,8 @@ export interface MockLedgerInputs {
   categories: ItemCategory[];
   cashEntries: CashEntry[];
   finishedGoods: Array<{available: number; cost_per_unit: number}>;
+  cashAdvances: CashAdvance[]; // P2-M5A
+  wagePayments: WagePayment[]; // P2-M5A
 }
 
 const EXPENSE_CATEGORY_KEYS = new Set(['utilities', 'transport', 'misc']);
@@ -56,16 +58,26 @@ export function deriveMockAccountBalances(input: MockLedgerInputs): Record<strin
   const fgInventory = round2(input.finishedGoods.reduce((s, f) => s + f.available * f.cost_per_unit, 0));
   const ar = round2(unpaid.reduce((s, i) => s + i.total, 0));
 
+  // P2-M5A payroll: advance = Dr Employee Advances/Cr Cash; wage = Dr Wages/Cr Cash(net)/Cr Employee Advances(ded).
+  const advTotal = round2(input.cashAdvances.reduce((s, a) => s + a.amount, 0));
+  const wagesGross = round2(input.wagePayments.reduce((s, w) => s + w.gross, 0));
+  const wagesNet = round2(input.wagePayments.reduce((s, w) => s + w.net, 0));
+  const wagesDeducted = round2(input.wagePayments.reduce((s, w) => s + w.ca_deducted, 0));
+  const employeeAdvances = round2(advTotal - wagesDeducted); // outstanding = Σ advances − Σ deductions
+  const payrollCashOut = round2(advTotal + wagesNet);
+
   return {
-    CASH: round2(cashFromSales - cashFromPurchases + cashIn - cashOut),
+    CASH: round2(cashFromSales - cashFromPurchases + cashIn - cashOut - payrollCashOut),
     AR: ar,
     RAW_MATERIALS: rawMaterials,
     FG_INVENTORY: fgInventory,
     EQUIPMENT: equipment,
+    EMPLOYEE_ADVANCES: employeeAdvances,
     SALES: sales,
     COGS: cogs,
     SHRINKAGE: 0, // ponytail: mock adjustments carry no cost basis; add if mock-mode audit fidelity is ever required
     OPERATING_EXPENSES: operatingExpenses,
+    WAGES_EXPENSE: wagesGross,
     // spec §3.1 parity: opening finished-goods stock is a capital contribution in kind (Cr OWNER_EQUITY server-side)
     // for the ORIGINAL opening qty×cost — COGS releases only ever debit FG_INVENTORY, never OWNER_EQUITY, so the
     // original contribution = current remaining value + everything already released as COGS (every mock FG batch
@@ -89,6 +101,8 @@ const COA_META: Array<{code: string; name: string; type: TrialBalanceRow['accoun
   {code: 'COGS', name: 'Cost of Goods Sold', type: 'Expense', normal: 'debit'},
   {code: 'SHRINKAGE', name: 'Inventory Shrinkage', type: 'Expense', normal: 'debit'},
   {code: 'OPERATING_EXPENSES', name: 'Operating Expenses', type: 'Expense', normal: 'debit'},
+  {code: 'WAGES_EXPENSE', name: 'Labor & Wages Expense', type: 'Expense', normal: 'debit'},
+  {code: 'EMPLOYEE_ADVANCES', name: 'Employee Cash Advances', type: 'Asset', normal: 'debit'},
 ];
 
 export function mockTrialBalance(input: MockLedgerInputs): TrialBalanceRow[] {
@@ -108,8 +122,8 @@ export function mockTrialBalance(input: MockLedgerInputs): TrialBalanceRow[] {
 
 export function mockBalanceSheet(input: MockLedgerInputs): BalanceSheet {
   const b = deriveMockAccountBalances(input);
-  const totalAssets = round2(b.CASH! + b.AR! + b.RAW_MATERIALS! + b.FG_INVENTORY! + b.EQUIPMENT!);
-  const netIncomeCum = round2(b.SALES! + b.OTHER_INCOME! - b.COGS! - b.SHRINKAGE! - b.OPERATING_EXPENSES!);
+  const totalAssets = round2(b.CASH! + b.AR! + b.RAW_MATERIALS! + b.FG_INVENTORY! + b.EQUIPMENT! + b.EMPLOYEE_ADVANCES!);
+  const netIncomeCum = round2(b.SALES! + b.OTHER_INCOME! - b.COGS! - b.SHRINKAGE! - b.OPERATING_EXPENSES! - b.WAGES_EXPENSE!);
   const posted = input.cashEntries.filter((c) => c.status === 'Posted');
   // opening finished-goods value (current + already-released-as-COGS) is folded into the displayed Owner
   // Investment figure — see the OWNER_EQUITY comment in deriveMockAccountBalances (spec §3.1 parity).
@@ -119,7 +133,7 @@ export function mockBalanceSheet(input: MockLedgerInputs): BalanceSheet {
   // inside retained earnings too (a prior version double-subtracted it; only visible once drawings is non-zero).
   return {
     cash: b.CASH!, accounts_receivable: b.AR!, raw_materials: b.RAW_MATERIALS!, finished_goods: b.FG_INVENTORY!, equipment: b.EQUIPMENT!,
-    total_assets: totalAssets,
+    employee_advances: b.EMPLOYEE_ADVANCES!, total_assets: totalAssets,
     loans_payable: b.LOANS_PAYABLE!, total_liabilities: b.LOANS_PAYABLE!,
     owner_investment: investment, owners_drawings: drawings, retained_earnings: netIncomeCum,
     total_equity: round2(investment - drawings + netIncomeCum),
@@ -133,6 +147,7 @@ export function mockIncomeStatementMonthly(input: MockLedgerInputs, year: number
   const categoriesById = new Map(input.categories.map((c) => [c.id, c]));
   const live = input.invoices.filter((i) => (i.status === 'Paid' || i.status === 'Unpaid') && new Date(i.created_at).getFullYear() === year);
   const yearReceivings = input.receivings.filter((r) => new Date(r.received_date).getFullYear() === year);
+  const yearWages = input.wagePayments.filter((w) => new Date(w.created_at).getFullYear() === year);
 
   return Array.from({length: 12}, (_, idx) => {
     const mo = idx + 1;
@@ -146,6 +161,8 @@ export function mockIncomeStatementMonthly(input: MockLedgerInputs, year: number
     for (const r of monthReceivings) {
       if (purchaseAccount(r, itemsById, categoriesById) === 'OPERATING_EXPENSES') operatingExpenses = round2(operatingExpenses + r.total_amount);
     }
+    // P2-M5A: wages fold into OpEx (matches income_statement_monthly), bucketed by disbursement month
+    operatingExpenses = round2(operatingExpenses + yearWages.filter((w) => new Date(w.created_at).getMonth() + 1 === mo).reduce((s, w) => s + w.gross, 0));
     const shrinkage = 0; // mock adjustments carry no cost basis (see deriveMockAccountBalances note)
 
     const totalRevenue = round2(retailRevenue + wholesaleRevenue);

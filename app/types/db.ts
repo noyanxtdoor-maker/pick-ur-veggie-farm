@@ -112,7 +112,9 @@ export type PermissionKey =
   | 'inventory.purchase'
   | 'equipment.manage'
   | 'accounting.read'
-  | 'accounting.manage';
+  | 'accounting.manage'
+  | 'payroll.read'
+  | 'payroll.manage';
 
 // ── POS / Finished-Goods spine (P2-M2A/M2B) ──
 export interface Product {
@@ -295,6 +297,7 @@ export interface BalanceSheet {
   raw_materials: number;
   finished_goods: number;
   equipment: number;
+  employee_advances: number; // P2-M5A: outstanding employee cash advances (asset)
   total_assets: number;
   loans_payable: number;
   total_liabilities: number;
@@ -302,6 +305,47 @@ export interface BalanceSheet {
   owners_drawings: number;
   retained_earnings: number;
   total_equity: number;
+}
+
+// ── Payroll (P2-M5A/M5B) — daily-wage staff, cash advances, wage disbursements. ──
+export interface Employee {
+  id: string;
+  company_id: string;
+  employee_code: string; // immutable after create
+  name: string;
+  position: string;
+  daily_rate: number;
+  date_hired: string; // date
+  status: 'Active' | 'Inactive';
+  created_at: string;
+  updated_at: string;
+  // client-side augmentation: derived outstanding advance (server: employee_advance_balance(); mock: computed)
+  advance_balance: number;
+}
+
+export interface CashAdvance {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  employee_id: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+}
+
+export interface WagePayment {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  employee_id: string;
+  pay_period: string;
+  days_worked: number;
+  daily_rate: number;
+  gross: number;
+  ca_deducted: number;
+  net: number;
+  notes: string | null;
+  created_at: string;
 }
 
 // ── Crop Management (P2-M2) — status is Active|Archived (no hard delete). ──

@@ -1,7 +1,7 @@
 // Local-first store (B5 §4) + the durable write-ahead outbox (M1B O1). IndexedDB via Dexie.
 // Cache holds only authorized-branch data the user has read (scoped); the outbox holds unsynced writes.
 import Dexie, {type Table} from 'dexie';
-import type {Branch, CashEntry, Company, CropCategory, CropProfile, CropVariety, EquipmentAsset, EquipmentLog, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, PurchaseReceiving, Role} from '../../types/db';
+import type {Branch, CashAdvance, CashEntry, Company, CropCategory, CropProfile, CropVariety, Employee, EquipmentAsset, EquipmentLog, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, PurchaseReceiving, Role, WagePayment} from '../../types/db';
 
 export type OutboxState = 'Pending' | 'Uploading' | 'Completed' | 'Failed' | 'Blocked';
 
@@ -56,6 +56,9 @@ export class OfflineDB extends Dexie {
   equipmentAssets!: Table<EquipmentAsset, string>;
   equipmentLogs!: Table<EquipmentLog, string>;
   cashEntries!: Table<CashEntry, string>;
+  employees!: Table<Omit<Employee, 'advance_balance'>, string>;
+  cashAdvances!: Table<CashAdvance, string>;
+  wagePayments!: Table<WagePayment, string>;
   meta!: Table<MetaRow, string>;
 
   constructor(name = 'PickUrVeggieV3') {
@@ -97,6 +100,12 @@ export class OfflineDB extends Dexie {
     this.version(5).stores({
       cashEntries: 'id, company_id, branch_id, entry_date, status',
     });
+    // P2-M5A/M5B payroll (additive): staff, advances, wage disbursements.
+    this.version(6).stores({
+      employees: 'id, company_id, status',
+      cashAdvances: 'id, company_id, branch_id, employee_id',
+      wagePayments: 'id, company_id, branch_id, employee_id, created_at',
+    });
   }
 }
 
@@ -105,7 +114,7 @@ export const offlineDB = new OfflineDB();
 // Purge all scoped/cached data (M1B S1 — on logout, revocation, or company switch). Outbox is preserved
 // only for the same company; everything else is server-re-derivable.
 export async function purgeCache(db: OfflineDB = offlineDB): Promise<void> {
-  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.cashEntries, db.meta];
+  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.cashEntries, db.employees, db.cashAdvances, db.wagePayments, db.meta];
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
   });

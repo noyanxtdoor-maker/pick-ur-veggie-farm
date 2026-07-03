@@ -32,7 +32,7 @@ const baseCategories = [cat('cat-seeds', 'seeds'), cat('cat-util', 'utilities'),
 const baseItems = [item('i-seeds', 'cat-seeds'), item('i-util', 'cat-util'), item('i-pump', 'cat-equip', 'Equipment')];
 
 function inputs(over: Partial<MockLedgerInputs>): MockLedgerInputs {
-  return {invoices: [], receivings: [], items: baseItems, categories: baseCategories, cashEntries: [], finishedGoods: [], ...over};
+  return {invoices: [], receivings: [], items: baseItems, categories: baseCategories, cashEntries: [], finishedGoods: [], cashAdvances: [], wagePayments: [], ...over};
 }
 
 describe('deriveMockAccountBalances', () => {

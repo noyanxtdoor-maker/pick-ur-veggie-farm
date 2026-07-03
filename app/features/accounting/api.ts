@@ -14,17 +14,19 @@ import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, Inco
 const online = () => typeof navigator === 'undefined' || navigator.onLine;
 
 async function mockInputs(companyId: string, branchId?: string) {
-  const [invoices, receivings, items, categories, cashEntries, finishedGoods] = await Promise.all([
+  const [invoices, receivings, items, categories, cashEntries, finishedGoods, cashAdvances, wagePayments] = await Promise.all([
     offlineDB.posInvoices.where('company_id').equals(companyId).toArray(),
     offlineDB.purchaseReceivings.where('company_id').equals(companyId).toArray(),
     offlineDB.inventoryItems.where('company_id').equals(companyId).toArray(),
     offlineDB.itemCategories.where('company_id').equals(companyId).toArray(),
     offlineDB.cashEntries.where('company_id').equals(companyId).toArray(),
     offlineDB.finishedGoods.where('company_id').equals(companyId).toArray(),
+    offlineDB.cashAdvances.where('company_id').equals(companyId).toArray(),
+    offlineDB.wagePayments.where('company_id').equals(companyId).toArray(),
   ]);
   const scope = (branchId: string | undefined) => <T extends {branch_id: string}>(rows: T[]) => (branchId ? rows.filter((r) => r.branch_id === branchId) : rows);
   const s = scope(branchId);
-  return {invoices: s(invoices), receivings: s(receivings), items, categories, cashEntries: s(cashEntries), finishedGoods: s(finishedGoods)};
+  return {invoices: s(invoices), receivings: s(receivings), items, categories, cashEntries: s(cashEntries), finishedGoods: s(finishedGoods), cashAdvances: s(cashAdvances), wagePayments: s(wagePayments)};
 }
 
 export const accountingApi = {

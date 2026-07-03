@@ -272,6 +272,7 @@ export default function AccountingScreen() {
                       <Row label="Raw Materials Inventory" value={balanceSheet.raw_materials} />
                       <Row label="Finished Goods Inventory" value={balanceSheet.finished_goods} />
                       <Row label="Equipment" value={balanceSheet.equipment} />
+                      <Row label="Employee Advances" value={balanceSheet.employee_advances} />
                       <Row label="Total Assets" value={balanceSheet.total_assets} bold />
                     </dl>
                   </div>

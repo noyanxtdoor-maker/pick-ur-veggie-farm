@@ -21,7 +21,7 @@ const ALL_KEYS: PermissionKey[] = [
   'role.manage', 'user.invite', 'membership.manage', 'crop.manage',
   'product.manage', 'inventory.opening', 'inventory.adjust', 'pos.sell',
   'pos.settle', 'pos.void', 'cash.session', 'inventory.purchase', 'equipment.manage',
-  'accounting.read', 'accounting.manage',
+  'accounting.read', 'accounting.manage', 'payroll.read', 'payroll.manage',
 ];
 
 // Fixed, valid-format UUIDs so the create forms (which validate ids as uuid) accept the seeded selections.
