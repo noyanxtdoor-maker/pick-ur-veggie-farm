@@ -40,12 +40,11 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   M3A materials/equipment db spine (`e6f999a`, guard-proven) · M3B Inventory UI + real Low-Stock tile (`de05e5e`,
   browser-verified). **CI for ALL THREE pushes (`375f8ad`, `169eed8`, `362657f`) still awaiting owner paste +
   audit — one green run at `362657f` covers the entire tree through Module 3.**
-- **Local-only (ahead 8, push = owner gate):** `9de0d51` **M4 Accounting spec** · `912b0fc` **M4A** · `5555078`
-  **M4B** · `f975f26` handoff · `7a3bda8` **mockup reference + backlog** · `ad4f81a` **M5 Payroll spec** ·
-  `f68b634` **M5A payroll db** (guard-proven) · `661f949` **M5B Payroll UI** (browser-verified).
-- **Module 2 (POS) = prototype-parity feature-complete (M2A–M2E). Module 3 (Inventory) = feature-complete
-  (M3A+M3B). Module 4 (Accounting) = feature-complete (M4A+M4B). Module 5 (Payroll) = feature-complete locally
-  (M5A+M5B).** Migrations immutable through `20260703120000_p2m5a`.
+- **Local-only (ahead 11, push = owner gate):** M4 (`9de0d51`/`912b0fc`/`5555078`) · `f975f26` handoff ·
+  `7a3bda8` **mockup reference + backlog** · M5 Payroll (`ad4f81a` spec / `f68b634` db / `661f949` app) ·
+  `bdb80af` handoff · M6 Scheduling (`1da7d60` spec+db / `e9c27ad` app).
+- **Modules feature-complete locally: 2 POS (M2A–M2E) · 3 Inventory (M3A+M3B) · 4 Accounting (M4A+M4B) ·
+  5 Payroll (M5A+M5B) · 6 Scheduling (M6A+M6B).** Migrations immutable through `20260703140000_p2m6a`.
 
 ## 3. What is BUILT
 - **DB (pushed):** M1–M6 foundation; org setup; crop catalog (frozen); **M2A** `products` + `finished_goods_batches`
@@ -138,6 +137,15 @@ inside the ERP"). Org-admin + Crop-catalog modules are **FROZEN** (supporting, n
   net 600) → journal exact → **balance sheet ties 3,100=3,100 with Employee Advances asset + wages in RE**.
   **Money path → cross-vendor review before lock (charter §4.6), same as M2E/M4A.**
 
+- **Module 6 Scheduling (local `1da7d60` db + `e9c27ad` app; spec `Phase_2_M6_Scheduling_Module_Spec.md`):**
+  first **non-money** operational module (no GL, no cross-vendor review). `calendar_events` (branch-owned, 20.19:
+  event_type/title/description/event_date/priority/status; project_id reserved for M7). Plain RLS-gated writes
+  (schedule.manage) + branch-member read (schedule.read), audited; +2 permissions. guard:scheduling **8/8** (tenant
+  + branch isolation, write/read gating, audit). M6B: month-grid calendar (per-day type-colored dots) + selected-day
+  list + New-Event modal + mark-complete/delete; nav `/schedules`. vitest 50/50. Browser E2E: create Planting event →
+  renders on grid + day panel, branch-scoped. Deferred (spec §2): datetime ranges, per-role visibility, automation,
+  assignment/crop/zone/equipment refs, week/day views.
+
 ## 4. Environment & constraints
 Windows + PowerShell/Git-Bash. Supabase local needs **Docker Desktop** (`npx supabase db reset`); `psql` NOT on
 PATH → run guards via `docker exec -i supabase_db_pick-ur-veggie-farm psql -U postgres -d postgres -v
@@ -149,20 +157,20 @@ tsc/vitest/build) → LOCAL commit → owner pushes → owner pastes CI → audi
 evolve via new migrations (`create or replace` / additive `alter` — the M4/M2C pattern).
 
 ## 5. CI audit checklist (when owner pastes a run)
-verify: npm ci · tsc · vitest (46 tests at `661f949`) · build, no skips/continue-on-error.
+verify: npm ci · tsc · vitest (50 tests at `e9c27ad`) · build, no skips/continue-on-error.
 secrets: full-history gitleaks. db-guards: realistic non-cached `supabase start` (~2-3m) → db reset applying ALL
-migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/**accounting**/**payroll**/drift
-each visibly executed → stop. No `|| true`.
+migrations → guard steps static/db/rls/bootstrap/org/crop/**inventory**/**pos**/**accounting**/**payroll**/
+**scheduling**/drift each visibly executed → stop. No `|| true`.
 
 ## 6. Immediate next step (in order)
 1. **Owner gates:** paste CI for the `362657f` push (one green run audits everything through Module 3 → lock
    M1D/crops/M2A–M2E/M3A/M3B) · **money-path cross-vendor review (charter §4.6) still pending on THREE items
    before their locks: M2E farm pricing, M4A cash-entry/balance-sheet postings, and M5A wage/advance postings** ·
-   authorize push of the **8 local commits** (M4 + docs + mockup + M5) → CI → audit → lock M4/M5.
-2. Then per roadmap: **Scheduling** (Schedules & Plans — System 20.19 calendar, spec-first vs mock
-   src/features/Schedules.tsx) → **Projects** (Project Checklists, src/features/Projects.tsx) → **Settings Hub**
-   (dark/cream/green theme tokens exist in src/index.css; only light ported). Backlog (B1–B9) + VeggieGenius AI
-   Copilot remain owner-timed (see `Phase_2_Mockup_Reference_and_Backlog.md`).
+   authorize push of the **11 local commits** (M4 + docs + mockup + M5 + M6) → CI → audit → lock M4/M5/M6.
+2. Then per roadmap: **Projects** (Project Checklists — Monday.com-style board, spec-first vs mock
+   src/features/Projects.tsx; non-money, reuses branch/permission/audit spine) → **Settings Hub** (dark/cream/green
+   theme tokens exist in src/index.css; only light ported). Backlog (B1–B9) + VeggieGenius AI Copilot remain
+   owner-timed (see `Phase_2_Mockup_Reference_and_Backlog.md`).
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
 (`stage-d-phase1-continuity.md`) AND this handoff current every session.
