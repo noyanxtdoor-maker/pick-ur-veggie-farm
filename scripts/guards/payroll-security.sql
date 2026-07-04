@@ -150,6 +150,46 @@ do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"
   raise exception 'DEFECT payroll: a wage payment was deleted directly';
 exception when insufficient_privilege then raise notice 'PASS payroll: direct wage delete denied (function-only)'; end $$;
 
+-- ── P2-M5C self-visibility: a linked worker sees EXACTLY their own record; nothing else changes ──
+-- worker (no payroll perms) cannot link themselves
+do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  perform public.payroll_link_employee_user('e1000000-0000-0000-0000-0000000000e1','10000000-0000-0000-0000-00000000000c');
+  raise exception 'DEFECT payroll: worker without payroll.manage linked an employee record';
+exception when insufficient_privilege then raise notice 'PASS payroll: self-link denied without payroll.manage'; end $$;
+-- owner B (other company) cannot link company A's employee
+do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0b000000-0000-0000-0000-00000000000b"}';
+  perform public.payroll_link_employee_user('e1000000-0000-0000-0000-0000000000e1','10000000-0000-0000-0000-00000000000b');
+  raise exception 'DEFECT payroll: owner B linked an employee in company A';
+exception when insufficient_privilege then raise notice 'PASS payroll: cross-company employee link denied'; end $$;
+-- owner A links worker A2 to employee e1 (governed function)
+do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  perform public.payroll_link_employee_user('e1000000-0000-0000-0000-0000000000e1','10000000-0000-0000-0000-00000000000c');
+  raise notice 'PASS payroll: owner linked a staff record to an app user (payroll.manage)';
+end $$;
+-- linked worker now sees exactly ONE roster row — their own — and their own advances/wages, still no others
+do $$ declare n int; n_own int; n_adv int; n_wage int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  select count(*), count(*) filter (where id = 'e1000000-0000-0000-0000-0000000000e1')
+    into n, n_own from public.employees where company_id='11111111-1111-1111-1111-111111111111';
+  if n <> 1 or n_own <> 1 then
+    raise exception 'DEFECT payroll: linked worker sees % roster rows (expected exactly their own)', n; end if;
+  select count(*) into n_adv from public.cash_advances where employee_id <> 'e1000000-0000-0000-0000-0000000000e1';
+  select count(*) into n_wage from public.wage_payments where employee_id <> 'e1000000-0000-0000-0000-0000000000e1';
+  if n_adv <> 0 or n_wage <> 0 then raise exception 'DEFECT payroll: linked worker saw other employees'' pay rows'; end if;
+  select count(*) into n_adv from public.cash_advances where employee_id = 'e1000000-0000-0000-0000-0000000000e1';
+  if n_adv < 1 then raise exception 'DEFECT payroll: linked worker cannot see their OWN advances'; end if;
+  raise notice 'PASS payroll: self-visibility — linked worker sees only their own profile + advances/wages (M5C)';
+end $$;
+-- linked worker still cannot WRITE their own row (read-only self-visibility)
+do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  update public.employees set daily_rate = 9999 where id = 'e1000000-0000-0000-0000-0000000000e1';
+  if not exists (select 1 from public.employees where id='e1000000-0000-0000-0000-0000000000e1' and daily_rate = 9999) then
+    raise notice 'PASS payroll: self-visibility is READ-only — linked worker cannot edit their own rate';
+  else
+    raise exception 'DEFECT payroll: linked worker edited their own daily rate';
+  end if;
+end $$;
+
 -- ── statements pick up payroll; balance sheet still ties (22.20) ──
 do $$ declare v_opex numeric; v_emp_adv numeric; v_assets numeric; v_liab numeric; v_eq numeric;
 begin
