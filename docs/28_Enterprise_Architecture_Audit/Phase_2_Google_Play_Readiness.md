@@ -30,7 +30,9 @@ account/policy paperwork, not app code.
 4. **Digital Asset Links** — host `/.well-known/assetlinks.json` with the app's signing-key SHA-256 so the TWA runs
    full-screen (no browser URL bar). Bubblewrap generates the fingerprint.
 5. **Play Console paperwork** — $25 developer account, app listing, **Privacy Policy URL** (we handle financial +
-   staff PII → required), **Data Safety** form, content rating, target-API-level compliance, closed/internal test track.
+   staff PII → required), **Data Safety** form, content rating, the current Android target SDK requirement, and a
+   closed or internal test track. (Wording note: this sentence once tripped the CI secret scanner's generic
+   pattern — keep it plain prose.)
 6. **Pre-launch hardening** — the pending money-path items are **not launch-blockers for the current feature set**,
    but the standing owner gates still apply before a *production* release: CI audit of the pushed tree, the
    cross-vendor money-path review (M2E/M4A/M5A), and branch protection (Stage D precondition).
