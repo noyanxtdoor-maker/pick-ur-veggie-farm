@@ -26,9 +26,12 @@
 - **Phase A.3+A.4 DONE (`9b645eb`) → PHASE A COMPLETE.** 375px audit: zero overflow across all 8 screens;
   Sign Out icon-only on phones; Inventory split into "Buy Stock" / "Log Expense" doors (utilities prefill +
   live where-does-the-money-land hint); pre-order checkout states the numpad is optional (Skip-Weigh flow).
-- **⏭ NEXT — Phase B (governed DB slices, spec→migration→guard→UI each):**
-  B.1 **payroll self-visibility** — additive `employees.user_id` + RLS evolution (payroll.manage sees all;
-  others see only their own row) + guard battery + UI filter. Needs Docker for the attack cycle.
+- **Phase B.1 DONE (`ad9eb3f` db / `3d0470e` app) — payroll self-visibility (M5C).** Additive
+  `employees.user_id` + three `*_select_self` OR-policies (read-only self view; M5A untouched) +
+  `payroll_link_employee_user` (manage-gated, member check, audited). guard:payroll **19/19** (5 new
+  M5C attacks) · full suite **157 PASS / 0 defects** · vitest 74/74 · browser-verified ("My Payroll"
+  self view + roster Link-User modal). Migrations immutable through `20260704090000_p2m5c`.
+- **⏭ NEXT — Phase B (remaining slices):**
   B.2 schedule visibility tiers (calendar_events.visibility General|Management + who-can-edit setting + filters).
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
