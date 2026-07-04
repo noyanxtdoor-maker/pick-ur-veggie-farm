@@ -23,11 +23,18 @@
 - **Phase A.2 DONE (`b18136e`):** mobile bottom nav — 4 customizable shortcut slots (puv_mobile_nav pref,
   pin/unpin sheet, PINNED badges) + More sheet with all sections; rail hidden on phones; safe-area handled.
   Browser-verified at 375×812 incl. live customization persistence.
-- **Next per plan Phase A (remaining):** responsive/font sweep on narrow screens → plain-language hints on money
-  fields + "Buy Stock"/"Log Expense" naming split → surface Skip-Weigh in pre-order checkout. Then Phase B slices
-  (payroll self-visibility via employees.user_id, schedule visibility tiers + settings, projects↔calendar,
-  Roles & Approvals screen per owner screenshots). Phase C money-path stays gated on the cross-vendor review.
-  Phase D = Supabase project + hosting + signup-approval queue + Play packaging (PWA foundation already shipped).
+- **Phase A.3+A.4 DONE (`9b645eb`) → PHASE A COMPLETE.** 375px audit: zero overflow across all 8 screens;
+  Sign Out icon-only on phones; Inventory split into "Buy Stock" / "Log Expense" doors (utilities prefill +
+  live where-does-the-money-land hint); pre-order checkout states the numpad is optional (Skip-Weigh flow).
+- **⏭ NEXT — Phase B (governed DB slices, spec→migration→guard→UI each):**
+  B.1 **payroll self-visibility** — additive `employees.user_id` + RLS evolution (payroll.manage sees all;
+  others see only their own row) + guard battery + UI filter. Needs Docker for the attack cycle.
+  B.2 schedule visibility tiers (calendar_events.visibility General|Management + who-can-edit setting + filters).
+  B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
+  B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
+  per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
+  Phase C money-path stays gated on the cross-vendor review (B2 digital-payments spec committed).
+  Phase D = Supabase project + hosting + signup-approval queue + Play packaging (PWA foundation shipped).
 
 ## 1. What this project IS now (course-corrected)
 An **operational farm ERP centered on the Weigh POS**, per the accepted ERP Traceability Audit. The **Google AI
