@@ -31,8 +31,12 @@
   `payroll_link_employee_user` (manage-gated, member check, audited). guard:payroll **19/19** (5 new
   M5C attacks) · full suite **157 PASS / 0 defects** · vitest 74/74 · browser-verified ("My Payroll"
   self view + roster Link-User modal). Migrations immutable through `20260704090000_p2m5c`.
+- **Phase B.2 DONE (`8fb9977`) — schedule visibility tiers (M6C).** calendar_events.visibility
+  General|Management + grantable `schedule.read_private` (WHO sees management plans = a per-role setting in
+  Roles, per owner ask). guard:scheduling **11/11** (investor meeting hidden from staff; read_private reveals;
+  branch isolation holds) · full suite **160 PASS/0** · vitest 74/74 (29 perm keys) · browser-verified (tier
+  filters, "Who can see this?" select, Mgmt chip). Migrations immutable through `20260704120000_p2m6c`.
 - **⏭ NEXT — Phase B (remaining slices):**
-  B.2 schedule visibility tiers (calendar_events.visibility General|Management + who-can-edit setting + filters).
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
   per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
