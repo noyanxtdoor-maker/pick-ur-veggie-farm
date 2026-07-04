@@ -17,13 +17,13 @@ import {Field, TextInput, zodResolver} from '../../../components/forms';
 import {SelectField, ConfirmDialog} from '../../../components/overlay';
 import {EmptyState, Skeleton, StatusBadge, useToast} from '../../../components/feedback';
 
-interface MemberRow extends Membership {
+export interface MemberRow extends Membership {
   userName: string;
   branchName: string;
   roleKey: string;
 }
 
-const membershipsApi = {
+export const membershipsApi = {
   async fetch(companyId: string): Promise<MemberRow[]> {
     if (MOCK_MODE) {
       const [mems, brs, rls, users] = await Promise.all([

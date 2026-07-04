@@ -352,6 +352,7 @@ export interface Employee {
   daily_rate: number;
   date_hired: string; // date
   status: 'Active' | 'Inactive';
+  user_id: string | null; // P2-M5C: linked app user (payroll self-visibility); set only via payroll_link_employee_user
   created_at: string;
   updated_at: string;
   // client-side augmentation: derived outstanding advance (server: employee_advance_balance(); mock: computed)

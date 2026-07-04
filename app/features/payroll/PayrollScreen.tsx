@@ -1,11 +1,11 @@
-// Farm Staff Payroll & Advances (P2-M5B) — prototype-parity: src/features/Payroll.tsx is the workflow authority.
-// Roster (live undeducted-advance pill) · Hire · Log Advance · Disburse Wage (gross = days × rate, net preview) ·
-// Wage Disbursement Journal. Advances/wages post balanced GL server-side (22.20); the branch selector picks the
-// paying branch. All writes via payrollApi (governed functions; B5 offline-queued).
+// Farm Staff Payroll & Advances (P2-M5B/M5C) — prototype-parity: src/features/Payroll.tsx is the workflow
+// authority. Roster (live undeducted-advance pill) · Hire · Log Advance · Disburse Wage · Wage Journal ·
+// Link App User (M5C). Salary privacy (owner rule 2026-07-04): users WITHOUT payroll.read see ONLY their own
+// linked pay record ("My Payroll" self view) — enforced server-side by the M5C RLS; this screen just renders it.
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {HandCoins, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {HandCoins, Link2, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -13,6 +13,7 @@ import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
 import {payrollApi} from './api';
+import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import type {CashAdvance, Employee, WagePayment} from '../../types/db';
 
 const POSITIONS = ['Harvester', 'Farm Operator', 'Warehouse Packer', 'Delivery Driver'];
@@ -68,6 +69,25 @@ export default function PayrollScreen() {
   const wDedNum = parseFloat(wDed) || 0;
   const wNet = round2(Math.max(0, wGross - wDedNum));
 
+  // ── link app user (M5C) — gives a worker self-service visibility of their OWN pay record ──
+  const [linkEmp, setLinkEmp] = useState<Employee | null>(null);
+  const [linkUserId, setLinkUserId] = useState('');
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  useEffect(() => {
+    if (linkEmp && companyId) membershipsApi.fetch(companyId).then(setMembers).catch(() => setMembers([]));
+  }, [linkEmp, companyId]);
+
+  async function submitLink(userId: string | null) {
+    if (!linkEmp) return;
+    setBusy(true);
+    try {
+      await payrollApi.linkEmployeeUser(linkEmp, userId);
+      notify(userId ? `${linkEmp.name} linked — they can now see their own payroll` : `${linkEmp.name} unlinked`);
+      setLinkEmp(null); setLinkUserId('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Link failed', 'error'); } finally { setBusy(false); }
+  }
+
   async function submitHire() {
     if (!companyId) return;
     setBusy(true);
@@ -101,13 +121,10 @@ export default function PayrollScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Disbursement failed', 'error'); } finally { setBusy(false); }
   }
 
+  // M5C "My Payroll" self view: without payroll.read, the server's RLS returns ONLY your linked employee
+  // row + your own advances/wages — so this view renders whatever comes back, read-only.
   if (!canRead) {
-    return (
-      <div>
-        <PageHeader title="Farm Staff Payroll &amp; Advances" />
-        <Card><EmptyState title="Payroll access needed" hint="Your role does not include the payroll.read permission. Ask a manager to grant it." /></Card>
-      </div>
-    );
+    return <MyPayroll companyId={companyId ?? undefined} />;
   }
 
   return (
@@ -155,6 +172,7 @@ export default function PayrollScreen() {
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
                           {canManage ? <button onClick={() => {setWageEmp(e); setWDays('5'); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
+                          {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>
                       ) : (
@@ -296,6 +314,104 @@ export default function PayrollScreen() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Link app user modal (M5C — payroll self-visibility) */}
+      <Dialog.Root open={linkEmp !== null} onOpenChange={(o) => {if (!o) setLinkEmp(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center justify-center gap-1.5 text-lg font-bold text-farm-green"><Link2 className="h-5 w-5" aria-hidden /> Link App User</Dialog.Title>
+            <p className="mb-5 mt-1 text-center text-xs text-farm-muted">
+              Connect <strong>{linkEmp?.name}</strong> to their app account so they can see <em>their own</em> pay
+              record, advances, and wage history — and nobody else&apos;s. Managers keep full visibility.
+            </p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">App user (company member)</label>
+                <SelectField value={linkUserId} onChange={setLinkUserId} placeholder="Choose a member…" options={members.map((m) => ({value: m.user_id, label: `${m.userName} — ${m.roleKey} @ ${m.branchName}`}))} />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setLinkEmp(null)} disabled={busy}>Cancel</Button>
+              {linkEmp?.user_id ? <Button variant="danger" onClick={() => void submitLink(null)} disabled={busy}>Unlink</Button> : null}
+              <Button className="flex-1" onClick={() => void submitLink(linkUserId)} disabled={busy || !linkUserId}>{busy ? 'Linking…' : 'Link User'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  );
+}
+
+// ── M5C "My Payroll" — read-only self view for users WITHOUT payroll.read. The server's RLS is the gate:
+// fetches return only the employee row linked to this user (and their advances/wages), or nothing at all.
+function MyPayroll({companyId}: {companyId?: string}) {
+  const [me, setMe] = useState<Employee | null | undefined>(undefined); // undefined=loading, null=not linked
+  const [advances, setAdvances] = useState<CashAdvance[]>([]);
+  const [wages, setWages] = useState<WagePayment[]>([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    payrollApi.fetchEmployees(companyId).then(async (rows) => {
+      const mine = rows[0] ?? null; // RLS returns at most the caller's own linked row
+      setMe(mine);
+      if (mine) {
+        setAdvances(await payrollApi.fetchEmployeeAdvances(companyId, mine.id).catch(() => []));
+        setWages(await payrollApi.fetchEmployeeWages(companyId, mine.id).catch(() => []));
+      }
+    }).catch(() => setMe(null));
+  }, [companyId]);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="My Payroll" subtitle="Your own pay record — wages received and cash advances. Only you and payroll managers can see this." />
+      {me === undefined ? (
+        <Skeleton rows={3} />
+      ) : me === null ? (
+        <Card><EmptyState title="No staff profile linked yet" hint="Ask a payroll manager to link your app account to your staff record — then your wage history and advance balance appear here." /></Card>
+      ) : (
+        <>
+          <Card className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-lg font-black text-farm-green">{me.name} <span className="font-mono text-xs text-farm-muted">{me.employee_code}</span></p>
+              <p className="text-sm font-semibold text-farm-muted">{me.position} · hired {me.date_hired}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase text-farm-muted">Daily rate</p>
+              <p className="tabular text-xl font-black text-farm-green">{formatPeso(me.daily_rate)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase text-farm-muted" title="Total advances minus what was already deducted from your wages — always computed from the records, never stored.">Advance to repay</p>
+              <p className={cn('tabular text-xl font-black', me.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(me.advance_balance)}</p>
+            </div>
+          </Card>
+          <Card>
+            <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><Wallet className="h-4 w-4" aria-hidden /> My Wage History</h3>
+            {wages.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No wages recorded yet.</p> : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead><tr className="border-b border-farm-accent-soft text-left text-xs font-bold text-farm-muted"><th className="pb-2">Period</th><th className="pb-2 text-right">Days</th><th className="pb-2 text-right">Gross</th><th className="pb-2 text-right">Advance deducted</th><th className="pb-2 text-right">Net received</th></tr></thead>
+                  <tbody className="divide-y divide-farm-accent-soft">
+                    {wages.map((w) => (
+                      <tr key={w.id}><td className="py-2 font-semibold">{w.pay_period}</td><td className="tabular py-2 text-right">{w.days_worked}</td><td className="tabular py-2 text-right">{formatPeso(w.gross)}</td><td className="tabular py-2 text-right text-farm-danger">−{formatPeso(w.ca_deducted)}</td><td className="tabular py-2 text-right font-black text-farm-green">{formatPeso(w.net)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+          <Card>
+            <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><HandCoins className="h-4 w-4" aria-hidden /> My Cash Advances</h3>
+            {advances.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No cash advances taken.</p> : (
+              <ul className="divide-y divide-farm-accent-soft text-sm">
+                {advances.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between py-2"><span className="text-farm-muted">{new Date(a.created_at).toLocaleDateString('en-PH')} {a.note ? `— ${a.note}` : ''}</span><span className="tabular font-bold">{formatPeso(a.amount)}</span></li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

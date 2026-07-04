@@ -70,6 +70,27 @@ describe('payroll (mock mode)', () => {
     await expect(payrollApi.recordAdvance(DEMO.companyId, DEMO.branchA, temp, 100, 'x')).rejects.toThrow(/not active/i);
   });
 
+  it('links / unlinks an app user to a staff record (M5C self-visibility seam)', async () => {
+    const juan = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.name === 'Juan Dela Cruz')!;
+    expect(juan.user_id ?? null).toBeNull();
+    await payrollApi.linkEmployeeUser(juan, DEMO.userId);
+    let after = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.id === juan.id)!;
+    expect(after.user_id).toBe(DEMO.userId);
+    await payrollApi.linkEmployeeUser(after, null);
+    after = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.id === juan.id)!;
+    expect(after.user_id ?? null).toBeNull();
+  });
+
+  it('fetches ONE employee’s advances/wages for the My Payroll view (M5C)', async () => {
+    const juan = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.name === 'Juan Dela Cruz')!;
+    const advs = await payrollApi.fetchEmployeeAdvances(DEMO.companyId, juan.id);
+    const wages = await payrollApi.fetchEmployeeWages(DEMO.companyId, juan.id);
+    expect(advs.length).toBeGreaterThanOrEqual(1);
+    expect(advs.every((a) => a.employee_id === juan.id)).toBe(true);
+    expect(wages.length).toBeGreaterThanOrEqual(1);
+    expect(wages.every((w) => w.employee_id === juan.id)).toBe(true);
+  });
+
   it('payroll flows into the mock accounting: wages hit OpEx and the balance sheet still ties', async () => {
     const inputs = await ledgerInputs();
     const bs = mockBalanceSheet(inputs);

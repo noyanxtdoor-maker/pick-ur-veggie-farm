@@ -53,7 +53,7 @@ export const payrollApi = {
     const payload = {company_id: companyId, employee_code: code, name: input.name.trim(), position: input.position, daily_rate: round2(input.dailyRate), date_hired: todayISO()};
     if (MOCK_MODE) {
       const now = new Date().toISOString();
-      await offlineDB.employees.put({id: uuidv7(), ...payload, status: 'Active', created_at: now, updated_at: now});
+      await offlineDB.employees.put({id: uuidv7(), ...payload, status: 'Active', user_id: null, created_at: now, updated_at: now});
       return;
     }
     if (online()) {
@@ -77,6 +77,44 @@ export const payrollApi = {
       return;
     }
     await enqueue({companyId: employee.company_id, kind: 'payroll.employee.update', request: {type: 'update', table: 'employees', match: {id: employee.id, baseUpdatedAt: employee.updated_at}, payload: {status}}});
+  },
+
+  // P2-M5C self view: one employee's advances/wages across ALL branches (your pay follows you).
+  // Real mode relies on the self-visibility RLS to authorize the rows; mock filters locally.
+  async fetchEmployeeAdvances(companyId: string, employeeId: string): Promise<CashAdvance[]> {
+    if (MOCK_MODE) {
+      const rows = await offlineDB.cashAdvances.where('company_id').equals(companyId).filter((a) => a.employee_id === employeeId).toArray();
+      return rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    const {data, error} = await supabase.from('cash_advances').select('*').eq('company_id', companyId).eq('employee_id', employeeId).order('created_at', {ascending: false}).limit(300);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as CashAdvance[]).map((a) => ({...a, amount: Number(a.amount)}));
+  },
+
+  async fetchEmployeeWages(companyId: string, employeeId: string): Promise<WagePayment[]> {
+    if (MOCK_MODE) {
+      const rows = await offlineDB.wagePayments.where('company_id').equals(companyId).filter((w) => w.employee_id === employeeId).toArray();
+      return rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    const {data, error} = await supabase.from('wage_payments').select('*').eq('company_id', companyId).eq('employee_id', employeeId).order('created_at', {ascending: false}).limit(300);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net)}));
+  },
+
+  // P2-M5C: link/unlink a staff record to an app user (payroll self-visibility). Governed rpc; audited server-side.
+  async linkEmployeeUser(employee: Employee, userId: string | null): Promise<void> {
+    if (MOCK_MODE) {
+      const {advance_balance: _drop, ...row} = employee;
+      await offlineDB.employees.put({...row, user_id: userId, updated_at: new Date().toISOString()});
+      return;
+    }
+    const payload = {p_employee_id: employee.id, p_user_id: userId};
+    if (online()) {
+      const {error} = await supabase.rpc('payroll_link_employee_user', payload);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId: employee.company_id, kind: 'payroll.link_user', request: {type: 'rpc', rpc: 'payroll_link_employee_user', payload}});
   },
 
   async fetchAdvances(companyId: string, branchId: string): Promise<CashAdvance[]> {
