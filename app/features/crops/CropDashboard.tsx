@@ -39,14 +39,14 @@ export default function CropDashboard() {
       <Card>
         <h2 className="mb-3 text-xl font-bold">Quick actions</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ActionTile label="Categories" icon={<FolderTree size={28} aria-hidden />} onClick={() => navigate('/crops/categories')} />
-          <ActionTile label="Varieties" icon={<Sprout size={28} aria-hidden />} onClick={() => navigate('/crops/varieties')} />
-          <ActionTile label="Profiles" icon={<Layers size={28} aria-hidden />} onClick={() => navigate('/crops/profiles')} />
-          <ActionTile label="Planting templates" icon={<Tractor size={28} aria-hidden />} onClick={() => navigate('/crops/templates')} />
+          <ActionTile label="Categories" icon={<FolderTree size={28} aria-hidden />} onClick={() => navigate('../categories')} />
+          <ActionTile label="Varieties" icon={<Sprout size={28} aria-hidden />} onClick={() => navigate('../varieties')} />
+          <ActionTile label="Profiles" icon={<Layers size={28} aria-hidden />} onClick={() => navigate('../profiles')} />
+          <ActionTile label="Planting templates" icon={<Tractor size={28} aria-hidden />} onClick={() => navigate('../templates')} />
         </div>
         {canManage ? (
           <div className="mt-4">
-            <ActionTile label="New category" icon={<Plus size={24} aria-hidden />} onClick={() => navigate('/crops/categories')} />
+            <ActionTile label="New category" icon={<Plus size={24} aria-hidden />} onClick={() => navigate('../categories')} />
           </div>
         ) : (
           <p className="mt-4 text-base text-farm-muted">You can view crops. Editing needs the crop.manage permission.</p>

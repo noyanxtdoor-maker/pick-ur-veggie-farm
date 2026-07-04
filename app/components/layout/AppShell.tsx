@@ -7,11 +7,9 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {
   Activity,
   BarChart3,
-  CalendarDays,
   ClipboardList,
   CloudOff,
   Contact,
-  FolderKanban,
   Landmark,
   LogOut,
   Moon,
@@ -21,7 +19,6 @@ import {
   Settings,
   ShoppingCart,
   Sparkles,
-  Sprout,
   Sun,
   UserCheck,
   Wifi,
@@ -35,6 +32,8 @@ import type {PermissionKey} from '../../types/db';
 import {Loading, OfflineBanner} from '../feedback';
 import {cn} from '../ui';
 
+// Operations (owner 2026-07-04) folds Schedules & Plans, Crops & Plans, and Project Checklists into one
+// entry with Accounting-style tabs — the nav stays short enough for tablets and the future mobile bar.
 const CORE_MODULES = [
   {to: '/dashboard', label: 'Home Dashboard', icon: Activity},
   {to: '/pos', label: 'Weigh Point-Of-Sale', icon: ShoppingCart},
@@ -42,9 +41,6 @@ const CORE_MODULES = [
   {to: '/accounting', label: 'Automated Accounting', icon: Landmark},
   {to: '/customers', label: 'Customers & Credit', icon: Contact},
   {to: '/payroll', label: 'Salaries & Payroll', icon: Users2},
-  {to: '/schedules', label: 'Schedules & Plans', icon: CalendarDays},
-  {to: '/projects', label: 'Project Checklists', icon: FolderKanban},
-  {to: '/crops', label: 'Crops & Plans', icon: Sprout},
   {to: '/operations', label: 'Operations', icon: ClipboardList},
   {to: '/reports', label: 'Reports', icon: BarChart3},
   {to: '/settings', label: 'Settings Hub', icon: Settings},

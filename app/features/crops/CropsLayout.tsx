@@ -3,12 +3,14 @@
 import {NavLink, Outlet} from 'react-router-dom';
 import {cn} from '../../components/ui';
 
+// Relative links: this layout now mounts under /operations/crops (Operations hub), so tabs resolve
+// against the mount point instead of a hard-coded /crops prefix.
 const TABS = [
-  {to: '/crops/dashboard', label: 'Dashboard'},
-  {to: '/crops/categories', label: 'Categories'},
-  {to: '/crops/varieties', label: 'Varieties'},
-  {to: '/crops/profiles', label: 'Profiles'},
-  {to: '/crops/templates', label: 'Templates'},
+  {to: 'dashboard', label: 'Dashboard'},
+  {to: 'categories', label: 'Categories'},
+  {to: 'varieties', label: 'Varieties'},
+  {to: 'profiles', label: 'Profiles'},
+  {to: 'templates', label: 'Templates'},
 ];
 
 export default function CropsLayout() {

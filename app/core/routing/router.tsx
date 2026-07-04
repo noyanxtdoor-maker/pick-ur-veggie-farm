@@ -24,6 +24,7 @@ const PayrollScreen = lazy(() => import('../../features/payroll/PayrollScreen'))
 const SchedulesScreen = lazy(() => import('../../features/scheduling/SchedulesScreen'));
 const ProjectsScreen = lazy(() => import('../../features/projects/ProjectsScreen'));
 const SettingsScreen = lazy(() => import('../../features/settings/SettingsScreen'));
+const OperationsLayout = lazy(() => import('../../features/operations/OperationsLayout'));
 const CustomersScreen = lazy(() => import('../../features/customers/CustomersScreen'));
 const CropsLayout = lazy(() => import('../../features/crops/CropsLayout'));
 const CropDashboard = lazy(() => import('../../features/crops/CropDashboard'));
@@ -72,25 +73,36 @@ export const router = createBrowserRouter([
           {path: 'members', element: <RequirePermission perm="membership.read"><MembersScreen /></RequirePermission>},
         ],
       },
-      {
-        path: 'crops',
-        element: <CropsLayout />,
-        children: [
-          {index: true, element: <Navigate to="/crops/dashboard" replace />},
-          {path: 'dashboard', element: <CropDashboard />},
-          {path: 'categories', element: <CategoriesScreen />},
-          {path: 'varieties', element: <VarietiesScreen />},
-          {path: 'profiles', element: <ProfilesScreen />},
-          {path: 'templates', element: <TemplatesScreen />},
-        ],
-      },
       {path: 'inventory', element: <InventoryScreen />},
       {path: 'accounting', element: <AccountingScreen />},
       {path: 'customers', element: <CustomersScreen />},
       {path: 'payroll', element: <PayrollScreen />},
-      {path: 'schedules', element: <SchedulesScreen />},
-      {path: 'projects', element: <ProjectsScreen />},
-      {path: 'operations', element: <Placeholder title="Operations" />},
+      // Operations hub (owner 2026-07-04): Schedules + Crops + Projects under one entry with tabs.
+      {
+        path: 'operations',
+        element: <OperationsLayout />,
+        children: [
+          {index: true, element: <Navigate to="schedules" replace />},
+          {path: 'schedules', element: <SchedulesScreen />},
+          {path: 'projects', element: <ProjectsScreen />},
+          {
+            path: 'crops',
+            element: <CropsLayout />,
+            children: [
+              {index: true, element: <Navigate to="dashboard" replace />},
+              {path: 'dashboard', element: <CropDashboard />},
+              {path: 'categories', element: <CategoriesScreen />},
+              {path: 'varieties', element: <VarietiesScreen />},
+              {path: 'profiles', element: <ProfilesScreen />},
+              {path: 'templates', element: <TemplatesScreen />},
+            ],
+          },
+        ],
+      },
+      // Legacy paths → Operations hub (bookmarks/tiles keep working)
+      {path: 'schedules', element: <Navigate to="/operations/schedules" replace />},
+      {path: 'projects', element: <Navigate to="/operations/projects" replace />},
+      {path: 'crops/*', element: <Navigate to="/operations/crops" replace />},
       {path: 'reports', element: <Placeholder title="Reports" />},
       {path: 'settings', element: <SettingsScreen />},
     ],
