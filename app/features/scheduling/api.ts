@@ -15,6 +15,7 @@ export interface EventInput {
   description?: string;
   event_date: string; // yyyy-mm-dd
   priority?: CalendarEvent['priority'];
+  visibility?: CalendarEvent['visibility']; // P2-M6C: Management events need schedule.read_private to be seen
 }
 
 export const schedulingApi = {
@@ -34,6 +35,7 @@ export const schedulingApi = {
     const payload = {
       company_id: companyId, branch_id: branchId, event_type: input.event_type, title: input.title.trim(),
       description: input.description?.trim() || null, event_date: input.event_date, priority: input.priority ?? 'Normal',
+      visibility: input.visibility ?? 'General',
     };
     if (MOCK_MODE) {
       const now = new Date().toISOString();

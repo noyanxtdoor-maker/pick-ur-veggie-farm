@@ -28,6 +28,7 @@ export default function SchedulesScreen() {
   const {notify} = useToast();
   const canRead = has('schedule.read');
   const canManage = has('schedule.manage');
+  const canReadPrivate = has('schedule.read_private'); // M6C: Management-tier entries (server RLS is the gate)
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
@@ -48,11 +49,16 @@ export default function SchedulesScreen() {
   }, [companyId, branchId, canRead]);
   useEffect(reload, [reload]);
 
+  // M6C filter (owner ask: "add a filter button too for everyone"). The SERVER already hides Management
+  // events from users without schedule.read_private — this is a view filter on top, never the gate.
+  const [tierFilter, setTierFilter] = useState<'all' | 'General' | 'Management'>('all');
+  const visibleEvents = useMemo(() => events.filter((e) => tierFilter === 'all' || (e.visibility ?? 'General') === tierFilter), [events, tierFilter]);
+
   const eventsByDay = useMemo(() => {
     const m = new Map<string, CalendarEvent[]>();
-    for (const e of events) m.set(e.event_date, [...(m.get(e.event_date) ?? []), e]);
+    for (const e of visibleEvents) m.set(e.event_date, [...(m.get(e.event_date) ?? []), e]);
     return m;
-  }, [events]);
+  }, [visibleEvents]);
   const dayEvents = eventsByDay.get(selectedDay) ?? [];
 
   // month grid cells (leading blanks + days)
@@ -76,11 +82,12 @@ export default function SchedulesScreen() {
   const [cTitle, setCTitle] = useState('');
   const [cDate, setCDate] = useState(selectedDay);
   const [cPriority, setCPriority] = useState<CalendarEvent['priority']>('Normal');
+  const [cVisibility, setCVisibility] = useState<CalendarEvent['visibility']>('General');
   const [cDesc, setCDesc] = useState('');
 
   async function submit() {
     if (!companyId || !branchId) return;
-    const input: EventInput = {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority};
+    const input: EventInput = {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: canReadPrivate ? cVisibility : 'General'};
     setBusy(true);
     try {
       await schedulingApi.createEvent(companyId, branchId, input);
@@ -111,6 +118,17 @@ export default function SchedulesScreen() {
           </div>
         }
       />
+
+      {/* M6C tier filter — visible to everyone; the Management option only exists for read_private holders */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(['all', 'General', ...(canReadPrivate ? ['Management' as const] : [])] as const).map((t) => (
+          <button key={t} onClick={() => setTierFilter(t as typeof tierFilter)}
+            className={cn('rounded-xl border px-3 py-1.5 text-xs font-bold transition', tierFilter === t ? 'border-transparent bg-farm-green text-white' : 'border-farm-accent bg-farm-card text-farm-muted hover:text-farm-green')}>
+            {t === 'all' ? 'All events' : t === 'General' ? 'General (everyone sees)' : 'Management only'}
+          </button>
+        ))}
+        {canReadPrivate ? <span className="text-[10px] text-farm-muted">Management entries are hidden from staff roles automatically.</span> : null}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -162,7 +180,10 @@ export default function SchedulesScreen() {
                         <span className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_COLOR[e.event_type] ?? 'bg-farm-muted')} aria-hidden />
                         <span className={cn('truncate', e.status === 'Completed' && 'line-through')}>{e.title}</span>
                       </p>
-                      <p className="text-[11px] text-farm-muted">{e.event_type}{e.priority !== 'Normal' ? ` · ${e.priority}` : ''} · {e.status}</p>
+                      <p className="text-[11px] text-farm-muted">
+                        {e.event_type}{e.priority !== 'Normal' ? ` · ${e.priority}` : ''} · {e.status}
+                        {(e.visibility ?? 'General') === 'Management' ? <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-900" title="Only roles with the see-management-schedules permission can see this entry">Mgmt only</span> : null}
+                      </p>
                       {e.description ? <p className="mt-1 text-xs text-farm-muted">{e.description}</p> : null}
                     </div>
                     {canManage ? (
@@ -212,6 +233,13 @@ export default function SchedulesScreen() {
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-desc">Notes</label>
                 <input id="ev-desc" value={cDesc} onChange={(e) => setCDesc(e.target.value)} placeholder="optional" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
+              {canReadPrivate ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Who can see this?</label>
+                  <SelectField value={cVisibility} onChange={(v) => setCVisibility(v as CalendarEvent['visibility'])} options={[{value: 'General', label: 'Everyone — planting, deliveries, farm work'}, {value: 'Management', label: 'Management only — meetings, investor plans'}]} />
+                  <p className="mt-1 text-[10px] text-farm-muted">Management entries stay hidden from staff roles. Who counts as management is a role setting (Approvals &amp; Roles).</p>
+                </div>
+              ) : null}
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
               <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>

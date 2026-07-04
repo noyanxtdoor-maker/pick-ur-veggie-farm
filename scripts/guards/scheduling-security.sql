@@ -111,4 +111,44 @@ do $$ declare v_ev uuid; n int; begin
   raise notice 'PASS sched: owner A (schedule.manage) can update + delete branch-A1 events';
 end $$;
 
+-- ── P2-M6C visibility tiers: Management events hidden from staff without schedule.read_private ──
+-- fixtures: a manager-tier reader in branch A2 (read + read_private) and two A2 events (General + Management)
+set local role postgres;
+insert into auth.users (instance_id, id, aud, role, email) values
+  ('00000000-0000-0000-0000-000000000000','0d000000-0000-0000-0000-00000000000d','authenticated','authenticated','managerA2@t.local');
+insert into public.users (id, auth_user_id, display_name) values
+  ('10000000-0000-0000-0000-00000000000d','0d000000-0000-0000-0000-00000000000d','Manager A2');
+insert into public.roles (id, company_id, role_key, description) values
+  ('20000000-0000-0000-0000-00000000000d','11111111-1111-1111-1111-111111111111','sched_manager','Reader with private visibility');
+insert into public.role_permissions (company_id, role_id, permission_id)
+  select '11111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000d', id from public.permissions where permission_key in ('schedule.read','schedule.read_private');
+insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) values
+  ('10000000-0000-0000-0000-00000000000d','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','20000000-0000-0000-0000-00000000000d');
+insert into public.calendar_events (id, company_id, branch_id, event_type, title, event_date, visibility, created_by) values
+  ('e1000000-0000-0000-0000-0000000000d1','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','Planting','Transplant kangkong','2026-07-11','General','10000000-0000-0000-0000-00000000000a'),
+  ('e2000000-0000-0000-0000-0000000000d2','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','Meeting','Investor meeting — Q3 budget','2026-07-12','Management','10000000-0000-0000-0000-00000000000a');
+
+-- staff (schedule.read only, A2 member) sees ONLY the General event
+do $$ declare n int; n_mgmt int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  select count(*), count(*) filter (where visibility = 'Management')
+    into n, n_mgmt from public.calendar_events where branch_id='a2222222-2222-2222-2222-222222222222';
+  if n <> 1 or n_mgmt <> 0 then raise exception 'DEFECT sched: staff saw % events (% Management) — investor meetings leaked', n, n_mgmt; end if;
+  raise notice 'PASS sched: Management events hidden from staff without schedule.read_private (M6C)';
+end $$;
+-- manager tier (read + read_private, A2 member) sees BOTH
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0d000000-0000-0000-0000-00000000000d"}';
+  select count(*) into n from public.calendar_events where branch_id='a2222222-2222-2222-2222-222222222222';
+  if n <> 2 then raise exception 'DEFECT sched: read_private holder saw % of 2 tiered events', n; end if;
+  raise notice 'PASS sched: schedule.read_private reveals Management events (grantable per role = the owner setting, M6C)';
+end $$;
+-- read_private alone still respects branch isolation: manager A2 sees no A1 events
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0d000000-0000-0000-0000-00000000000d"}';
+  select count(*) into n from public.calendar_events where branch_id='a1111111-1111-1111-1111-111111111111';
+  if n <> 0 then raise exception 'DEFECT sched: read_private bypassed branch isolation'; end if;
+  raise notice 'PASS sched: read_private does not bypass branch membership (M6C)';
+end $$;
+
 rollback;

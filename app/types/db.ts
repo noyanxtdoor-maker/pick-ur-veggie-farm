@@ -117,6 +117,7 @@ export type PermissionKey =
   | 'payroll.manage'
   | 'schedule.read'
   | 'schedule.manage'
+  | 'schedule.read_private' // P2-M6C: see Management-tier calendar entries (meetings/investor plans)
   | 'project.read'
   | 'project.manage'
   | 'customer.read'
@@ -397,6 +398,7 @@ export interface CalendarEvent {
   event_date: string; // yyyy-mm-dd
   priority: 'Low' | 'Normal' | 'High' | 'Critical';
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Overdue';
+  visibility: 'General' | 'Management'; // P2-M6C: Management = needs schedule.read_private (meetings hidden from staff)
   project_id: string | null; // reserved (Projects module M7)
   created_by: string | null;
   created_at: string;
