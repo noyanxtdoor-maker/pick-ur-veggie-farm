@@ -18,10 +18,15 @@
   machinery untouched) · dark toggle in top bar · Cosmic Mint → calm "Midnight Farm" (#7cb98f/#131614) · Green
   Pastures revised distinct (#1e7a3f/#eef7e8) · new `farm-card` surface token (all 32 bg-white swapped — dark mode
   recolours everything) · Inventory "Log Stock Usage" (worker flow → governed adjust, "Used:" reason).
-- **Next per plan Phase A:** Operations section merge (Schedules+Crops+Projects under tabs) → mobile bottom nav
-  (4–5 customizable slots + hamburger) → responsive/font fixes → plain-language hints + "Buy Stock"/"Log Expense"
-  naming split. Then Phase B slices (payroll self-visibility via employees.user_id, schedule visibility tiers,
-  projects↔calendar, Roles & Approvals screen). Phase C money-path stays gated on the cross-vendor review.
+- **Phase A.1 DONE (`155691a`):** Operations hub — Schedules/Crops/Projects under one nav entry with
+  Accounting-style tabs; Crops keeps sub-tabs; legacy paths redirect; nav 12→9 entries. Browser-verified.
+- **Phase A.2 DONE (`b18136e`):** mobile bottom nav — 4 customizable shortcut slots (puv_mobile_nav pref,
+  pin/unpin sheet, PINNED badges) + More sheet with all sections; rail hidden on phones; safe-area handled.
+  Browser-verified at 375×812 incl. live customization persistence.
+- **Next per plan Phase A (remaining):** responsive/font sweep on narrow screens → plain-language hints on money
+  fields + "Buy Stock"/"Log Expense" naming split → surface Skip-Weigh in pre-order checkout. Then Phase B slices
+  (payroll self-visibility via employees.user_id, schedule visibility tiers + settings, projects↔calendar,
+  Roles & Approvals screen per owner screenshots). Phase C money-path stays gated on the cross-vendor review.
   Phase D = Supabase project + hosting + signup-approval queue + Play packaging (PWA foundation already shipped).
 
 ## 1. What this project IS now (course-corrected)
