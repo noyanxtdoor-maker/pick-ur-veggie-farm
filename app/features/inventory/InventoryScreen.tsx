@@ -213,8 +213,14 @@ export default function InventoryScreen() {
       />
 
       <div className="flex flex-wrap gap-2.5">
+        {/* Two doors, one engine (owner 2026-07-04): "Buy Stock" = things that become inventory (seeds,
+            substrate, packaging, equipment); "Log Expense" = services you consume (water/electricity,
+            transport, misc) — the server books each to the right account automatically. */}
         {canPurchase ? (
-          <Button onClick={() => openBuy()}><Plus size={18} aria-hidden /> Add Material/Expense Purchase</Button>
+          <Button onClick={() => openBuy()}><Plus size={18} aria-hidden /> Buy Stock</Button>
+        ) : null}
+        {canPurchase ? (
+          <Button variant="secondary" onClick={() => openBuy('utilities')}><FileText size={18} aria-hidden /> Log Expense</Button>
         ) : null}
         {canAdjust ? (
           <Button variant="secondary" onClick={() => {setUseItemId((items ?? [])[0]?.id ?? ''); setUseQty(''); setUsePurpose(''); setUseOpen(true);}}>
@@ -420,7 +426,14 @@ export default function InventoryScreen() {
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Consumable Category</label>
                   {buyType === 'Consumables' ? (
-                    <SelectField value={buyCategory} onChange={setBuyCategory} options={consumableCategories.map((c) => ({value: c.category_key, label: c.name}))} />
+                    <>
+                      <SelectField value={buyCategory} onChange={setBuyCategory} options={consumableCategories.map((c) => ({value: c.category_key, label: c.name}))} />
+                      <p className="mt-1 text-[9px] leading-tight text-farm-muted">
+                        {['utilities', 'transport', 'misc'].includes(buyCategory)
+                          ? 'Service expense — books straight to Operating Expenses (no stock added).'
+                          : 'Stock purchase — adds to inventory and the books automatically.'}
+                      </p>
+                    </>
                   ) : (
                     <p className="flex min-h-12 items-center rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm font-semibold opacity-70">Equipment Purchase</p>
                   )}

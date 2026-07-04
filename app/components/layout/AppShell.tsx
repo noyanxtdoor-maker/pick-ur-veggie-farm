@@ -248,8 +248,9 @@ function TopBar() {
         <button
           onClick={() => void signOut()}
           className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-red-500 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-600"
+          aria-label="Sign out"
         >
-          <LogOut size={16} aria-hidden /> <span>Sign Out</span>
+          <LogOut size={16} aria-hidden /> <span className="hidden sm:inline">Sign Out</span>
         </button>
       </div>
     </header>

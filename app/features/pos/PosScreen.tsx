@@ -391,6 +391,11 @@ export default function PosScreen() {
                 </>
               ) : (
                 <div className="space-y-3">
+                  {/* owner 2026-07-04: numpad is optional for wholesale/delivery — Skip-Weigh bulk lines carry a
+                      negotiated flat price, so a receipt prints with no weighing and no cash count up-front. */}
+                  <p className="rounded-lg border border-farm-accent-soft bg-farm-bg p-2 text-[11px] font-semibold text-farm-muted">
+                    No weighing or numpad needed here — for negotiated wholesale, add lines with <strong className="text-farm-green">Skip Weigh (Bulk Flat Price)</strong> and issue the receipt. Cash is collected later via <strong className="text-farm-green">Mark Paid</strong> in the journal.
+                  </p>
                   <div className="rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 p-3 text-sm">
                     <label className="flex min-h-10 cursor-pointer items-center justify-between font-bold text-farm-ink">
                       <span className="flex items-center gap-2"><input type="checkbox" checked={preDiscount} onChange={(e) => setPreDiscount(e.target.checked)} className="h-4 w-4 accent-farm-green" /> Include 10% Discount</span>
