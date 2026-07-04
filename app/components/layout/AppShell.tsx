@@ -14,6 +14,7 @@ import {
   FolderKanban,
   Landmark,
   LogOut,
+  Moon,
   Package,
   Users2,
   RefreshCw,
@@ -21,13 +22,14 @@ import {
   ShoppingCart,
   Sparkles,
   Sprout,
+  Sun,
   UserCheck,
   Wifi,
 } from 'lucide-react';
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSession} from '../../core/auth/session';
-import {usePref} from '../../core/prefs/prefs';
+import {useDarkToggle, usePref} from '../../core/prefs/prefs';
 import {offlineDB} from '../../core/offline/db';
 import type {PermissionKey} from '../../types/db';
 import {Loading, OfflineBanner} from '../feedback';
@@ -61,7 +63,7 @@ function NavRail() {
   const {user} = useSession();
   const name = (user?.email ?? 'operator').split('@')[0] ?? 'operator';
   return (
-    <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-white p-5 md:flex">
+    <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-farm-card p-5 md:flex">
       <div className="space-y-5">
         <div className="flex items-center gap-3 border-b border-farm-accent-soft pb-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-farm-green text-sm font-black text-white shadow-sm">PV</div>
@@ -112,10 +114,11 @@ function TopBar() {
   const {signOut} = useSession();
   const [farmName] = usePref('farm_display_name');
   const [terminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
+  const [isDark, toggleDark] = useDarkToggle();
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-farm-accent-soft bg-white px-4 py-3 md:px-6">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-farm-accent-soft bg-farm-card px-4 py-3 md:px-6">
       <div>
         <h2 className="flex items-center gap-1.5 text-sm font-black leading-tight text-farm-ink md:text-lg">
           <span>{farmName || company?.name || 'PickUrVeggie'}</span>
@@ -126,6 +129,14 @@ function TopBar() {
         <p className="hidden text-xs text-farm-muted md:block">PickUrVeggie Regional Enterprise Platform {online ? '(Synchronized)' : '(Local)'}</p>
       </div>
       <div className="flex items-center gap-2 text-xs md:gap-3">
+        <button
+          onClick={toggleDark}
+          className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-green"
+          title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          {isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+        </button>
         <button
           onClick={triggerSync}
           className={cn('inline-flex min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold', online ? 'text-farm-green' : 'text-farm-warn')}
@@ -189,7 +200,7 @@ export function OrganizationLayout() {
             key={t.to}
             to={t.to}
             className={({isActive}) =>
-              cn('min-h-12 rounded-xl px-4 py-2 text-lg font-bold', isActive ? 'bg-farm-green text-white' : 'bg-white text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')
+              cn('min-h-12 rounded-xl px-4 py-2 text-lg font-bold', isActive ? 'bg-farm-green text-white' : 'bg-farm-card text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')
             }
           >
             {t.label}

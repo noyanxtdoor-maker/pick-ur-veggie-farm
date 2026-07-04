@@ -13,10 +13,10 @@ import {THEMES, useTheme, usePref, type ThemeId} from '../../core/prefs/prefs';
 import {exportLocalData} from './export';
 
 const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> = {
-  light: {name: 'Fresh Wood', desc: 'Default forest-green daylight palette', swatch: '#003e1c'},
-  dark: {name: 'Cosmic Mint', desc: 'Low-glare mint on dark — night bookkeeping', swatch: '#5affbb'},
+  light: {name: 'Fresh Wood', desc: 'Default deep forest-green daylight palette', swatch: '#003e1c'},
+  dark: {name: 'Midnight Farm', desc: 'Calm sage on charcoal — easy on night eyes', swatch: '#7cb98f'},
   cream: {name: 'Warm Retro', desc: 'Cozy paper-white amber', swatch: '#d97706'},
-  green: {name: 'Green Pastures', desc: 'Softer minty accent profile', swatch: '#1e5631'},
+  green: {name: 'Green Pastures', desc: 'Bright pasture green, minty daylight', swatch: '#1e7a3f'},
 };
 
 export default function SettingsScreen() {

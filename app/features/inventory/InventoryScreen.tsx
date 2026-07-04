@@ -6,7 +6,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {AlertTriangle, ClipboardList, FileText, Hammer, Package, Plus, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
+import {AlertTriangle, ClipboardList, FileText, Hammer, Minus, Package, Plus, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -67,6 +67,13 @@ export default function InventoryScreen() {
   const [adjItemId, setAdjItemId] = useState('');
   const [adjQty, setAdjQty] = useState('');
   const [adjReason, setAdjReason] = useState('');
+
+  // ── log usage modal (owner 2026-07-04: worker-friendly "we used 1kg fertilizer" — same governed
+  //    adjustment ledger underneath, always a negative movement with a "Used:" reason) ──
+  const [useOpen, setUseOpen] = useState(false);
+  const [useItemId, setUseItemId] = useState('');
+  const [useQty, setUseQty] = useState('');
+  const [usePurpose, setUsePurpose] = useState('');
 
   // ── low-stock limit + equipment checklist ──
   const [limitInput, setLimitInput] = useState('10');
@@ -161,6 +168,22 @@ export default function InventoryScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Adjustment failed', 'error'); } finally { setBusy(false); }
   }
 
+  async function submitUsage() {
+    if (!companyId || !branchId) return;
+    const item = itemById.get(useItemId);
+    const qty = parseFloat(useQty);
+    if (!item) return notify('Choose the material that was used.', 'error');
+    if (isNaN(qty) || qty <= 0) return notify('Enter how much was used (a positive amount).', 'error');
+    if (qty > item.available) return notify(`Only ${item.available} ${item.base_unit} of ${item.name} is on hand.`, 'error');
+    setBusy(true);
+    try {
+      const bal = await inventoryApi.adjust(companyId, branchId, item, -qty, `Used: ${usePurpose.trim()}`);
+      notify(bal === null ? 'Usage logged — will sync' : `Usage logged — ${item.name} now ${bal} ${item.base_unit}`);
+      setUseOpen(false); setUseQty(''); setUsePurpose('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Usage log failed', 'error'); } finally { setBusy(false); }
+  }
+
   async function submitCheck() {
     if (!companyId || !checkAsset) return;
     setBusy(true);
@@ -194,6 +217,11 @@ export default function InventoryScreen() {
           <Button onClick={() => openBuy()}><Plus size={18} aria-hidden /> Add Material/Expense Purchase</Button>
         ) : null}
         {canAdjust ? (
+          <Button variant="secondary" onClick={() => {setUseItemId((items ?? [])[0]?.id ?? ''); setUseQty(''); setUsePurpose(''); setUseOpen(true);}}>
+            <Minus size={18} aria-hidden /> Log Stock Usage
+          </Button>
+        ) : null}
+        {canAdjust ? (
           <Button variant="secondary" onClick={() => {setAdjItemId((items ?? [])[0]?.id ?? ''); setAdjQty(''); setAdjReason(''); setAdjOpen(true);}}>
             <RefreshCw size={18} aria-hidden /> Manual Stock Adjustment
           </Button>
@@ -203,11 +231,11 @@ export default function InventoryScreen() {
       {/* tabs (prototype) */}
       <div className="flex gap-2 border-b border-farm-accent pb-0.5" role="tablist">
         <button role="tab" aria-selected={tab === 'consumables'} onClick={() => setTab('consumables')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'consumables' ? 'border-x border-t border-farm-accent bg-white text-farm-green' : 'text-farm-muted hover:bg-white/40 hover:text-farm-green')}>
+          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'consumables' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
           <ShoppingBag className="h-4 w-4" aria-hidden /> Consumables &amp; Seed Stocks
         </button>
         <button role="tab" aria-selected={tab === 'equipment'} onClick={() => setTab('equipment')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'equipment' ? 'border-x border-t border-farm-accent bg-white text-farm-green' : 'text-farm-muted hover:bg-white/40 hover:text-farm-green')}>
+          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'equipment' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
           <Hammer className="h-4 w-4" aria-hidden /> Heavy Equipment &amp; Spades
         </button>
       </div>
@@ -371,7 +399,7 @@ export default function InventoryScreen() {
       <Dialog.Root open={buyOpen} onOpenChange={setBuyOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
               <Dialog.Title className="text-xl font-bold text-farm-green">Add Materials Purchase</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
@@ -420,7 +448,7 @@ export default function InventoryScreen() {
                               if (cat) setBuyCategory(cat.category_key);
                               setBuySourceType(r.source_type); setBuySourceName(r.source_name); setBuyContact(r.source_contact ?? '');
                             }}
-                            className="rounded-lg border border-farm-accent-soft bg-white px-2.5 py-1.5 text-[11px] font-bold text-farm-ink transition hover:border-farm-green hover:bg-farm-accent-soft">
+                            className="rounded-lg border border-farm-accent-soft bg-farm-card px-2.5 py-1.5 text-[11px] font-bold text-farm-ink transition hover:border-farm-green hover:bg-farm-accent-soft">
                             🌱 {item?.name}
                           </button>
                         );
@@ -464,11 +492,42 @@ export default function InventoryScreen() {
         </Dialog.Portal>
       </Dialog.Root>
 
+      {/* Log usage modal — the everyday "we used it" flow (posts a negative audited movement at FIFO cost) */}
+      <Dialog.Root open={useOpen} onOpenChange={setUseOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center justify-center gap-1.5 text-lg font-bold text-farm-green"><Minus className="h-5 w-5" aria-hidden /> Log Stock Usage</Dialog.Title>
+            <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Record materials the team used today — e.g. “1 kg fertilizer for Tunnel 3”. Stock goes down and the cost is booked automatically.</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Material Used</label>
+                <SelectField value={useItemId} onChange={setUseItemId} options={(items ?? []).map((i) => ({value: i.id, label: `${i.name} — ${i.available} ${i.base_unit} on hand`}))} placeholder="Choose material…" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="use-qty">How much was used?</label>
+                <input id="use-qty" value={useQty} onChange={(e) => setUseQty(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder={`e.g. 1 (${itemById.get(useItemId)?.base_unit ?? 'units'})`} className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="use-purpose">What was it used for? (required)</label>
+                <input id="use-purpose" value={usePurpose} onChange={(e) => setUsePurpose(e.target.value)} placeholder="e.g. Fertilizing Tunnel 3 lettuce beds" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setUseOpen(false)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitUsage()} disabled={busy || !useItemId || !usePurpose.trim() || !(parseFloat(useQty) > 0)}>
+                {busy ? 'Logging…' : 'LOG USAGE'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
       {/* Manual audit adjustment modal (reason mandatory — 20.09) */}
       <Dialog.Root open={adjOpen} onOpenChange={setAdjOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <Dialog.Title className="flex items-center justify-center gap-1.5 text-lg font-bold text-farm-green"><RefreshCw className="h-5 w-5" aria-hidden /> Manual Stock Audit Adjustment</Dialog.Title>
             <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Adjustments register as audited ledger corrections — spillage, damage, theft, or excess counts found.</p>
             <div className="space-y-4 text-sm">
@@ -500,7 +559,7 @@ export default function InventoryScreen() {
       <Dialog.Root open={checkAsset !== null} onOpenChange={(o) => {if (!o) setCheckAsset(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <Dialog.Title className="text-center text-lg font-bold text-farm-green">Equipment Condition Checklist</Dialog.Title>
             <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Routine diagnostic evaluation for: <span className="font-bold underline">{checkAsset?.name}</span></p>
             <div className="space-y-4 text-sm">

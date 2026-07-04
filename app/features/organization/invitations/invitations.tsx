@@ -137,7 +137,7 @@ export default function InvitationsScreen() {
             <div className="mt-4 rounded-xl border border-farm-accent bg-farm-accent-soft p-3">
               <p className="mb-2 text-base font-semibold text-farm-green">Invitation token — copy & share securely (delivered out of band):</p>
               <div className="flex items-center gap-2">
-                <input readOnly value={token} className="min-h-12 flex-1 rounded-lg border border-farm-accent bg-white px-3 font-mono text-sm" />
+                <input readOnly value={token} className="min-h-12 flex-1 rounded-lg border border-farm-accent bg-farm-card px-3 font-mono text-sm" />
                 <Button variant="secondary" onClick={() => {void navigator.clipboard?.writeText(token); notify('Token copied');}}><Copy size={18} aria-hidden /></Button>
               </div>
             </div>

@@ -38,7 +38,7 @@ export function Button({
 }
 
 export function Card({className, children}: {className?: string; children: ReactNode}) {
-  return <div className={cn('rounded-2xl border border-farm-accent-soft bg-white p-5 shadow-sm', className)}>{children}</div>;
+  return <div className={cn('rounded-2xl border border-farm-accent-soft bg-farm-card p-5 shadow-sm', className)}>{children}</div>;
 }
 
 export function StatCard({label, value, hint}: {label: string; value: ReactNode; hint?: string}) {

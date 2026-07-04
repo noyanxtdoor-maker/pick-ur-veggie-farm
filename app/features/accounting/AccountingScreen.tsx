@@ -153,7 +153,7 @@ export default function AccountingScreen() {
           ['cash_ledger', 'Cash Flow Inputs', Wallet],
         ] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-            className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-white text-farm-green' : 'text-farm-muted hover:bg-white/40 hover:text-farm-green')}>
+            className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
             <Icon className="h-4 w-4" aria-hidden /> {label}
           </button>
         ))}
@@ -207,7 +207,7 @@ export default function AccountingScreen() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2 text-sm">
               {([['income', 'Income Statement'], ['balance_sheet', 'Balance Sheet'], ['cash_flow', 'Cash Flows'], ['trial_balance', 'Compound Trial Balance'], ['chart_accounts', 'Chart of Accounts']] as const).map(([key, label]) => (
-                <button key={key} onClick={() => setStatement(key)} className={cn('rounded-xl border px-4 py-2 font-bold transition', statement === key ? 'border-transparent bg-farm-green text-white' : 'border-farm-accent bg-white text-farm-green hover:bg-farm-accent-soft')}>
+                <button key={key} onClick={() => setStatement(key)} className={cn('rounded-xl border px-4 py-2 font-bold transition', statement === key ? 'border-transparent bg-farm-green text-white' : 'border-farm-accent bg-farm-card text-farm-green hover:bg-farm-accent-soft')}>
                   {label}
                 </button>
               ))}
@@ -424,7 +424,7 @@ export default function AccountingScreen() {
       <Dialog.Root open={logOpen} onOpenChange={setLogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
               <Dialog.Title className="text-xl font-bold text-farm-green">Log Cash Flow Movement</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>

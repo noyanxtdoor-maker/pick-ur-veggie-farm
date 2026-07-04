@@ -24,15 +24,39 @@ export function initTheme(): void {
   applyTheme(getTheme());
 }
 
-/** Reactive theme hook: current theme + a setter that persists and applies. */
+/** Reactive theme hook: current theme + a setter that persists, applies, and notifies every other
+ *  mounted instance (top-bar toggle and the Settings radio stay in sync via a window event). */
 export function useTheme(): [ThemeId, (t: ThemeId) => void] {
   const [theme, setThemeState] = useState<ThemeId>(getTheme);
+  useEffect(() => {
+    const onChange = () => setThemeState(getTheme());
+    window.addEventListener('puv-themechange', onChange);
+    return () => window.removeEventListener('puv-themechange', onChange);
+  }, []);
   const setTheme = useCallback((t: ThemeId) => {
     localStorage.setItem(THEME_KEY, t);
     applyTheme(t);
     setThemeState(t);
+    window.dispatchEvent(new Event('puv-themechange'));
   }, []);
   return [theme, setTheme];
+}
+
+const LIGHT_KEY = 'puv_theme_light'; // last non-dark choice, so the toggle round-trips to YOUR light theme
+
+/** One-tap dark toggle: dark ⇄ the user's last light-family theme. */
+export function useDarkToggle(): [boolean, () => void] {
+  const [theme, setTheme] = useTheme();
+  const toggle = useCallback(() => {
+    if (theme === 'dark') {
+      const back = localStorage.getItem(LIGHT_KEY);
+      setTheme((THEMES as readonly string[]).includes(back ?? '') && back !== 'dark' ? (back as ThemeId) : 'light');
+    } else {
+      localStorage.setItem(LIGHT_KEY, theme);
+      setTheme('dark');
+    }
+  }, [theme, setTheme]);
+  return [theme === 'dark', toggle];
 }
 
 /** Reactive string preference backed by localStorage (station config the shell/receipts read back). */

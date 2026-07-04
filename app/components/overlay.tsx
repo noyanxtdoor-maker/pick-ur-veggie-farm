@@ -28,7 +28,7 @@ export function ConfirmDialog({
     <Dialog.Root open={open} onOpenChange={(o) => {if (!o) onCancel();}}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
           <Dialog.Title className="text-2xl font-bold text-farm-ink">{title}</Dialog.Title>
           <Dialog.Description className="mt-2 text-lg text-farm-muted">{description}</Dialog.Description>
           <div className="mt-6 flex justify-end gap-3">
@@ -65,13 +65,13 @@ export function SelectField({
     <RSelect.Root value={value && value.length > 0 ? value : undefined} onValueChange={onChange}>
       <RSelect.Trigger
         id={id}
-        className="inline-flex min-h-14 w-full items-center justify-between rounded-xl border border-farm-accent bg-white px-4 text-lg text-farm-ink focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+        className="inline-flex min-h-14 w-full items-center justify-between rounded-xl border border-farm-accent bg-farm-card px-4 text-lg text-farm-ink focus:outline-none focus:ring-2 focus:ring-farm-green-500"
       >
         <RSelect.Value placeholder={placeholder} />
         <RSelect.Icon><ChevronDown size={20} aria-hidden /></RSelect.Icon>
       </RSelect.Trigger>
       <RSelect.Portal>
-        <RSelect.Content position="popper" sideOffset={4} className="z-50 max-h-72 overflow-auto rounded-xl border border-farm-accent-soft bg-white shadow-lg">
+        <RSelect.Content position="popper" sideOffset={4} className="z-50 max-h-72 overflow-auto rounded-xl border border-farm-accent-soft bg-farm-card shadow-lg">
           <RSelect.Viewport className="p-1">
             {options.map((o) => (
               <RSelect.Item

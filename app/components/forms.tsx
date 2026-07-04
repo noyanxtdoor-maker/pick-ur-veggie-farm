@@ -51,7 +51,7 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
         ref={ref}
         {...rest}
         className={cn(
-          'min-h-14 w-full rounded-xl border border-farm-accent bg-white px-4 text-lg text-farm-ink',
+          'min-h-14 w-full rounded-xl border border-farm-accent bg-farm-card px-4 text-lg text-farm-ink',
           'placeholder:text-farm-muted focus:outline-none focus:ring-2 focus:ring-farm-green-500',
           className,
         )}

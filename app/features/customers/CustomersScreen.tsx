@@ -159,7 +159,7 @@ export default function CustomersScreen() {
       <Dialog.Root open={stmtName !== null} onOpenChange={(o) => {if (!o) setStmtName(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
               <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><FileText className="h-5 w-5" aria-hidden /> Statement — {stmtName}</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
@@ -202,7 +202,7 @@ export default function CustomersScreen() {
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
               <Dialog.Title className="text-xl font-bold text-farm-green">{editId ? 'Edit Customer' : 'New Customer'}</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>

@@ -1,11 +1,11 @@
 // Weigh Point-of-Sale (P2-M2B-2/M2C-b) — cashier terminal styled to the AI Studio prototype (visual authority).
 // LEFT = crop cashier grid + weigh pad; RIGHT = Active Slip Counter → checkout (Direct Cash | Pre-order) →
 // printable slip, plus a settle pane for Mark-Paid. Below: Historical Sales Journal with Mark Paid / Void.
-// A cash-session strip (22.09) sits above the terminal. All writes go through posApi (server authority; B5 offline).
+// Manual drawer at launch (owner 2026-07-04): no cash-session strip; the M2C session machinery stays in the DB.
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {AlertCircle, Banknote, CloudOff, Download, Lock, Printer, Scale, Settings2, ShoppingCart, Sprout, Tag, Trash2, Wallet, X} from 'lucide-react';
+import {AlertCircle, Banknote, CloudOff, Download, Lock, Printer, Scale, Settings2, ShoppingCart, Sprout, Tag, Trash2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSync} from '../../core/offline/sync';
@@ -15,7 +15,7 @@ import {SelectField} from '../../components/overlay';
 import {Numpad} from './Numpad';
 import {posApi, type SaleLineInput, type SaleResult} from './api';
 import {farmPerKg, formatPeso, lineTotal, round2} from './money';
-import type {FinishedGood, PosCashSession, PosInvoice, Product} from '../../types/db';
+import type {FinishedGood, PosInvoice, Product} from '../../types/db';
 
 type RightPane = 'slip' | 'checkout' | 'receipt' | 'settle';
 type SaleKind = 'paid' | 'preorder';
@@ -30,7 +30,6 @@ export default function PosScreen() {
   const canSell = has('pos.sell');
   const canSettle = has('pos.settle');
   const canVoid = has('pos.void');
-  const canSession = has('cash.session');
   const canManageProducts = has('product.manage');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
@@ -41,12 +40,10 @@ export default function PosScreen() {
 
   const [products, setProducts] = useState<Product[] | null>(null);
   const [stock, setStock] = useState<FinishedGood[]>([]);
-  const [session, setSession] = useState<PosCashSession | null>(null);
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
     posApi.fetchStock(companyId, branchId).then(setStock).catch(() => setStock([]));
-    posApi.currentSession(branchId).then(setSession).catch(() => setSession(null));
   }, [companyId, branchId]);
   useEffect(reload, [reload]);
 
@@ -71,11 +68,6 @@ export default function PosScreen() {
   const [settleTarget, setSettleTarget] = useState<PosInvoice | null>(null);
   const [voidTarget, setVoidTarget] = useState<PosInvoice | null>(null);
   const [voidReason, setVoidReason] = useState('');
-
-  // cash session strip inputs
-  const [floatInput, setFloatInput] = useState('');
-  const [countedInput, setCountedInput] = useState('');
-  const [varianceReason, setVarianceReason] = useState('');
 
   // journal filters (prototype: date + sale type + payment status)
   const [journalDate, setJournalDate] = useState('');
@@ -208,54 +200,8 @@ export default function PosScreen() {
         }
       />
 
-      {/* Cash-session strip (22.09) */}
-      {canSession ? (
-        <Card className="flex flex-wrap items-center gap-3 py-3">
-          <Wallet className="h-5 w-5 text-farm-green" aria-hidden />
-          {session ? (
-            <>
-              <span className="text-sm font-bold text-farm-green">Drawer open</span>
-              <span className="text-xs text-farm-muted">since {new Date(session.opened_at).toLocaleTimeString('en-PH')} · float {formatPeso(session.opening_cash)}</span>
-              <span className="ml-auto flex flex-wrap items-center gap-2">
-                <input value={countedInput} onChange={(e) => setCountedInput(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="Counted cash…" aria-label="Counted cash" className="tabular min-h-12 w-36 rounded-lg border border-farm-accent px-3 text-right text-sm font-bold" />
-                <input value={varianceReason} onChange={(e) => setVarianceReason(e.target.value)} placeholder="Variance reason (if any)" aria-label="Variance reason" className="min-h-12 w-52 rounded-lg border border-farm-accent-soft px-3 text-sm" />
-                <Button
-                  variant="secondary"
-                  disabled={busy || countedInput === ''}
-                  onClick={async () => {
-                    try {
-                      const v = await posApi.closeSession(session, parseFloat(countedInput) || 0, varianceReason.trim() || undefined);
-                      notify(v === 0 ? 'Drawer closed — no variance' : `Drawer closed — variance ${formatPeso(v)}`);
-                      setCountedInput(''); setVarianceReason(''); reload();
-                    } catch (e) { notify(e instanceof Error ? e.message : 'Close failed', 'error'); }
-                  }}
-                >
-                  Close & Count
-                </Button>
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-sm font-bold text-farm-muted">Drawer closed</span>
-              <span className="ml-auto flex items-center gap-2">
-                <input value={floatInput} onChange={(e) => setFloatInput(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="Opening cash…" aria-label="Opening cash" className="tabular min-h-12 w-36 rounded-lg border border-farm-accent px-3 text-right text-sm font-bold" />
-                <Button
-                  variant="secondary"
-                  disabled={busy || !branchId || floatInput === ''}
-                  onClick={async () => {
-                    try {
-                      await posApi.openSession(branchId!, parseFloat(floatInput) || 0);
-                      notify('Drawer opened'); setFloatInput(''); reload();
-                    } catch (e) { notify(e instanceof Error ? e.message : 'Open failed', 'error'); }
-                  }}
-                >
-                  Open Drawer
-                </Button>
-              </span>
-            </>
-          )}
-        </Card>
-      ) : null}
+      {/* Cash-session strip removed (owner 2026-07-04): launch flow is a manual drawer + manual weighing.
+          The governed cash_sessions DB machinery (M2C, locked) stays intact for the future automated drawer. */}
 
       {!online ? (
         <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-base font-bold text-amber-900"><CloudOff size={18} aria-hidden /> POS Mode: Active Offline — sales are saved on this device and sync automatically.</p>
@@ -293,7 +239,7 @@ export default function PosScreen() {
                       className={cn(
                         'group relative flex h-40 flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition select-none',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500',
-                        selected?.id === p.id ? 'border-farm-green bg-farm-accent-soft shadow-sm ring-2 ring-farm-green' : 'border-farm-accent-soft bg-white hover:border-farm-green hover:bg-farm-bg/50',
+                        selected?.id === p.id ? 'border-farm-green bg-farm-accent-soft shadow-sm ring-2 ring-farm-green' : 'border-farm-accent-soft bg-farm-card hover:border-farm-green hover:bg-farm-bg/50',
                         out && 'cursor-not-allowed opacity-40',
                       )}
                     >
@@ -335,7 +281,7 @@ export default function PosScreen() {
                       onChange={(e) => setBulkPrice(e.target.value.replace(/[^0-9.]/g, ''))}
                       inputMode="decimal"
                       placeholder="0.00"
-                      className="tabular min-h-14 flex-1 rounded-xl border border-amber-300 bg-white px-4 text-right text-2xl font-black outline-none focus:ring-2 focus:ring-amber-400"
+                      className="tabular min-h-14 flex-1 rounded-xl border border-amber-300 bg-farm-card px-4 text-right text-2xl font-black outline-none focus:ring-2 focus:ring-amber-400"
                     />
                     <Button onClick={addBulkToSlip} disabled={!(parseFloat(bulkPrice) > 0)}>ADD BULK</Button>
                   </div>
@@ -596,7 +542,7 @@ export default function PosScreen() {
         <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-farm-accent-soft bg-farm-bg/50 p-4 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="j-date">Filter Date</label>
-            <input id="j-date" type="date" value={journalDate} onChange={(e) => setJournalDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-white p-2 text-sm font-semibold" />
+            <input id="j-date" type="date" value={journalDate} onChange={(e) => setJournalDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-card p-2 text-sm font-semibold" />
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Sale Type</label>
@@ -675,7 +621,7 @@ export default function PosScreen() {
       <Dialog.Root open={pricingOpen} onOpenChange={setPricingOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between border-b border-farm-accent-soft pb-3">
               <Dialog.Title className="text-xl font-black text-farm-green">🥬 POS Vegetable Catalog Administrator</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
@@ -720,7 +666,7 @@ export default function PosScreen() {
                       </div>
                       {pmEditingId === p.id ? (
                         <div className="mt-2 flex gap-1.5">
-                          <input value={pmEditPrice} onChange={(e) => setPmEditPrice(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="New rate…" aria-label={`New price for ${p.name}`} className="tabular min-h-10 flex-1 rounded border border-farm-accent bg-white px-2 text-right text-xs font-bold outline-none" />
+                          <input value={pmEditPrice} onChange={(e) => setPmEditPrice(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="New rate…" aria-label={`New price for ${p.name}`} className="tabular min-h-10 flex-1 rounded border border-farm-accent bg-farm-card px-2 text-right text-xs font-bold outline-none" />
                           <button
                             disabled={busy || !(parseFloat(pmEditPrice) > 0)}
                             onClick={async () => {

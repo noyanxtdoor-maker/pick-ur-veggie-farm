@@ -19,7 +19,7 @@ export default function CropsLayout() {
           <NavLink
             key={t.to}
             to={t.to}
-            className={({isActive}) => cn('min-h-12 rounded-xl px-4 py-2 text-lg font-bold', isActive ? 'bg-farm-green text-white' : 'bg-white text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')}
+            className={({isActive}) => cn('min-h-12 rounded-xl px-4 py-2 text-lg font-bold', isActive ? 'bg-farm-green text-white' : 'bg-farm-card text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')}
           >
             {t.label}
           </NavLink>

@@ -202,7 +202,7 @@ export default function PayrollScreen() {
       <Dialog.Root open={hireOpen} onOpenChange={setHireOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
               <Dialog.Title className="text-xl font-bold text-farm-green">Hire Farm Hand</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
@@ -236,7 +236,7 @@ export default function PayrollScreen() {
       <Dialog.Root open={advEmp !== null} onOpenChange={(o) => {if (!o) setAdvEmp(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><HandCoins className="h-5 w-5" aria-hidden /> Log Cash Advance</Dialog.Title>
             <p className="mb-5 mt-1 text-xs text-farm-muted">Releases cash to <span className="font-bold text-farm-green">{advEmp?.name}</span>. Posts Dr Employee Advances / Cr Cash; the balance clears at the next paysheet.</p>
             <div className="space-y-4 text-sm">
@@ -261,7 +261,7 @@ export default function PayrollScreen() {
       <Dialog.Root open={wageEmp !== null} onOpenChange={(o) => {if (!o) setWageEmp(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Disburse Wage</Dialog.Title>
             <p className="mb-4 mt-1 text-xs text-farm-muted"><span className="font-bold text-farm-green">{wageEmp?.name}</span> · {formatPeso(wageEmp?.daily_rate ?? 0)}/day</p>
             <div className="space-y-4 text-sm">

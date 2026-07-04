@@ -11,6 +11,7 @@
   --color-farm-accent-soft: #ebefe3;
   --color-farm-accent: #c0c9be;
   --color-farm-bg: #f7fbef;
+  --color-farm-card: #ffffff; /* card/sheet surface — white in light themes, charcoal in dark */
   --color-farm-muted: #53634f;
   --color-farm-ink: #181d16;
   --color-farm-warn: #f59e0b;
@@ -24,15 +25,18 @@
 /* M8 Settings — runtime theme variants (ported verbatim from the prototype src/index.css). Tailwind v4
    emits utilities as var(--color-farm-*) references, so overriding these under html[data-theme] recolors
    the whole app live. "light" / no attribute = the @theme defaults above. */
+/* Dark reworked (owner 2026-07-04): the prototype's neon mint (#5affbb) was "sore on the eyes" — replaced
+   with a calm desaturated sage on charcoal ("Midnight Farm"). */
 html[data-theme='dark'] {
-  --color-farm-green: #5affbb;
-  --color-farm-green-500: #2de2a0;
-  --color-farm-green-700: #006c49;
-  --color-farm-accent-soft: #1d201f;
-  --color-farm-accent: #3c4a41;
-  --color-farm-bg: #101413;
-  --color-farm-muted: #bacabf;
-  --color-farm-ink: #e0e3e1;
+  --color-farm-green: #7cb98f;
+  --color-farm-green-500: #5da377;
+  --color-farm-green-700: #3d7a55;
+  --color-farm-accent-soft: #1f2420;
+  --color-farm-accent: #39423a;
+  --color-farm-bg: #131614;
+  --color-farm-card: #1b1f1c;
+  --color-farm-muted: #a3b0a5;
+  --color-farm-ink: #e4e8e4;
 }
 html[data-theme='cream'] {
   --color-farm-green: #b45309;
@@ -44,9 +48,17 @@ html[data-theme='cream'] {
   --color-farm-muted: #786040;
   --color-farm-ink: #2b1f0d;
 }
+/* Green Pastures revised (owner 2026-07-04): was near-identical to Fresh Wood — now a clearly brighter
+   pasture-green palette (grass-green primary, minty daylight background). */
 html[data-theme='green'] {
-  --color-farm-accent-soft: #e3efd8;
-  --color-farm-accent: #d7decb;
+  --color-farm-green: #1e7a3f;
+  --color-farm-green-500: #2f9e57;
+  --color-farm-green-700: #176331;
+  --color-farm-accent-soft: #d9ecd4;
+  --color-farm-accent: #b5d4ae;
+  --color-farm-bg: #eef7e8;
+  --color-farm-muted: #4a6350;
+  --color-farm-ink: #16241a;
 }
 
 html,
