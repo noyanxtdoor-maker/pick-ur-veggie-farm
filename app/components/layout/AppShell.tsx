@@ -1,7 +1,7 @@
 // Application shell in the AI Studio prototype's design language (owner decision 2026-06-28: the prototype is the
 // visual authority). White sidebar with PV logo + section labels + profile block; header with BRANCH LIVE chip,
 // session pill, red sign-out; farm-bg main stage. Tablet-first, ≥56px targets preserved.
-import {Suspense} from 'react';
+import {Suspense, useState} from 'react';
 import {NavLink, Outlet} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {
@@ -12,6 +12,7 @@ import {
   Contact,
   Landmark,
   LogOut,
+  Menu,
   Moon,
   Package,
   Users2,
@@ -45,6 +46,104 @@ const CORE_MODULES = [
   {to: '/reports', label: 'Reports', icon: BarChart3},
   {to: '/settings', label: 'Settings Hub', icon: Settings},
 ] as const;
+
+// Mobile bottom bar (owner 2026-07-04): 4 user-customizable shortcut slots + a fixed "More" sheet for
+// everything else. Preference is per-device (usePref), validated against the real module list.
+const ALL_NAV = [...CORE_MODULES, {to: '/organization', label: 'Approvals & Roles', icon: UserCheck}] as const;
+const MOBILE_NAV_DEFAULT = '/dashboard,/pos,/inventory,/operations';
+
+function MobileNav() {
+  const [slotsPref, setSlotsPref] = usePref('mobile_nav', MOBILE_NAV_DEFAULT);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [customizing, setCustomizing] = useState(false);
+  const validPaths = ALL_NAV.map((m) => m.to as string);
+  const slots = slotsPref.split(',').filter((p) => validPaths.includes(p)).slice(0, 4);
+  const slotItems = slots.map((p) => ALL_NAV.find((m) => m.to === p)!);
+
+  const toggleSlot = (to: string) => {
+    if (slots.includes(to)) setSlotsPref(slots.filter((s) => s !== to).join(','));
+    else if (slots.length < 4) setSlotsPref([...slots, to].join(','));
+  };
+
+  return (
+    <>
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-farm-accent-soft bg-farm-card pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Mobile">
+        {slotItems.map((m) => {
+          const Icon = m.icon;
+          return (
+            <NavLink
+              key={m.to}
+              to={m.to}
+              onClick={() => setSheetOpen(false)}
+              className={({isActive}) =>
+                cn('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-bold', isActive ? 'text-farm-green' : 'text-farm-muted')
+              }
+            >
+              <Icon className="h-5 w-5" aria-hidden />
+              <span className="max-w-full truncate">{m.label.split(' ')[0]}</span>
+            </NavLink>
+          );
+        })}
+        <button
+          onClick={() => {setSheetOpen((o) => !o); setCustomizing(false);}}
+          className={cn('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-bold', sheetOpen ? 'text-farm-green' : 'text-farm-muted')}
+          aria-expanded={sheetOpen}
+          aria-label="More sections"
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+          <span>More</span>
+        </button>
+      </nav>
+
+      {sheetOpen ? (
+        <div className="fixed inset-0 z-30 md:hidden" role="dialog" aria-label="All sections">
+          <button className="absolute inset-0 bg-black/40" aria-label="Close" onClick={() => setSheetOpen(false)} />
+          <div className="absolute inset-x-0 bottom-14 max-h-[70vh] overflow-auto rounded-t-2xl border-t border-farm-accent-soft bg-farm-card p-4 pb-6 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-black text-farm-ink">{customizing ? `Choose your shortcuts (${slots.length}/4)` : 'All sections'}</h3>
+              <button onClick={() => setCustomizing((c) => !c)} className="rounded-lg bg-farm-accent-soft px-3 py-1.5 text-[11px] font-bold text-farm-green">
+                {customizing ? 'Done' : 'Customize bar'}
+              </button>
+            </div>
+            {customizing ? <p className="mb-3 text-[11px] text-farm-muted">Tap a section to pin or unpin it from your bottom bar. Your choice is saved on this device.</p> : null}
+            <div className="grid grid-cols-3 gap-2">
+              {ALL_NAV.map((m) => {
+                const Icon = m.icon;
+                const pinned = slots.includes(m.to);
+                if (customizing) {
+                  return (
+                    <button
+                      key={m.to}
+                      onClick={() => toggleSlot(m.to)}
+                      className={cn('flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center text-[10px] font-bold', pinned ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent-soft text-farm-muted')}
+                    >
+                      <Icon className="h-5 w-5" aria-hidden />
+                      <span>{m.label}</span>
+                      {pinned ? <span className="rounded-full bg-farm-green px-1.5 text-[9px] font-black text-white">PINNED</span> : null}
+                    </button>
+                  );
+                }
+                return (
+                  <NavLink
+                    key={m.to}
+                    to={m.to}
+                    onClick={() => setSheetOpen(false)}
+                    className={({isActive}) =>
+                      cn('flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center text-[10px] font-bold', isActive ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent-soft text-farm-muted')
+                    }
+                  >
+                    <Icon className="h-5 w-5" aria-hidden />
+                    <span>{m.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 function navClass(isActive: boolean): string {
   return cn(
@@ -165,7 +264,8 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar />
         {!online ? <OfflineBanner pending={pending} /> : null}
-        <main className="flex-1 overflow-auto p-4 md:p-8">
+        {/* pb-24 on phones clears the fixed bottom nav bar */}
+        <main className="flex-1 overflow-auto p-4 pb-24 md:p-8">
           <div className="mx-auto w-full max-w-7xl animate-fade-in">
             <Suspense fallback={<Loading />}>
               <Outlet />
@@ -173,6 +273,7 @@ export function AppShell() {
           </div>
         </main>
       </div>
+      <MobileNav />
     </div>
   );
 }
