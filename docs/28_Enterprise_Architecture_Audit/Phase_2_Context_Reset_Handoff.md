@@ -44,10 +44,13 @@
   filtered role dropdown (reassign = expire+insert, membership.manage gate unchanged), role-authority text,
   Revoke/Reactivate + self-protection, Set Permissions → Roles. Per-user overrides deliberately deferred
   (would evolve the locked has_permission resolver). Default tab of /organization. Browser-verified.
+- **B-report DONE (`ad3c58c`) — Purchase Summary.** New Inventory tab: spend by category + by source
+  (Lazada/Shopee/TikTok/physical) with % + period filter; pure `purchaseSummary`/`filterByPeriod` (5 tests).
+  Also fixed a real tab-isolation bug (equipment block was the bare `else`, leaked under the new tab). 82/82.
 - **⏭ PHASE B COMPLETE. NEXT:** remaining plan = Phase C (money-path, GATED on cross-vendor review: B2
   digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
   + hosting, signup-approval queue, Bubblewrap→Play packaging). Also open: calendar Google-style day view w/
-  time indicator + drag (B-polish), Purchase Summary report view, hint-text sweep continuation.
+  time indicator + drag (B-polish), hint-text sweep continuation.
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
   per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
