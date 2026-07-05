@@ -399,6 +399,8 @@ export interface CalendarEvent {
   priority: 'Low' | 'Normal' | 'High' | 'Critical';
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Overdue';
   visibility: 'General' | 'Management'; // P2-M6C: Management = needs schedule.read_private (meetings hidden from staff)
+  start_time: string | null; // P2-M6D: 'HH:MM[:SS]' time-of-day for the day view; null = all-day
+  end_time: string | null;
   project_id: string | null; // reserved (Projects module M7)
   created_by: string | null;
   created_at: string;

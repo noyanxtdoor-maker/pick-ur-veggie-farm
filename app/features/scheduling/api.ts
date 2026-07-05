@@ -16,6 +16,8 @@ export interface EventInput {
   event_date: string; // yyyy-mm-dd
   priority?: CalendarEvent['priority'];
   visibility?: CalendarEvent['visibility']; // P2-M6C: Management events need schedule.read_private to be seen
+  start_time?: string | null; // P2-M6D: 'HH:MM' or null = all-day
+  end_time?: string | null;
 }
 
 export const schedulingApi = {
@@ -35,7 +37,7 @@ export const schedulingApi = {
     const payload = {
       company_id: companyId, branch_id: branchId, event_type: input.event_type, title: input.title.trim(),
       description: input.description?.trim() || null, event_date: input.event_date, priority: input.priority ?? 'Normal',
-      visibility: input.visibility ?? 'General',
+      visibility: input.visibility ?? 'General', start_time: input.start_time ?? null, end_time: input.end_time ?? null,
     };
     if (MOCK_MODE) {
       const now = new Date().toISOString();
@@ -61,6 +63,20 @@ export const schedulingApi = {
       return;
     }
     await enqueue({companyId: event.company_id, kind: 'schedule.update', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: {status}}});
+  },
+
+  // P2-M6D: adjust a timed event's start/end (day-view drag). schedule.manage RLS is the server gate.
+  async setTime(event: CalendarEvent, start_time: string | null, end_time: string | null): Promise<void> {
+    if (MOCK_MODE) {
+      await offlineDB.calendarEvents.put({...event, start_time, end_time, updated_at: new Date().toISOString()});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.from('calendar_events').update({start_time, end_time}).eq('id', event.id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId: event.company_id, kind: 'schedule.retime', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: {start_time, end_time}}});
   },
 
   async deleteEvent(event: CalendarEvent): Promise<void> {

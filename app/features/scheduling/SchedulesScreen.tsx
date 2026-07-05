@@ -15,6 +15,7 @@ import {SelectField} from '../../components/overlay';
 import {schedulingApi, type EventInput} from './api';
 import {projectsApi} from '../projects/api';
 import {projectsOnDay, projectDueOn, projectPct} from './projectOverlay';
+import {DayView} from './DayView';
 import type {CalendarEvent, CalendarEventType, Project} from '../../types/db';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -83,6 +84,13 @@ export default function SchedulesScreen() {
     setMonth(d.getMonth());
   };
 
+  const [view, setView] = useState<'month' | 'day'>('month'); // M6D: Month grid | Google-style Day view
+
+  async function retime(e: CalendarEvent, start: string, end: string | null) {
+    try {await schedulingApi.setTime(e, start, end); notify(`Moved to ${start}`); reload();}
+    catch (err) {notify(err instanceof Error ? err.message : 'Reschedule failed', 'error');}
+  }
+
   // create modal
   const [open, setOpen] = useState(false);
   const [cType, setCType] = useState<CalendarEventType>('Planting');
@@ -90,16 +98,19 @@ export default function SchedulesScreen() {
   const [cDate, setCDate] = useState(selectedDay);
   const [cPriority, setCPriority] = useState<CalendarEvent['priority']>('Normal');
   const [cVisibility, setCVisibility] = useState<CalendarEvent['visibility']>('General');
+  const [cStart, setCStart] = useState(''); // M6D optional time-of-day
+  const [cEnd, setCEnd] = useState('');
   const [cDesc, setCDesc] = useState('');
 
   async function submit() {
     if (!companyId || !branchId) return;
-    const input: EventInput = {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: canReadPrivate ? cVisibility : 'General'};
+    if (cStart && cEnd && cEnd <= cStart) return notify('End time must be after the start time.', 'error');
+    const input: EventInput = {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: canReadPrivate ? cVisibility : 'General', start_time: cStart || null, end_time: cEnd || null};
     setBusy(true);
     try {
       await schedulingApi.createEvent(companyId, branchId, input);
       notify('Event scheduled');
-      setOpen(false); setCTitle(''); setCDesc('');
+      setOpen(false); setCTitle(''); setCDesc(''); setCStart(''); setCEnd('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Failed to schedule', 'error'); } finally { setBusy(false); }
   }
@@ -139,14 +150,24 @@ export default function SchedulesScreen() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {MONTHS[month]} {year}</h3>
-            <div className="flex gap-1">
-              <button onClick={() => shiftMonth(-1)} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous month"><ChevronLeft size={18} aria-hidden /></button>
-              <button onClick={() => {const d = new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(ymd(d));}} className="rounded-lg border border-farm-accent px-2 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Today</button>
-              <button onClick={() => shiftMonth(1)} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next month"><ChevronRight size={18} aria-hidden /></button>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {view === 'month' ? `${MONTHS[month]} ${year}` : new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'long', month: 'long', day: 'numeric'})}</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex overflow-hidden rounded-lg border border-farm-accent text-xs font-bold">
+                <button onClick={() => setView('month')} className={cn('px-2.5 py-1', view === 'month' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Month</button>
+                <button onClick={() => setView('day')} className={cn('px-2.5 py-1', view === 'day' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Day</button>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => {if (view === 'month') shiftMonth(-1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() - 1); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous"><ChevronLeft size={18} aria-hidden /></button>
+                <button onClick={() => {const d = new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(ymd(d));}} className="rounded-lg border border-farm-accent px-2 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Today</button>
+                <button onClick={() => {if (view === 'month') shiftMonth(1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() + 1); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next"><ChevronRight size={18} aria-hidden /></button>
+              </div>
             </div>
           </div>
+          {view === 'day' ? (
+            <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onSelect={() => {}} />
+          ) : (
+          <>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wider text-farm-muted">
             {WEEKDAYS.map((w) => <div key={w} className="pb-1">{w}</div>)}
           </div>
@@ -178,6 +199,8 @@ export default function SchedulesScreen() {
               );
             })}
           </div>
+          </>
+          )}
         </Card>
 
         <Card>
@@ -266,6 +289,16 @@ export default function SchedulesScreen() {
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-date">Date</label>
                 <input id="ev-date" type="date" value={cDate} onChange={(e) => setCDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm font-semibold" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-start">Start time <span className="normal-case text-farm-muted/70">(optional)</span></label>
+                  <input id="ev-start" type="time" value={cStart} onChange={(e) => setCStart(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm font-semibold" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-end">End time</label>
+                  <input id="ev-end" type="time" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm font-semibold" />
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-desc">Notes</label>
