@@ -36,6 +36,9 @@
   Roles, per owner ask). guard:scheduling **11/11** (investor meeting hidden from staff; read_private reveals;
   branch isolation holds) · full suite **160 PASS/0** · vitest 74/74 (29 perm keys) · browser-verified (tier
   filters, "Who can see this?" select, Mgmt chip). Migrations immutable through `20260704120000_p2m6c`.
+- **Phase B.3 DONE (`071d368`) — project timelines on the calendar.** App-only overlay (projectOverlay.ts pure
+  date logic, 4 tests): month-grid stripes across each project's [start,end] span (red on finish day), day-panel
+  "Projects on this day" block with % + finish date, linked to the board. vitest 78/78; browser-verified.
 - **⏭ NEXT — Phase B (remaining slices):**
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
