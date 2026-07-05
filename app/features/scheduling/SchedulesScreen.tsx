@@ -1,17 +1,21 @@
-// Schedules & Plans (P2-M6B) — prototype-parity: src/features/Schedules.tsx is the workflow authority.
-// Month grid (events per day) + selected-day list + create-event modal + delete. Branch-owned calendar (20.19);
-// no GL. All writes via schedulingApi (RLS-gated; B5 offline-queued).
+// Schedules & Plans (P2-M6B/M6C + B.3) — prototype-parity: src/features/Schedules.tsx is the workflow authority.
+// Month grid (events per day + PROJECT timelines) + selected-day list + create-event modal + delete. Projects
+// overlay (owner ask): timelines from the Projects board appear here with finish dates — Calendar and Projects
+// are connected. Branch-owned calendar (20.19); no GL. All writes via schedulingApi (RLS-gated; B5 offline-queued).
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
+import {Link} from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Calendar as CalIcon, ChevronLeft, ChevronRight, Plus, Trash2, X} from 'lucide-react';
+import {Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, Trash2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {schedulingApi, type EventInput} from './api';
-import type {CalendarEvent, CalendarEventType} from '../../types/db';
+import {projectsApi} from '../projects/api';
+import {projectsOnDay, projectDueOn, projectPct} from './projectOverlay';
+import type {CalendarEvent, CalendarEventType, Project} from '../../types/db';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -29,6 +33,7 @@ export default function SchedulesScreen() {
   const canRead = has('schedule.read');
   const canManage = has('schedule.manage');
   const canReadPrivate = has('schedule.read_private'); // M6C: Management-tier entries (server RLS is the gate)
+  const canReadProjects = has('project.read'); // B.3: project timelines overlay
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
@@ -41,12 +46,14 @@ export default function SchedulesScreen() {
   const [month, setMonth] = useState(today.getMonth()); // 0-11
   const [selectedDay, setSelectedDay] = useState(ymd(today));
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]); // B.3 overlay
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(() => {
     if (!companyId || !branchId || !canRead) return;
     schedulingApi.fetchEvents(companyId, branchId).then(setEvents).catch(() => setEvents([]));
-  }, [companyId, branchId, canRead]);
+    if (canReadProjects) projectsApi.fetchProjects(companyId, branchId).then(setProjects).catch(() => setProjects([]));
+  }, [companyId, branchId, canRead, canReadProjects]);
   useEffect(reload, [reload]);
 
   // M6C filter (owner ask: "add a filter button too for everyone"). The SERVER already hides Management
@@ -147,6 +154,7 @@ export default function SchedulesScreen() {
             {cells.map((day, i) => {
               if (day === null) return <div key={`b${i}`} />;
               const evs = eventsByDay.get(day) ?? [];
+              const dayProjects = projectsOnDay(projects, day); // B.3 timeline overlay
               const isToday = day === ymd(today);
               const isSel = day === selectedDay;
               return (
@@ -159,6 +167,13 @@ export default function SchedulesScreen() {
                     {evs.slice(0, 4).map((e) => <span key={e.id} className={cn('h-1.5 w-1.5 rounded-full', TYPE_COLOR[e.event_type] ?? 'bg-farm-muted', e.status === 'Completed' && 'opacity-40', e.status === 'Cancelled' && 'opacity-20')} title={`${e.event_type}: ${e.title}`} />)}
                     {evs.length > 4 ? <span className="text-[8px] font-bold text-farm-muted">+{evs.length - 4}</span> : null}
                   </span>
+                  {dayProjects.length > 0 ? (
+                    <span className="mt-auto flex w-full flex-col gap-0.5">
+                      {dayProjects.slice(0, 2).map((p) => (
+                        <span key={p.id} className={cn('h-1 w-full rounded-full', projectDueOn(p, day) ? 'bg-farm-danger' : 'bg-indigo-400/70')} title={`${p.name}${p.end_date ? ` — finishes ${p.end_date}` : ''}`} />
+                      ))}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -197,6 +212,29 @@ export default function SchedulesScreen() {
               ))}
             </ul>
           )}
+
+          {/* B.3: projects whose timeline covers the selected day — Calendar and Projects are connected */}
+          {canReadProjects && projectsOnDay(projects, selectedDay).length > 0 ? (
+            <div className="mt-4 border-t border-farm-accent-soft pt-3">
+              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-farm-muted"><FolderKanban className="h-3.5 w-3.5" aria-hidden /> Projects on this day</h4>
+              <ul className="space-y-2">
+                {projectsOnDay(projects, selectedDay).map((p) => (
+                  <li key={p.id}>
+                    <Link to="/operations/projects" className="block rounded-xl border border-indigo-200 bg-indigo-50/50 p-2.5 transition hover:border-indigo-400 dark:border-farm-accent dark:bg-farm-bg/40">
+                      <span className="flex items-center justify-between gap-2 text-sm font-bold text-farm-ink">
+                        <span className="truncate">{p.name}</span>
+                        {projectDueOn(p, selectedDay) ? <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-farm-danger">Finishes today</span> : null}
+                      </span>
+                      <span className="mt-1 flex items-center gap-2">
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-farm-accent-soft"><span className="block h-full rounded-full bg-indigo-500" style={{width: `${projectPct(p)}%`}} /></span>
+                        <span className="text-[10px] font-bold text-farm-muted">{projectPct(p)}%{p.end_date ? ` · finishes ${p.end_date}` : ''}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Card>
       </div>
 
