@@ -6,7 +6,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {AlertTriangle, ClipboardList, FileText, Hammer, Minus, Package, Plus, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
+import {AlertTriangle, ClipboardList, FileText, Hammer, Minus, Package, Plus, ReceiptText, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -14,6 +14,7 @@ import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
 import {inventoryApi, type PurchaseInput} from './api';
+import {purchaseSummary, filterByPeriod} from './purchaseSummary';
 import type {EquipmentAsset, EquipmentLog, InventoryItem, ItemCategory, PurchaseReceiving} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -32,7 +33,7 @@ export default function InventoryScreen() {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);
   }, [branches, branchId]);
 
-  const [tab, setTab] = useState<'consumables' | 'equipment'>('consumables');
+  const [tab, setTab] = useState<'consumables' | 'equipment' | 'purchases'>('consumables');
   const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [items, setItems] = useState<InventoryItem[] | null>(null);
   const [receivings, setReceivings] = useState<PurchaseReceiving[]>([]);
@@ -85,6 +86,11 @@ export default function InventoryScreen() {
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const itemById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
+
+  // ── Purchase Summary report (period-filtered aggregation over receivings) ──
+  const [sumFrom, setSumFrom] = useState('');
+  const [sumTo, setSumTo] = useState('');
+  const summary = useMemo(() => purchaseSummary(filterByPeriod(receivings, sumFrom, sumTo), itemById, catById), [receivings, sumFrom, sumTo, itemById, catById]);
   const consumableCategories = categories.filter((c) => c.category_key !== 'equipment');
 
   // per-category aggregates (mock cards): total pcs, cumulative ₱, latest restock/source
@@ -244,7 +250,41 @@ export default function InventoryScreen() {
           className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'equipment' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
           <Hammer className="h-4 w-4" aria-hidden /> Heavy Equipment &amp; Spades
         </button>
+        <button role="tab" aria-selected={tab === 'purchases'} onClick={() => setTab('purchases')}
+          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'purchases' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+          <ReceiptText className="h-4 w-4" aria-hidden /> Purchase Summary
+        </button>
       </div>
+
+      {tab === 'purchases' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><ReceiptText className="h-5 w-5" aria-hidden /> Purchase Summary</h3>
+                <p className="text-xs text-farm-muted">Every purchase you log flows in here automatically — no re-typing. See what you bought and where the money went.</p>
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="text-[10px] font-bold uppercase text-farm-muted">From<input type="date" value={sumFrom} onChange={(e) => setSumFrom(e.target.value)} className="mt-1 block min-h-10 rounded-lg border border-farm-accent-soft bg-farm-bg px-2 text-sm" /></label>
+                <label className="text-[10px] font-bold uppercase text-farm-muted">To<input type="date" value={sumTo} onChange={(e) => setSumTo(e.target.value)} className="mt-1 block min-h-10 rounded-lg border border-farm-accent-soft bg-farm-bg px-2 text-sm" /></label>
+                {sumFrom || sumTo ? <button onClick={() => {setSumFrom(''); setSumTo('');}} className="min-h-10 rounded-lg border border-farm-accent px-2.5 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">All time</button> : null}
+              </div>
+            </div>
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-6 gap-y-1 border-y border-farm-accent-soft py-3">
+              <span className="text-sm text-farm-muted">Total spent: <strong className="tabular text-lg font-black text-farm-green">{formatPeso(summary.total)}</strong></span>
+              <span className="text-sm text-farm-muted">Across <strong className="font-bold text-farm-ink">{summary.count}</strong> purchase{summary.count === 1 ? '' : 's'}</span>
+            </div>
+            {summary.count === 0 ? (
+              <EmptyState title="No purchases in this period" hint="Log purchases with “Buy Stock” or “Log Expense” — they appear here automatically." />
+            ) : (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <SummaryTable title="By category" rows={summary.byCategory} />
+                <SummaryTable title="By source (store / platform)" rows={summary.bySource} showQty={false} />
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
 
       {tab === 'consumables' ? (
         <div className="animate-fade-in space-y-6">
@@ -316,7 +356,7 @@ export default function InventoryScreen() {
             </Card>
           ) : null}
         </div>
-      ) : (
+      ) : tab === 'equipment' ? (
         <div className="animate-fade-in space-y-6">
           <Card>
             <div className="mb-4 flex items-center justify-between">
@@ -399,7 +439,7 @@ export default function InventoryScreen() {
             </Card>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {/* Purchase modal (prototype "Add Materials Purchase") */}
       <Dialog.Root open={buyOpen} onOpenChange={setBuyOpen}>
@@ -612,6 +652,25 @@ export default function InventoryScreen() {
       {tab === 'consumables' && cards.length === 0 && items !== null ? (
         <p className="flex items-center gap-2 text-xs text-farm-muted"><FileText size={14} aria-hidden /> Stock levels are derived from the tamper-proof movement ledger — never typed in.</p>
       ) : null}
+    </div>
+  );
+}
+
+function SummaryTable({title, rows, showQty = true}: {title: string; rows: Array<{key: string; label: string; total: number; count: number; qty: number; pct: number}>; showQty?: boolean}) {
+  return (
+    <div>
+      <h4 className="mb-2 text-xs font-black uppercase tracking-wider text-farm-muted">{title}</h4>
+      <div className="space-y-2.5">
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div className="mb-1 flex items-baseline justify-between text-xs">
+              <span className="font-bold text-farm-ink">{r.label}</span>
+              <span className="tabular font-bold text-farm-green">{formatPeso(r.total)} <span className="text-[10px] font-semibold text-farm-muted">{r.pct.toFixed(1)}%{showQty ? ` · ${r.qty} units` : ''} · {r.count}×</span></span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-farm-accent-soft"><div className="h-full rounded-full bg-farm-green" style={{width: `${Math.min(r.pct, 100)}%`}} /></div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
