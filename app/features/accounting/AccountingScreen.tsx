@@ -24,6 +24,15 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 type Tab = 'dashboard' | 'statements' | 'reports' | 'cash_ledger';
 type Statement = 'income' | 'balance_sheet' | 'cash_flow' | 'trial_balance' | 'chart_accounts';
 
+// Plain-language "what is this?" for each statement (owner ask: a non-accountant should understand every screen).
+const STATEMENT_HELP: Record<Statement, string> = {
+  income: 'Did the farm earn or lose money over a period? Sales minus what it cost to grow and run the farm. A positive Net Income means profit.',
+  balance_sheet: 'A snapshot on one day of what the farm OWNS (cash, stock, equipment) versus what it OWES (loans) — the difference is the owner’s equity. The two sides always match.',
+  cash_flow: 'Where cash actually came in and went out — from daily operations, from buying equipment, and from owner money or loans. Ends at your real cash on hand.',
+  trial_balance: 'A behind-the-scenes self-check: every account’s debits and credits. The two totals must be equal — that proves the books are balanced and nothing is broken. You rarely need to read it.',
+  chart_accounts: 'Simply the list of “money buckets” the farm uses (Cash, Sales, Cost of Goods, Wages…). It’s a directory, not a report.',
+};
+
 const IN_CATEGORIES: CashEntryCategory[] = ['Owner Investment', 'Other Income', 'Loan Received'];
 const OUT_CATEGORIES: CashEntryCategory[] = ['Loan Payment', "Owner's Drawings"];
 
@@ -234,6 +243,12 @@ export default function AccountingScreen() {
                 <p className="text-[11px] font-bold uppercase tracking-wider text-farm-muted">For the Audit Year {year}</p>
               </div>
             </div>
+
+            {/* Plain-language "what is this?" caption (owner ask: a non-accountant should understand every statement) */}
+            <p className="mb-5 flex items-start gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg/50 p-3 text-xs leading-relaxed text-farm-muted">
+              <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-farm-green" aria-hidden />
+              <span><strong className="text-farm-green">What is this?</strong> {STATEMENT_HELP[statement]}</span>
+            </p>
 
             {statement === 'income' ? (
               months === null ? <Skeleton rows={4} /> : (
