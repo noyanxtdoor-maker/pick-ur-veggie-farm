@@ -151,4 +151,19 @@ do $$ declare n int; begin
   raise notice 'PASS sched: read_private does not bypass branch membership (M6C)';
 end $$;
 
+-- ── P2-M6D: timed events (day view). manager can set a start/end time; the order check rejects end<=start ──
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  insert into public.calendar_events (company_id, branch_id, event_type, title, event_date, start_time, end_time, created_by)
+    values ('11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','Delivery','Vendor pickup','2026-07-13','08:00','10:00','10000000-0000-0000-0000-00000000000a');
+  select count(*) into n from public.calendar_events where start_time = '08:00' and end_time = '10:00';
+  if n <> 1 then raise exception 'DEFECT sched: timed event not stored'; end if;
+  raise notice 'PASS sched: manager set a timed event (start/end time, M6D day view)';
+end $$;
+do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  insert into public.calendar_events (company_id, branch_id, event_type, title, event_date, start_time, end_time, created_by)
+    values ('11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','Meeting','bad times','2026-07-13','10:00','09:00','10000000-0000-0000-0000-00000000000a');
+  raise exception 'DEFECT sched: end_time <= start_time was accepted';
+exception when check_violation then raise notice 'PASS sched: end<=start time rejected (M6D check)'; end $$;
+
 rollback;
