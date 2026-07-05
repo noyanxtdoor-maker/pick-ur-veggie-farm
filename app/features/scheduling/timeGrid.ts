@@ -51,6 +51,17 @@ export function applyDrag(startTime: string, endTime: string | null, deltaPx: nu
   return {start: toTime(start), end: endTime ? toTime(start + dur) : null};
 }
 
+/** Resize (DayFlow-style): drag the bottom edge to change the END time only. Keeps end ≥ start+15min and
+ *  inside the grid. A previously untimed-end event gets a concrete end (default block was 60min). */
+export function applyResize(startTime: string, endTime: string | null, deltaPx: number): {start: string; end: string} {
+  const startMin = toMinutes(startTime);
+  const baseEnd = endTime ? toMinutes(endTime) : startMin + 60;
+  const lo = startMin + SNAP_MIN;
+  const hi = DAY_END_H * 60;
+  const end = Math.max(lo, Math.min(hi, snap(baseEnd + deltaPx / PX_PER_MIN)));
+  return {start: startTime, end: toTime(end)};
+}
+
 /** Hour labels for the grid gutter. */
 export function hourRows(): number[] {
   return Array.from({length: DAY_END_H - DAY_START_H + 1}, (_, i) => DAY_START_H + i);

@@ -16,6 +16,7 @@ import {schedulingApi, type EventInput} from './api';
 import {projectsApi} from '../projects/api';
 import {projectsOnDay, projectDueOn, projectPct} from './projectOverlay';
 import {DayView} from './DayView';
+import {WeekView} from './WeekView';
 import type {CalendarEvent, CalendarEventType, Project} from '../../types/db';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -84,12 +85,23 @@ export default function SchedulesScreen() {
     setMonth(d.getMonth());
   };
 
-  const [view, setView] = useState<'month' | 'day'>('month'); // M6D: Month grid | Google-style Day view
+  const [view, setView] = useState<'month' | 'week' | 'day'>('month'); // M6D + week (DayFlow)
 
   async function retime(e: CalendarEvent, start: string, end: string | null) {
     try {await schedulingApi.setTime(e, start, end); notify(`Moved to ${start}`); reload();}
     catch (err) {notify(err instanceof Error ? err.message : 'Reschedule failed', 'error');}
   }
+  async function resizeEvt(e: CalendarEvent, start: string, end: string) {
+    try {await schedulingApi.setTime(e, start, end); notify(`Now ${start}–${end}`); reload();}
+    catch (err) {notify(err instanceof Error ? err.message : 'Resize failed', 'error');}
+  }
+
+  // Week (Sun→Sat) containing selectedDay
+  const weekDays = useMemo(() => {
+    const base = new Date(selectedDay + 'T00:00:00');
+    const sun = new Date(base); sun.setDate(base.getDate() - base.getDay());
+    return Array.from({length: 7}, (_, i) => {const d = new Date(sun); d.setDate(sun.getDate() + i); return ymd(d);});
+  }, [selectedDay]);
 
   // create modal
   const [open, setOpen] = useState(false);
@@ -151,21 +163,24 @@ export default function SchedulesScreen() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {view === 'month' ? `${MONTHS[month]} ${year}` : new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'long', month: 'long', day: 'numeric'})}</h3>
+            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {view === 'month' ? `${MONTHS[month]} ${year}` : view === 'week' ? `Week of ${new Date(weekDays[0]! + 'T00:00:00').toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}` : new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'long', month: 'long', day: 'numeric'})}</h3>
             <div className="flex items-center gap-2">
               <div className="flex overflow-hidden rounded-lg border border-farm-accent text-xs font-bold">
                 <button onClick={() => setView('month')} className={cn('px-2.5 py-1', view === 'month' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Month</button>
+                <button onClick={() => setView('week')} className={cn('px-2.5 py-1', view === 'week' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Week</button>
                 <button onClick={() => setView('day')} className={cn('px-2.5 py-1', view === 'day' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Day</button>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => {if (view === 'month') shiftMonth(-1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() - 1); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous"><ChevronLeft size={18} aria-hidden /></button>
+                <button onClick={() => {const step = view === 'week' ? 7 : 1; if (view === 'month') shiftMonth(-1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() - step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous"><ChevronLeft size={18} aria-hidden /></button>
                 <button onClick={() => {const d = new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(ymd(d));}} className="rounded-lg border border-farm-accent px-2 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Today</button>
-                <button onClick={() => {if (view === 'month') shiftMonth(1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() + 1); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next"><ChevronRight size={18} aria-hidden /></button>
+                <button onClick={() => {const step = view === 'week' ? 7 : 1; if (view === 'month') shiftMonth(1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() + step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next"><ChevronRight size={18} aria-hidden /></button>
               </div>
             </div>
           </div>
           {view === 'day' ? (
-            <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onSelect={() => {}} />
+            <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={() => {}} />
+          ) : view === 'week' ? (
+            <WeekView weekDays={weekDays} eventsByDay={eventsByDay} today={ymd(today)} selectedDay={selectedDay} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={() => {}} onSelectDay={(d) => {setSelectedDay(d); setView('day');}} />
           ) : (
           <>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wider text-farm-muted">
@@ -219,6 +234,7 @@ export default function SchedulesScreen() {
                         <span className={cn('truncate', e.status === 'Completed' && 'line-through')}>{e.title}</span>
                       </p>
                       <p className="text-[11px] text-farm-muted">
+                        {e.start_time ? <span className="font-bold text-farm-green">{e.start_time.slice(0, 5)}{e.end_time ? `–${e.end_time.slice(0, 5)}` : ''} · </span> : null}
                         {e.event_type}{e.priority !== 'Normal' ? ` · ${e.priority}` : ''} · {e.status}
                         {(e.visibility ?? 'General') === 'Management' ? <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-900" title="Only roles with the see-management-schedules permission can see this entry">Mgmt only</span> : null}
                       </p>

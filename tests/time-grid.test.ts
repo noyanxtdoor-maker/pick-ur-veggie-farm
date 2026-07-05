@@ -1,6 +1,6 @@
 // M6D day-view time math — minutes↔HH:MM, snapping, block geometry, and drag (duration-preserving + clamped).
 import {describe, expect, it} from 'vitest';
-import {hhmm, toMinutes, toTime, snap, applyDrag, PX_PER_MIN, DAY_START_H, DAY_END_H} from '@/app/features/scheduling/timeGrid';
+import {hhmm, toMinutes, toTime, snap, applyDrag, applyResize, PX_PER_MIN, DAY_START_H, DAY_END_H} from '@/app/features/scheduling/timeGrid';
 
 describe('time conversions', () => {
   it('trims seconds and round-trips minutes', () => {
@@ -33,5 +33,16 @@ describe('applyDrag', () => {
     const r = applyDrag('08:00', null, 60 * PX_PER_MIN);
     expect(r.start).toBe('09:00');
     expect(r.end).toBe(null);
+  });
+});
+
+describe('applyResize', () => {
+  it('extends/shrinks the end, keeping start fixed and snapping', () => {
+    expect(applyResize('08:00', '10:00', 60 * PX_PER_MIN)).toEqual({start: '08:00', end: '11:00'});
+    expect(applyResize('08:00', '10:00', -90 * PX_PER_MIN)).toEqual({start: '08:00', end: '08:30'});
+  });
+  it('never lets the end cross above start+15min, and gives an untimed event a concrete end', () => {
+    expect(applyResize('08:00', '08:30', -600 * PX_PER_MIN).end).toBe('08:15'); // clamped to start+15
+    expect(applyResize('08:00', null, 30 * PX_PER_MIN).end).toBe('09:30'); // default 60min block + 30
   });
 });
