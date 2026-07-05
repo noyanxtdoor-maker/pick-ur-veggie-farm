@@ -47,10 +47,15 @@
 - **B-report DONE (`ad3c58c`) — Purchase Summary.** New Inventory tab: spend by category + by source
   (Lazada/Shopee/TikTok/physical) with % + period filter; pure `purchaseSummary`/`filterByPeriod` (5 tests).
   Also fixed a real tab-isolation bug (equipment block was the bare `else`, leaked under the new tab). 82/82.
-- **⏭ PHASE B COMPLETE. NEXT:** remaining plan = Phase C (money-path, GATED on cross-vendor review: B2
+- **M6D DONE (`5a9d5b0` db / `0574bc7` app) — Google-calendar day view.** calendar_events.start_time/end_time
+  (nullable; check end>start), guard:scheduling 13/13, full suite **162 PASS/0**. Month|Day toggle; DayView
+  = hourly grid + all-day strip + live now-indicator + drag-to-reschedule (snap 15min, duration-preserving,
+  clamped) → schedulingApi.setTime (schedule.manage RLS, M6C visibility intact); create-modal optional times.
+  timeGrid.ts pure (87/88 vitest — 5 new); browser-verified incl. an actual drag 08:00→10:00. Migrations
+  immutable through `20260704150000_p2m6d`.
+- **⏭ PHASE B COMPLETE (+ day-view polish). NEXT:** Phase C (money-path, GATED on cross-vendor review: B2
   digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
-  + hosting, signup-approval queue, Bubblewrap→Play packaging). Also open: calendar Google-style day view w/
-  time indicator + drag (B-polish), hint-text sweep continuation.
+  + hosting, signup-approval queue, Bubblewrap→Play packaging). Minor open: hint-text sweep continuation.
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
   per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
