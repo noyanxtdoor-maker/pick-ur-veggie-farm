@@ -17,6 +17,7 @@ const BranchesScreen = lazy(() => import('../../features/organization/branches/b
 const RolesScreen = lazy(() => import('../../features/organization/roles/roles'));
 const InvitationsScreen = lazy(() => import('../../features/organization/invitations/invitations'));
 const MembersScreen = lazy(() => import('../../features/organization/memberships/memberships'));
+const ApprovalsScreen = lazy(() => import('../../features/organization/approvals/ApprovalsScreen'));
 const PosScreen = lazy(() => import('../../features/pos/PosScreen'));
 const InventoryScreen = lazy(() => import('../../features/inventory/InventoryScreen'));
 const AccountingScreen = lazy(() => import('../../features/accounting/AccountingScreen'));
@@ -65,7 +66,8 @@ export const router = createBrowserRouter([
         path: 'organization',
         element: <OrganizationLayout />,
         children: [
-          {index: true, element: <Navigate to="company" replace />},
+          {index: true, element: <Navigate to="approvals" replace />},
+          {path: 'approvals', element: <RequirePermission perm="membership.read"><ApprovalsScreen /></RequirePermission>},
           {path: 'company', element: <CompanyScreen />},
           {path: 'branches', element: <BranchesScreen />},
           {path: 'roles', element: <RolesScreen />},

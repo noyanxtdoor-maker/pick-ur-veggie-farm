@@ -280,6 +280,7 @@ export function AppShell() {
 }
 
 const ORG_TABS: Array<{to: string; label: string; perm?: PermissionKey}> = [
+  {to: '/organization/approvals', label: 'Approvals', perm: 'membership.read'}, // B.4 owner-screenshot flow
   {to: '/organization/company', label: 'Company'},
   {to: '/organization/branches', label: 'Branches'},
   {to: '/organization/roles', label: 'Roles'},
