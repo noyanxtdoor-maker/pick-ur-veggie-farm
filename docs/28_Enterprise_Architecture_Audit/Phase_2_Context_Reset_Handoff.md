@@ -39,7 +39,15 @@
 - **Phase B.3 DONE (`071d368`) — project timelines on the calendar.** App-only overlay (projectOverlay.ts pure
   date logic, 4 tests): month-grid stripes across each project's [start,end] span (red on finish day), day-panel
   "Projects on this day" block with % + finish date, linked to the board. vitest 78/78; browser-verified.
-- **⏭ NEXT — Phase B (remaining slices):**
+- **Phase B.4 DONE (`623e5d2`) — Approvals Admin screen.** Owner-screenshot flow over the real RBAC engine
+  (no new DB surface): pending-approvals panel (signup queue = cloud phase), users directory with hierarchy-
+  filtered role dropdown (reassign = expire+insert, membership.manage gate unchanged), role-authority text,
+  Revoke/Reactivate + self-protection, Set Permissions → Roles. Per-user overrides deliberately deferred
+  (would evolve the locked has_permission resolver). Default tab of /organization. Browser-verified.
+- **⏭ PHASE B COMPLETE. NEXT:** remaining plan = Phase C (money-path, GATED on cross-vendor review: B2
+  digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
+  + hosting, signup-approval queue, Bubblewrap→Play packaging). Also open: calendar Google-style day view w/
+  time indicator + drag (B-polish), Purchase Summary report view, hint-text sweep continuation.
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
   per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
