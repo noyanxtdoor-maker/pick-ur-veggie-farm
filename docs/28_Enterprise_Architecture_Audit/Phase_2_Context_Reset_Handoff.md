@@ -53,8 +53,15 @@
   clamped) → schedulingApi.setTime (schedule.manage RLS, M6C visibility intact); create-modal optional times.
   timeGrid.ts pure (87/88 vitest — 5 new); browser-verified incl. an actual drag 08:00→10:00. Migrations
   immutable through `20260704150000_p2m6d`.
-- **⏭ PHASE B COMPLETE (+ day-view polish). NEXT:** Phase C (money-path, GATED on cross-vendor review: B2
-  digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
+- **DayFlow calendar adoption DONE (`cf6fdff`) — Week view + resize + bug fix.** Owner: analyse+implement
+  dayflow-js/calendar keeping role visibility. Decision (doc `Phase_2_DayFlow_Calendar_Adoption.md`): adopt UX
+  natively, NO dependency (visibility must hold in every view; we had the day-grid engine). Added: WeekView
+  (7-day grid, now-line, click→Day), event resize (drag bottom edge), shared TimedBlock. **Real bug found+fixed:**
+  drag/resize read mode/delta from React STATE at pointer-up → fast gestures silently dropped the commit; now
+  held in a useRef (synchronous) → both move+resize persist deterministically (verified vs IndexedDB). 89 vitest;
+  no DB change (M6D start/end columns reused). Visibility audit clean (all views render the same RLS-filtered set).
+- **⏭ PHASE B COMPLETE (+ calendar day/week polish). NEXT:** Phase C (money-path, GATED on cross-vendor review:
+  B2 digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
   + hosting, signup-approval queue, Bubblewrap→Play packaging). Minor open: hint-text sweep continuation.
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
