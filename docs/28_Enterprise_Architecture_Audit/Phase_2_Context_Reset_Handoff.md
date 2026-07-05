@@ -60,9 +60,15 @@
   drag/resize read mode/delta from React STATE at pointer-up → fast gestures silently dropped the commit; now
   held in a useRef (synchronous) → both move+resize persist deterministically (verified vs IndexedDB). 89 vitest;
   no DB change (M6D start/end columns reused). Visibility audit clean (all views render the same RLS-filtered set).
-- **⏭ PHASE B COMPLETE (+ calendar day/week polish). NEXT:** Phase C (money-path, GATED on cross-vendor review:
-  B2 digital payments, credit-limit enforcement, delivery settle edits) + Phase D (owner/infra: Supabase project
-  + hosting, signup-approval queue, Bubblewrap→Play packaging). Minor open: hint-text sweep continuation.
+- **Accounting hint-text DONE (`f142a30`):** plain-language "What is this?" caption on every Financial Statement
+  (Income/Balance Sheet/Cash Flows/Trial Balance/Chart of Accounts) — answers the owner's "what's this for?".
+- **⏭ ALL NON-GATED WORK IS COMPLETE — remaining plan is entirely OWNER-GATED:**
+  · **Phase C money-path** (B2 GCash/Maya/bank payments, credit-limit enforcement in the sale, delivery-settle
+    tender/change edits) — blocked on the **cross-vendor money-path review (charter §4.6)** the owner must run.
+  · **Phase D cloud + launch** (create the Supabase project + `.env` keys, HTTPS hosting, the signup→approval
+    queue the owner said is the cloud phase, Bubblewrap→AAB→Play Console paperwork) — needs owner infra decisions.
+  The self-paced /loop reached the end of the buildable backlog; next real progress requires an owner action
+  (run the money review, or stand up Supabase/hosting). PWA foundation for Play already shipped (`c896566`).
   B.3 projects↔calendar (project timelines as calendar entries; per-project edit setting).
   B.4 Roles & Approvals screen per owner screenshots (role dropdown + appointment hierarchy Dev→Owner→Admin,
   per-feature view/edit overrides — UI over existing roles/role_permissions; company/branch kept).
