@@ -63,7 +63,7 @@ the flow was not exercised.
 | **Mobile bottom nav** (4 customizable slots + More sheet, safe-area) + responsive pass + dark-mode top-bar toggle | Done (pushed) | 2026-07-05 | **browser-mock** at 375px (bar, customize, persistence). |
 | **Approvals & Roles admin screen** (users directory, role dropdown w/ appointment hierarchy, role-authority text, revoke/reactivate, self-protection) | Done (pushed) | 2026-07-05 | **browser-mock** (renders, self-protection). **Note:** UI over existing `membership.manage` RLS (guard org 13); the "Pending approvals" panel is a **placeholder** — the self-signup queue is a cloud-phase item, NOT built. |
 | **PWA foundation** (manifest, service worker, icons, prod-only SW registration) | Done (pushed) | 2026-07-04 | **browser-mock** (manifest+sw served 200, SW registers). Not yet wrapped for Play (Bubblewrap/AAB not done). |
-| **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + Month/Day views + now-line + drag, DayFlow Week view + resize, **full DayFlow: cross-day drag, all-day rows in every view, event detail panel with CRUD, per-role read-only UX**) | Done (pushed) | 2026-07-06 | **guard** scheduling 15 (tenant/branch/tier isolation, timed-event + end>start, **+ cross-day move allowed+audited for schedule.manage / denied→0 rows for read-only**). **browser-mock** full E2E: create timed + all-day → both render in Day AND Week; edit via detail→modal persists; mark done↔reopen; delete removes from DB; cross-day drag Mon→Tue persisted `event_date` 07-06→07-07 (times preserved); read-only role (schedule.read only) sees events + opens detail to READ but gets "View only" (no New Event, no Management filter, no edit/drag). CAL-1 resolved — see §3. |
+| **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + now-line + drag, **full DayFlow: Year/Month/Week/Day view set, cross-day drag, all-day rows in every view, event detail panel with CRUD reachable from every view, per-role read-only UX**) | Done (pushed) | 2026-07-06 | **guard** scheduling 15 (tenant/branch/tier isolation, timed-event + end>start, **+ cross-day move allowed+audited for schedule.manage / denied→0 rows for read-only**). **browser-mock** full E2E: create timed + all-day → both render in Day AND Week; edit via detail→modal persists; mark done↔reopen; delete removes from DB; cross-day drag Mon→Tue persisted `event_date` 07-06→07-07 (times preserved); read-only role (schedule.read only) sees events + opens detail to READ but gets "View only" (no New Event, no Management filter, no edit/drag). CAL-1 resolved — see §3. |
 
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
@@ -111,6 +111,11 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   listed features marked Done (pushed) with explicit verification evidence per row.
   _Note: an adversarial per-feature audit workflow was launched but was stopped before completing (no results); this
   file was synthesized from the lead agent's direct, first-hand verification instead._
+- **2026-07-06** — **Calendar Year view added** (commit `80b8042`) — completes DayFlow's Year/Month/Week/Day view
+  set. 12 mini-months at a glance, event days highlighted, click day → Day view / month → Month view, prev/next by
+  year; the farm's seasonal planting/harvest overview. RBAC-safe (reuses the tier/RLS-filtered `eventsByDay`; shows
+  only event presence, no titles/CRUD). Verified: tsc · 89/89 · build · browser E2E (12 months, day→Day, month→Month,
+  Next→2027). Calendar stays Done (enhancement within the shipped feature).
 - **2026-07-06** — **Calendar day-list rows now open the shared detail panel** (commit `0752d3f`). DayFlow-parity
   follow-up: the detail panel was reachable only from Day/Week blocks, so in **Month view** (where the day-list is
   the only event surface) a manager couldn't Edit an event and read-only users couldn't open a detail. Each day-list
