@@ -287,3 +287,27 @@ backlog, not new core modules.
 ## 7. Owner's engineering loop (standing): Objective → Define → Challenge → Attack → Defend → Audit → Revise →
 Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all in-session. Keep memory
 (`stage-d-phase1-continuity.md`) AND this handoff current every session.
+
+## 8. Session 2026-07-06 — STATUS.md + full DayFlow calendar (pushed, CI-green)
+- **`STATUS.md` at repo root is now the review source of truth** (`bd406da`). A separate reviewer model (GLM) reads
+  it to decide what to review. **Rule: never round up** — a feature is Done only when committed + pushed + that
+  specific flow was tested; if a reviewer flags an open issue, it stays In Progress until resolved (note the
+  resolution + date); the maintenance log is append-only. **Update STATUS.md every session** alongside this file.
+- **Full DayFlow calendar shipped** (`69a62be` feat / `621762c` STATUS.md; CI green on `69a62be`) — resolves owner
+  issue CAL-1, **no migration** (existing M6A–M6D RLS already grants update on `event_date`/`start_time`/`end_time`
+  and delete under `schedule.manage`; this was app-only wiring to guard-proven security):
+  - **Cross-day drag** (Week view): `TimedBlock` measures day-column width → horizontal drag = day shift; `setTime`
+    gained an optional `event_date`. Verified in-browser: a block dragged Mon→Tue persisted `event_date` 07-06→07-07
+    with times preserved (read from Dexie).
+  - **All-day rows** in Day AND Week (untimed events were surfacing only in Month).
+  - **Event detail panel**: click any block/chip → view; `schedule.manage` holders get Edit (→ modal, `updateEvent`),
+    Mark done↔Reopen, Delete. Read-only (`schedule.read` only) users see the same details but "View only" — no New
+    Event button, no Management filter, no edit controls, no drag.
+  - **Bug found + fixed via RBAC testing**: read-only users couldn't open a *timed* block's detail at all
+    (`begin()` no-ops without `canManage`, so the tap never reached `onSelect`) — added a native `onClick` for the
+    read-only path so Read works for everyone.
+  - Guard: +2 behavioral cross-day RBAC tests (manage = allowed + audited; read-only = denied → 0 rows) →
+    scheduling battery 13→**15**, full total 162→**164**. Verified: tsc · 89/89 vitest · build · scheduling 15/15 ·
+    browser E2E for owner + a temporarily-seeded-then-reverted read-only role · CI green.
+- **Unchanged gates:** remaining work is owner-gated — Phase C money-path (cross-vendor review of M2E/M4A/M5A; B2
+  digital payments) + Phase D cloud/Play (Supabase project, hosting, signup-approval queue, Bubblewrap→AAB).
