@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-06 · HEAD `69a62be` · branch `feature/phase-0-foundation`._
+_Last updated: 2026-07-07 · HEAD `81caea2` · branch `feature/phase-0-foundation` (2 local-only doc commits ahead of origin)._
 
 ---
 
@@ -129,3 +129,11 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   (cross-day move: manage=allowed+audited, read-only=denied) → scheduling battery 13→15, total 162→164. Verified
   first-hand: tsc clean · 89/89 unit · build ok · scheduling guard 15/15 · browser E2E of every flow for both an
   owner and a (temporarily seeded, then reverted) read-only role · CI green on `69a62be`.
+- **2026-07-07** — No code changed; HEAD advanced `f2ecbda` → `81caea2` on **documentation-only** commits
+  (cross-vendor money-path review + CAP-VG1 VeggieGenius design spec + handoff §9). Re-verified first-hand
+  at `81caea2`: tsc clean · 89/89 vitest · all 8 roadmap core modules remain feature-complete; no feature
+  row in §2 changed. Two commits are **local-only** (not pushed — owner gate per CLAUDE.md §3); `.codegraph/`
+  and `graphify-out/` are now gitignored (generated, not source). The new docs surface two owner-gated
+  tracks for the owner: (a) sign off `Phase_2_Cross_Vendor_Money_Path_Review.md` §9 to lock
+  M2E/M2C/M4A/M5A and unblock B2; (b) give D1 GO on `CAP_VG1_VeggieGenius_AI_Copilot_Spec.md` to start
+  VeggieGenius steps 1–4 (local-only, no money/cloud crossing). No feature work was started without owner GO.
