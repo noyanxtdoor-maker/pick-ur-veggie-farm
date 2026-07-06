@@ -4,14 +4,14 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-06 · HEAD `8893583` · branch `feature/phase-0-foundation`._
+_Last updated: 2026-07-06 · HEAD `69a62be` · branch `feature/phase-0-foundation`._
 
 ---
 
 ## 0. READ THIS FIRST — branch & deploy reality (affects every row)
 
 - **Everything below is pushed to `origin/feature/phase-0-foundation` (local HEAD == remote, in sync).**
-- **NONE of it is on `origin/main`.** The feature branch is **177 commits ahead of `origin/main`, unmerged.**
+- **NONE of it is on `origin/main`.** The feature branch is **179 commits ahead of `origin/main`, unmerged.**
   `origin/main` contains only the initial docs/scaffold (`7833c9f`). **A reviewer checking `origin/main` will see
   almost nothing — review the feature branch.**
 - **The app currently runs in MOCK / OFFLINE mode** (no Supabase project configured; `VITE_SUPABASE_*` unset).
@@ -26,14 +26,14 @@ _Last updated: 2026-07-06 · HEAD `8893583` · branch `feature/phase-0-foundatio
 | Check | Result |
 |---|---|
 | `supabase db reset` (22 migrations apply) | ✅ clean |
-| All 12 guard batteries (behavioral SQL security tests) | ✅ **162 PASS / 0 DEFECT** |
+| All 12 guard batteries (behavioral SQL security tests) | ✅ **164 PASS / 0 DEFECT** |
 | `tsc --noEmit` (type check) | ✅ clean |
 | `vitest` unit tests | ✅ **89 / 89** |
 | `vite build` | ✅ ok |
-| Latest CI run on the feature branch (`f142a30`) | ✅ green (install · tsc · test · build · DB guards · secret scan) |
+| Latest CI run on the feature branch (`69a62be`) | ✅ green (install · tsc · test · build · DB guards · secret scan) |
 | CI runs a browser? | ❌ no — E2E is manual, mock-mode only |
 
-Guard battery counts: rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 · scheduling 13 ·
+Guard battery counts: rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 · scheduling 15 ·
 crop 11 · bootstrap 8 · projects 7 · customers 6 · db-guards 1.
 
 ---
@@ -63,7 +63,7 @@ the flow was not exercised.
 | **Mobile bottom nav** (4 customizable slots + More sheet, safe-area) + responsive pass + dark-mode top-bar toggle | Done (pushed) | 2026-07-05 | **browser-mock** at 375px (bar, customize, persistence). |
 | **Approvals & Roles admin screen** (users directory, role dropdown w/ appointment hierarchy, role-authority text, revoke/reactivate, self-protection) | Done (pushed) | 2026-07-05 | **browser-mock** (renders, self-protection). **Note:** UI over existing `membership.manage` RLS (guard org 13); the "Pending approvals" panel is a **placeholder** — the self-signup queue is a cloud-phase item, NOT built. |
 | **PWA foundation** (manifest, service worker, icons, prod-only SW registration) | Done (pushed) | 2026-07-04 | **browser-mock** (manifest+sw served 200, SW registers). Not yet wrapped for Play (Bubblewrap/AAB not done). |
-| **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + Month/Day views + now-line + drag, DayFlow Week view + resize) | **In Progress** | 2026-07-06 | **guard** scheduling 13 (tenant/branch/tier isolation, timed-event + end>start). **⚠ OPEN ISSUES raised by owner 2026-07-06 — see §3.** Do NOT mark Done until resolved. |
+| **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + Month/Day views + now-line + drag, DayFlow Week view + resize, **full DayFlow: cross-day drag, all-day rows in every view, event detail panel with CRUD, per-role read-only UX**) | Done (pushed) | 2026-07-06 | **guard** scheduling 15 (tenant/branch/tier isolation, timed-event + end>start, **+ cross-day move allowed+audited for schedule.manage / denied→0 rows for read-only**). **browser-mock** full E2E: create timed + all-day → both render in Day AND Week; edit via detail→modal persists; mark done↔reopen; delete removes from DB; cross-day drag Mon→Tue persisted `event_date` 07-06→07-07 (times preserved); read-only role (schedule.read only) sees events + opens detail to READ but gets "View only" (no New Event, no Management filter, no edit/drag). CAL-1 resolved — see §3. |
 
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
@@ -80,16 +80,26 @@ the flow was not exercised.
 **CAL-1 · Calendar (owner, 2026-07-06):** flagged for a **full DayFlow implementation**. Specific reports/requirements:
 1. **Event visibility across views** — created events reported as not appearing correctly in Day/Week (all-day/untimed
    events currently only surface strongly in Month; they show as a strip/dot in Day/Week). Must appear correctly in
-   all views.
+   all views. → **RESOLVED**: Day and Week now render an **all-day row** of clickable chips for untimed events (not
+   just Month). Browser-verified: a created all-day event appears in both Day and Week; a timed event renders as a
+   positioned block in both.
 2. **Cross-day drag-and-drop** — Week view currently moves events only within their own day column; must support
-   dragging an event to a different day.
-3. **Data↔UI sync sweep** — general review for state/UI desync in the calendar.
-4. **Per-block RBAC** — visibility AND CRUD (create/read/update/delete) on events gated by role hierarchy
-   (Owner / Investor / Supervisor / Manager). Sensitive schedules hidden from unauthorized roles.
-   (Foundation exists: M6C `schedule.read` / `schedule.read_private` / `schedule.manage` + branch RLS, guard-proven —
-   but the owner wants it fully wired to the DayFlow UX incl. an editable event detail panel; clicking a block is
-   currently a no-op.)
-_Resolution status: OPEN — work starting 2026-07-06. Calendar stays **In Progress** until each item is verified._
+   dragging an event to a different day. → **RESOLVED**: `TimedBlock` measures day-column width → horizontal drag =
+   day shift; `api.setTime` gains an optional `event_date`. Browser-verified: a block dragged Mon→Tue persisted
+   `event_date` 2026-07-06→07-07 with times preserved. Guard-verified: only `schedule.manage` can move across days
+   (owner allowed+audited; read-only worker denied → 0 rows).
+3. **Data↔UI sync sweep** — general review for state/UI desync in the calendar. → **ADDRESSED**: reload-after-write on
+   every mutation (create/edit/retime/resize/move/status/delete); drag commit reads authoritative state from a ref at
+   pointer-up (fixes fast-gesture race). Found+fixed a real bug: read-only users could not open a **timed** block's
+   detail at all (`begin()` no-ops without `canManage`, so the tap never reached `onSelect`) — a native `onClick` now
+   opens the read-only detail.
+4. **Per-block RBAC** — visibility AND CRUD gated by role. → **RESOLVED**: click any block/chip → **detail panel**
+   (Read). `schedule.manage` holders get **Edit** (→ modal, api.updateEvent = Update), **Mark done↔Reopen**, and
+   **Delete**. Users with only `schedule.read` see the same details but **"View only"** — no New Event button, no
+   Management filter (that needs `schedule.read_private`), no edit controls, no drag. Server RLS is the real gate
+   (guard scheduling 15); the UI mirrors it. Browser-verified both roles.
+_Resolution status: **RESOLVED 2026-07-06** (commit `69a62be`, pushed). All four items verified by browser E2E +
+the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
 
 ---
 
@@ -101,3 +111,10 @@ _Resolution status: OPEN — work starting 2026-07-06. Calendar stays **In Progr
   listed features marked Done (pushed) with explicit verification evidence per row.
   _Note: an adversarial per-feature audit workflow was launched but was stopped before completing (no results); this
   file was synthesized from the lead agent's direct, first-hand verification instead._
+- **2026-07-06** — **Calendar moved In Progress → Done (pushed)** (commit `69a62be`). Full DayFlow implementation
+  resolving CAL-1 (all 4 items): cross-day drag (persisted event_date move, times preserved), all-day rows in Day +
+  Week, event detail panel with manager CRUD (edit/complete/delete) and read-only "View only", per-role gating.
+  Found+fixed a bug where read-only users couldn't open a timed block's detail. Added 2 behavioral guard tests
+  (cross-day move: manage=allowed+audited, read-only=denied) → scheduling battery 13→15, total 162→164. Verified
+  first-hand: tsc clean · 89/89 unit · build ok · scheduling guard 15/15 · browser E2E of every flow for both an
+  owner and a (temporarily seeded, then reverted) read-only role · CI green on `69a62be`.
