@@ -311,3 +311,60 @@ Decision → Version Lock. Roles: architect/engineer/backend/frontend/tester all
     browser E2E for owner + a temporarily-seeded-then-reverted read-only role · CI green.
 - **Unchanged gates:** remaining work is owner-gated — Phase C money-path (cross-vendor review of M2E/M4A/M5A; B2
   digital payments) + Phase D cloud/Play (Supabase project, hosting, signup-approval queue, Bubblewrap→AAB).
+
+## 9. Session 2026-07-06 (GLM 5.2 / Hermes) — design reviews + knowledge-tool bootstrap (no code; tip unchanged)
+
+This session verified HEAD `f2ecbda` was already shipped (calendar DayFlow complete; Opus pushed all three
+calendar commits plus the keyboard-a11y follow-up). Confirmed first-hand: tsc clean · 89/89 vitest · build ok.
+**No code changed.** Tip stayed at `f2ecbda`. The session produced design/continuity artifacts only — all in
+`docs/28_Enterprise_Architecture_Audit/` and the Obsidian vault, all additive:
+
+1. **`Phase_2_Cross_Vendor_Money_Path_Review.md`** — the cross-vendor review the charter §4.6 requires on the
+   money path. Per-path verdicts (no blanket GO): M2E GO; M2C GO; M4A GO with one owner-decision NOTICE
+   (the OPERATING_EXPENSES reclassification is *prospective only*; for a fresh cloud launch there is no
+   prior-period restatement, but the owner must confirm); M5A GO; B2 GO for design (implementation gated on
+   the locks above). **No NO-GO findings.** Owner sign-off checkboxes at §9 of that doc.
+
+2. **`CAP_VG1_VeggieGenius_AI_Copilot_Spec.md`** — capability spec for the VeggieGenius AI Copilot the owner
+   asked about (LM Studio local AI). DESIGN ONLY — no code, no migration; honors the repo's standing
+   "DECIDE LATER, do not build yet" rule and PIE v1.0 (architecture frozen; implement only after ARB GO).
+   v1 is read-only assist: Morning Brief, Q&A over ERP data, recommendations, structured function-calling.
+   Security stance unchanged: runs under the user's permissions, no RLS bypass, no money paths, offline-
+   degradable. Owner decision points D1 (timing GO) → D4 listed in §7. Steps 1–4 are local-only buildable
+   without crossing the money-path gates; step 5 waits for Phase D.
+
+3. **Knowledge tools bootstrapped** (all four confirmed working):
+   - **Graphify** `graphify update .` → 4075 nodes / 5581 edges / 333 communities in `graphify-out/`
+     (graph.json/graph.html/GRAPH_REPORT.md — generated, untracked in git, safe to leave).
+   - **CodeGraph** `codegraph init .` — **first-ever init on any project** → 111 files / 1439 nodes /
+     4560 edges; DB at `.codegraph/` (4.68 MB). `callers pos_record_sale` returns a real answer.
+   - **Obsidian vault** `~/Documents/Obsidian Vault/PickUrVeggieFarm/` created (00 Dashboard + 02
+     Capabilities + 03 Status), with mirror copies of the two specs above + a dated status snapshot;
+     `00 Cross Project/Cross-Project Dashboard.md` updated (PickUrVeggieFarm row: Planned → Active).
+   - **ClaudeMem** worker alive on http://127.0.0.1:37777; direct SQLite read was **blocked by a user
+     safety prompt this session** — noted, not retried. Use the worker HTTP API next time.
+
+4. **ChatGPT share link** `chatgpt.com/share/6a4721fe-...` — loaded with title "Using LM Studio Effectively"
+   (80-prompt LM Studio design conversation). The full transcript was not retrievable through the page's
+   bot-detection wall (page rendered empty on snapshot retry). The key content — PIE v1.0 architecture
+   frozen, ChatGPT = architecture guardian, implementer = one CAP at a time after ARB GO, LM Studio =
+   runtime AI advisory-only, ADR system recommended for v1.1, PEGASUS methodology umbrella — was captured
+   from the bootstrap document the owner pasted directly into chat and is reflected in CAP-VG1.
+
+### Owner-gated actions surfaced this session (resume here)
+
+| Gate | Artifact for you | What re-locks when you sign off |
+|---|---|---|
+| Money-path sign-off | `Phase_2_Cross_Vendor_Money_Path_Review.md` §9 checkboxes | M2E/M2C/M4A/M5A → unlock `supabase db push` to the cloud project, greenlight B2 implementation |
+| Branch protection (Phase 1 precondition) | none — GitHub action | unblocks Phase 1 milestone recording on the Master Roadmap |
+| Supabase project + env keys + hosting | none — owner infra | Phase D: real-cloud end-to-end test (the one path STATUS.md marks unproven), installable PWA → Trusted Web Activity → AAB → Play Console |
+| Play Console account | none — owner account | enables Bubblewrap → AAB submission |
+| CAP-VG1 GO (D1–D4) | `CAP_VG1_VeggieGenius_AI_Copilot_Spec.md` §7 | the VeggieGenius build (steps 1–4 local-only, step 5 after Phase D cloud stands up) |
+
+### Notes for the next session
+
+- HEAD is `f2ecbda`; nothing uncommitted except the generated `graphify-out/` and `.codegraph/` (both
+  untracked, both safe to gitignore if the owner prefers).
+- Re-run `codegraph sync .` after any code change; `graphify update .` after substantial structural changes.
+- The next buildable, non-owner-gated increment is CAP-VG1 steps 1–4 — *only after* the owner gives the D1
+  GO. Do not start it autonomously; the repo's own §5 says "decide later."
