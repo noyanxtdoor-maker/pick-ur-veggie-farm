@@ -111,6 +111,12 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   listed features marked Done (pushed) with explicit verification evidence per row.
   _Note: an adversarial per-feature audit workflow was launched but was stopped before completing (no results); this
   file was synthesized from the lead agent's direct, first-hand verification instead._
+- **2026-07-06** — **Calendar day-list rows now open the shared detail panel** (commit `0752d3f`). DayFlow-parity
+  follow-up: the detail panel was reachable only from Day/Week blocks, so in **Month view** (where the day-list is
+  the only event surface) a manager couldn't Edit an event and read-only users couldn't open a detail. Each day-list
+  row is now a button → same detail panel (role-gated CRUD); removed the redundant inline Done/Delete. One consistent
+  interaction across Month/Week/Day. Verified: tsc · 89/89 · build · browser E2E (Month row → detail → Edit → Save
+  persisted in day-list + Dexie). Calendar stays Done (this is an enhancement within the shipped feature).
 - **2026-07-06** — **Calendar moved In Progress → Done (pushed)** (commit `69a62be`). Full DayFlow implementation
   resolving CAL-1 (all 4 items): cross-day drag (persisted event_date move, times preserved), all-day rows in Day +
   Week, event detail panel with manager CRUD (edit/complete/delete) and read-only "View only", per-role gating.
