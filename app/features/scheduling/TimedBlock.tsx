@@ -79,6 +79,8 @@ export function TimedBlock({
       // Managers drag (begin/move/finish handles tap-vs-drag). Read-only users get a plain click → open detail
       // to READ the event (begin() no-ops without canManage, so the native click is the only way in for them).
       onClick={!canManage ? () => onSelect(e) : undefined}
+      // Keyboard: Enter/Space opens the detail for everyone (drag is pointer-only; this is the accessible path in).
+      onKeyDown={(ev) => {if (ev.key === 'Enter' || ev.key === ' ') {ev.preventDefault(); onSelect(e);}}}
       onPointerDown={(ev) => begin('move', ev)}
       onPointerMove={move}
       onPointerUp={finish}
