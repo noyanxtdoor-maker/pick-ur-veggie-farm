@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Code-knowledge tool output (generated, not source)
+.codegraph/
+graphify-out/
