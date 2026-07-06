@@ -65,18 +65,38 @@ export const schedulingApi = {
     await enqueue({companyId: event.company_id, kind: 'schedule.update', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: {status}}});
   },
 
-  // P2-M6D: adjust a timed event's start/end (day-view drag). schedule.manage RLS is the server gate.
-  async setTime(event: CalendarEvent, start_time: string | null, end_time: string | null): Promise<void> {
+  // Full edit (detail panel → Edit). schedule.manage RLS is the gate; DB grants update on exactly these columns.
+  async updateEvent(event: CalendarEvent, patch: Partial<Pick<CalendarEvent, 'event_type' | 'title' | 'description' | 'event_date' | 'priority' | 'visibility' | 'start_time' | 'end_time'>>): Promise<void> {
+    if (patch.title !== undefined && !patch.title.trim()) throw new Error('Event title is required.');
+    if (patch.start_time && patch.end_time && patch.end_time <= patch.start_time) throw new Error('End time must be after the start time.');
     if (MOCK_MODE) {
-      await offlineDB.calendarEvents.put({...event, start_time, end_time, updated_at: new Date().toISOString()});
+      await offlineDB.calendarEvents.put({...event, ...patch, updated_at: new Date().toISOString()});
       return;
     }
     if (online()) {
-      const {error} = await supabase.from('calendar_events').update({start_time, end_time}).eq('id', event.id);
+      const {error} = await supabase.from('calendar_events').update(patch).eq('id', event.id);
       if (error) throw new Error(error.message);
       return;
     }
-    await enqueue({companyId: event.company_id, kind: 'schedule.retime', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: {start_time, end_time}}});
+    await enqueue({companyId: event.company_id, kind: 'schedule.edit', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: patch}});
+  },
+
+  // P2-M6D: adjust a timed event's start/end (day-view drag). schedule.manage RLS is the server gate.
+  // DayFlow adoption: an optional event_date lets a cross-day drag move the event to another day (the new
+  //   event_date is derived from where the block was dropped). event_date is updatable under schedule.manage
+  //   (M6A grant line 41); the M6D end>start CHECK still holds — cross-day drag preserves times, never spans midnight.
+  async setTime(event: CalendarEvent, start_time: string | null, end_time: string | null, event_date?: string): Promise<void> {
+    const patch = event_date ? {start_time, end_time, event_date} : {start_time, end_time};
+    if (MOCK_MODE) {
+      await offlineDB.calendarEvents.put({...event, ...patch, updated_at: new Date().toISOString()});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.from('calendar_events').update(patch).eq('id', event.id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId: event.company_id, kind: 'schedule.retime', request: {type: 'update', table: 'calendar_events', match: {id: event.id, baseUpdatedAt: event.updated_at}, payload: patch}});
   },
 
   async deleteEvent(event: CalendarEvent): Promise<void> {

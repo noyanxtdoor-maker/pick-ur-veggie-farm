@@ -166,4 +166,25 @@ do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"
   raise exception 'DEFECT sched: end_time <= start_time was accepted';
 exception when check_violation then raise notice 'PASS sched: end<=start time rejected (M6D check)'; end $$;
 
+-- ── DayFlow cross-day drag (P2-M6E): a setTime update that also moves event_date is still RLS-gated + audited ──
+do $$ declare v_ev uuid; n int; begin
+  set local role postgres; select id into v_ev from public.calendar_events where branch_id='a1111111-1111-1111-1111-111111111111' and start_time='08:00' limit 1;
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  update public.calendar_events set event_date='2026-07-15', start_time='09:00', end_time='11:00' where id = v_ev;
+  get diagnostics n = row_count;
+  if n <> 1 then raise exception 'DEFECT sched: owner cross-day setTime (event_date move) updated % rows', n; end if;
+  set local role postgres; select count(*) into n from public.audit_events where entity_type='calendar_events' and entity_id=v_ev;
+  if n < 1 then raise exception 'DEFECT sched: cross-day setTime not audited'; end if;
+  raise notice 'PASS sched: owner cross-day setTime (event_date move) allowed + audited (DayFlow)';
+end $$;
+-- worker C (schedule.read only, A2 member) cannot move an event across days (RLS → 0 rows; event_date is updatable only under schedule.manage)
+do $$ declare v_ev uuid; n int; begin
+  set local role postgres; select id into v_ev from public.calendar_events where branch_id='a1111111-1111-1111-1111-111111111111' limit 1;
+  set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  update public.calendar_events set event_date='2026-07-20' where id = v_ev;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'DEFECT sched: worker moved an event across days without schedule.manage'; end if;
+  raise notice 'PASS sched: cross-day setTime denied without schedule.manage (RLS, 0 rows)';
+end $$;
+
 rollback;

@@ -103,8 +103,26 @@ export default function SchedulesScreen() {
     return Array.from({length: 7}, (_, i) => {const d = new Date(sun); d.setDate(sun.getDate() + i); return ymd(d);});
   }, [selectedDay]);
 
-  // create modal
+  // Cross-day drag (Week view): shift the event to another day column + new time; clamps to the visible week.
+  async function moveDay(e: CalendarEvent, fromDay: string, dayShift: number, start: string, end: string | null) {
+    const fromIdx = weekDays.indexOf(fromDay);
+    const toDay = weekDays[Math.max(0, Math.min(6, fromIdx + dayShift))]!;
+    try {await schedulingApi.setTime(e, start, end, toDay); notify(`Moved to ${new Date(toDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'short'})} ${start}`); reload();}
+    catch (err) {notify(err instanceof Error ? err.message : 'Move failed', 'error');}
+  }
+
+  // Event detail panel (DayFlow: click any event → view; managers get edit / complete / delete = the R-U-D of CRUD).
+  const [detail, setDetail] = useState<CalendarEvent | null>(null);
+  async function detailAction(fn: () => Promise<void>, ok: string) {
+    setBusy(true);
+    try {await fn(); notify(ok); setDetail(null); reload();}
+    catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');}
+    finally {setBusy(false);}
+  }
+
+  // create / edit modal (editingId set → Edit an existing event, else Create)
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [cType, setCType] = useState<CalendarEventType>('Planting');
   const [cTitle, setCTitle] = useState('');
   const [cDate, setCDate] = useState(selectedDay);
@@ -114,17 +132,33 @@ export default function SchedulesScreen() {
   const [cEnd, setCEnd] = useState('');
   const [cDesc, setCDesc] = useState('');
 
+  function openCreate() {
+    setEditingId(null); setCType('Planting'); setCTitle(''); setCDate(selectedDay); setCPriority('Normal');
+    setCVisibility('General'); setCStart(''); setCEnd(''); setCDesc(''); setOpen(true);
+  }
+  function openEdit(e: CalendarEvent) {
+    setEditingId(e.id); setCType(e.event_type); setCTitle(e.title); setCDate(e.event_date); setCPriority(e.priority);
+    setCVisibility(e.visibility ?? 'General'); setCStart(e.start_time ? e.start_time.slice(0, 5) : '');
+    setCEnd(e.end_time ? e.end_time.slice(0, 5) : ''); setCDesc(e.description ?? ''); setDetail(null); setOpen(true);
+  }
+
   async function submit() {
     if (!companyId || !branchId) return;
     if (cStart && cEnd && cEnd <= cStart) return notify('End time must be after the start time.', 'error');
-    const input: EventInput = {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: canReadPrivate ? cVisibility : 'General', start_time: cStart || null, end_time: cEnd || null};
     setBusy(true);
     try {
-      await schedulingApi.createEvent(companyId, branchId, input);
-      notify('Event scheduled');
-      setOpen(false); setCTitle(''); setCDesc(''); setCStart(''); setCEnd('');
+      const fields = {event_type: cType, title: cTitle.trim(), description: cDesc.trim() || null, event_date: cDate, priority: cPriority, visibility: (canReadPrivate ? cVisibility : 'General') as CalendarEvent['visibility'], start_time: cStart || null, end_time: cEnd || null};
+      if (editingId) {
+        const target = events.find((x) => x.id === editingId);
+        if (target) await schedulingApi.updateEvent(target, fields);
+        notify('Event updated');
+      } else {
+        await schedulingApi.createEvent(companyId, branchId, {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: fields.visibility, start_time: cStart || null, end_time: cEnd || null} as EventInput);
+        notify('Event scheduled');
+      }
+      setOpen(false); setEditingId(null);
       reload();
-    } catch (e) { notify(e instanceof Error ? e.message : 'Failed to schedule', 'error'); } finally { setBusy(false); }
+    } catch (e) { notify(e instanceof Error ? e.message : 'Failed to save', 'error'); } finally { setBusy(false); }
   }
 
   if (!canRead) {
@@ -144,7 +178,7 @@ export default function SchedulesScreen() {
         action={
           <div className="flex items-center gap-2">
             <div className="w-40"><SelectField value={branchId} onChange={setBranchId} placeholder="Branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} /></div>
-            {canManage ? <Button onClick={() => {setCType('Planting'); setCTitle(''); setCDate(selectedDay); setCPriority('Normal'); setCDesc(''); setOpen(true);}}><Plus size={18} aria-hidden /> New Event</Button> : null}
+            {canManage ? <Button onClick={openCreate}><Plus size={18} aria-hidden /> New Event</Button> : null}
           </div>
         }
       />
@@ -178,9 +212,9 @@ export default function SchedulesScreen() {
             </div>
           </div>
           {view === 'day' ? (
-            <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={() => {}} />
+            <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={setDetail} />
           ) : view === 'week' ? (
-            <WeekView weekDays={weekDays} eventsByDay={eventsByDay} today={ymd(today)} selectedDay={selectedDay} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={() => {}} onSelectDay={(d) => {setSelectedDay(d); setView('day');}} />
+            <WeekView weekDays={weekDays} eventsByDay={eventsByDay} today={ymd(today)} selectedDay={selectedDay} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onMoveDay={(e, from, shift, s, en) => void moveDay(e, from, shift, s, en)} onSelect={setDetail} onSelectDay={(d) => {setSelectedDay(d); setView('day');}} />
           ) : (
           <>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wider text-farm-muted">
@@ -277,16 +311,16 @@ export default function SchedulesScreen() {
         </Card>
       </div>
 
-      {/* Create event modal */}
-      <Dialog.Root open={open} onOpenChange={setOpen}>
+      {/* Create / Edit event modal */}
+      <Dialog.Root open={open} onOpenChange={(o) => {setOpen(o); if (!o) setEditingId(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
             <div className="mb-1 flex items-center justify-between">
-              <Dialog.Title className="text-xl font-bold text-farm-green">Schedule an Event</Dialog.Title>
+              <Dialog.Title className="text-xl font-bold text-farm-green">{editingId ? 'Edit Event' : 'Schedule an Event'}</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
             </div>
-            <p className="mb-5 text-xs text-farm-muted">Adds a plan to the farm calendar for the selected branch.</p>
+            <p className="mb-5 text-xs text-farm-muted">{editingId ? 'Update this plan on the farm calendar.' : 'Adds a plan to the farm calendar for the selected branch.'}</p>
             <div className="space-y-4 text-sm">
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="ev-title">Title</label>
@@ -329,9 +363,48 @@ export default function SchedulesScreen() {
               ) : null}
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
-              <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
-              <Button className="flex-1" onClick={() => void submit()} disabled={busy || !cTitle.trim() || !cDate}>{busy ? 'Saving…' : 'Add to Calendar'}</Button>
+              <Button variant="secondary" onClick={() => {setOpen(false); setEditingId(null);}} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submit()} disabled={busy || !cTitle.trim() || !cDate}>{busy ? 'Saving…' : editingId ? 'Save changes' : 'Add to Calendar'}</Button>
             </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Event detail panel (DayFlow): click any event → view; managers get edit / complete / delete (R-U-D of CRUD).
+          Read-only roles (schedule.read without schedule.manage) see the details but no edit controls — RBAC. */}
+      <Dialog.Root open={detail !== null} onOpenChange={(o) => {if (!o) setDetail(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            {detail ? (
+              <>
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <Dialog.Title className="flex items-center gap-2 text-lg font-bold text-farm-green">
+                    <span className={cn('h-3 w-3 shrink-0 rounded-full', TYPE_COLOR[detail.event_type] ?? 'bg-farm-muted')} aria-hidden />
+                    {detail.title}
+                  </Dialog.Title>
+                  <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+                </div>
+                <dl className="space-y-1.5 text-sm">
+                  <div className="flex justify-between"><dt className="text-farm-muted">When</dt><dd className="font-semibold text-farm-ink">{new Date(detail.event_date + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'short', month: 'short', day: 'numeric'})}{detail.start_time ? ` · ${detail.start_time.slice(0, 5)}${detail.end_time ? `–${detail.end_time.slice(0, 5)}` : ''}` : ' · all day'}</dd></div>
+                  <div className="flex justify-between"><dt className="text-farm-muted">Type</dt><dd className="font-semibold text-farm-ink">{detail.event_type}</dd></div>
+                  <div className="flex justify-between"><dt className="text-farm-muted">Priority · Status</dt><dd className="font-semibold text-farm-ink">{detail.priority} · {detail.status}</dd></div>
+                  <div className="flex justify-between"><dt className="text-farm-muted">Visibility</dt><dd className="font-semibold text-farm-ink">{(detail.visibility ?? 'General') === 'Management' ? 'Management only' : 'Everyone'}</dd></div>
+                  {detail.description ? <div className="pt-1"><dt className="text-[10px] font-bold uppercase text-farm-muted">Notes</dt><dd className="text-sm text-farm-ink">{detail.description}</dd></div> : null}
+                </dl>
+                {canManage ? (
+                  <div className="mt-5 flex flex-wrap gap-2 border-t border-farm-accent-soft pt-4">
+                    <Button variant="secondary" onClick={() => openEdit(detail)} disabled={busy}>Edit</Button>
+                    {detail.status !== 'Completed'
+                      ? <Button variant="secondary" onClick={() => void detailAction(() => schedulingApi.setStatus(detail, 'Completed'), 'Marked done')} disabled={busy}>Mark done</Button>
+                      : <Button variant="secondary" onClick={() => void detailAction(() => schedulingApi.setStatus(detail, 'Scheduled'), 'Reopened')} disabled={busy}>Reopen</Button>}
+                    <Button variant="danger" className="ml-auto" onClick={() => void detailAction(() => schedulingApi.deleteEvent(detail), 'Event deleted')} disabled={busy}>Delete</Button>
+                  </div>
+                ) : (
+                  <p className="mt-5 border-t border-farm-accent-soft pt-4 text-[11px] text-farm-muted">View only — ask a manager to change this schedule.</p>
+                )}
+              </>
+            ) : null}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
