@@ -17,6 +17,7 @@ import {projectsApi} from '../projects/api';
 import {projectsOnDay, projectDueOn, projectPct} from './projectOverlay';
 import {DayView} from './DayView';
 import {WeekView} from './WeekView';
+import {YearView} from './YearView';
 import type {CalendarEvent, CalendarEventType, Project} from '../../types/db';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -85,7 +86,7 @@ export default function SchedulesScreen() {
     setMonth(d.getMonth());
   };
 
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month'); // M6D + week (DayFlow)
+  const [view, setView] = useState<'year' | 'month' | 'week' | 'day'>('month'); // DayFlow view set: Year/Month/Week/Day
 
   async function retime(e: CalendarEvent, start: string, end: string | null) {
     try {await schedulingApi.setTime(e, start, end); notify(`Moved to ${start}`); reload();}
@@ -197,17 +198,18 @@ export default function SchedulesScreen() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {view === 'month' ? `${MONTHS[month]} ${year}` : view === 'week' ? `Week of ${new Date(weekDays[0]! + 'T00:00:00').toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}` : new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'long', month: 'long', day: 'numeric'})}</h3>
+            <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalIcon className="h-5 w-5" aria-hidden /> {view === 'year' ? `${year}` : view === 'month' ? `${MONTHS[month]} ${year}` : view === 'week' ? `Week of ${new Date(weekDays[0]! + 'T00:00:00').toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}` : new Date(selectedDay + 'T00:00:00').toLocaleDateString('en-PH', {weekday: 'long', month: 'long', day: 'numeric'})}</h3>
             <div className="flex items-center gap-2">
               <div className="flex overflow-hidden rounded-lg border border-farm-accent text-xs font-bold">
+                <button onClick={() => setView('year')} className={cn('px-2.5 py-1', view === 'year' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Year</button>
                 <button onClick={() => setView('month')} className={cn('px-2.5 py-1', view === 'month' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Month</button>
                 <button onClick={() => setView('week')} className={cn('px-2.5 py-1', view === 'week' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Week</button>
                 <button onClick={() => setView('day')} className={cn('px-2.5 py-1', view === 'day' ? 'bg-farm-green text-white' : 'text-farm-green hover:bg-farm-accent-soft')}>Day</button>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => {const step = view === 'week' ? 7 : 1; if (view === 'month') shiftMonth(-1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() - step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous"><ChevronLeft size={18} aria-hidden /></button>
+                <button onClick={() => {if (view === 'year') setYear(year - 1); else if (view === 'month') shiftMonth(-1); else {const step = view === 'week' ? 7 : 1; const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() - step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Previous"><ChevronLeft size={18} aria-hidden /></button>
                 <button onClick={() => {const d = new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(ymd(d));}} className="rounded-lg border border-farm-accent px-2 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Today</button>
-                <button onClick={() => {const step = view === 'week' ? 7 : 1; if (view === 'month') shiftMonth(1); else {const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() + step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next"><ChevronRight size={18} aria-hidden /></button>
+                <button onClick={() => {if (view === 'year') setYear(year + 1); else if (view === 'month') shiftMonth(1); else {const step = view === 'week' ? 7 : 1; const d = new Date(selectedDay + 'T00:00:00'); d.setDate(d.getDate() + step); setSelectedDay(ymd(d)); setYear(d.getFullYear()); setMonth(d.getMonth());}}} className="rounded-lg border border-farm-accent p-1.5 text-farm-green hover:bg-farm-accent-soft" aria-label="Next"><ChevronRight size={18} aria-hidden /></button>
               </div>
             </div>
           </div>
@@ -215,6 +217,8 @@ export default function SchedulesScreen() {
             <DayView events={dayEvents} isToday={selectedDay === ymd(today)} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onSelect={setDetail} />
           ) : view === 'week' ? (
             <WeekView weekDays={weekDays} eventsByDay={eventsByDay} today={ymd(today)} selectedDay={selectedDay} canManage={canManage} onRetime={(e, s, en) => void retime(e, s, en)} onResize={(e, s, en) => void resizeEvt(e, s, en)} onMoveDay={(e, from, shift, s, en) => void moveDay(e, from, shift, s, en)} onSelect={setDetail} onSelectDay={(d) => {setSelectedDay(d); setView('day');}} />
+          ) : view === 'year' ? (
+            <YearView year={year} eventsByDay={eventsByDay} today={ymd(today)} onSelectDay={(d) => {setSelectedDay(d); setView('day');}} onSelectMonth={(m) => {setMonth(m); setView('month');}} />
           ) : (
           <>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wider text-farm-muted">
