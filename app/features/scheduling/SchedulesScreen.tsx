@@ -6,7 +6,7 @@ import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {Link} from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, Trash2, X} from 'lucide-react';
+import {Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -260,27 +260,22 @@ export default function SchedulesScreen() {
           ) : (
             <ul className="space-y-2">
               {dayEvents.map((e) => (
-                <li key={e.id} className={cn('rounded-xl border border-farm-accent-soft bg-farm-bg/40 p-3', e.status === 'Cancelled' && 'opacity-50')}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 text-sm font-bold text-farm-ink">
-                        <span className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_COLOR[e.event_type] ?? 'bg-farm-muted')} aria-hidden />
-                        <span className={cn('truncate', e.status === 'Completed' && 'line-through')}>{e.title}</span>
-                      </p>
-                      <p className="text-[11px] text-farm-muted">
-                        {e.start_time ? <span className="font-bold text-farm-green">{e.start_time.slice(0, 5)}{e.end_time ? `–${e.end_time.slice(0, 5)}` : ''} · </span> : null}
-                        {e.event_type}{e.priority !== 'Normal' ? ` · ${e.priority}` : ''} · {e.status}
-                        {(e.visibility ?? 'General') === 'Management' ? <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-900" title="Only roles with the see-management-schedules permission can see this entry">Mgmt only</span> : null}
-                      </p>
-                      {e.description ? <p className="mt-1 text-xs text-farm-muted">{e.description}</p> : null}
-                    </div>
-                    {canManage ? (
-                      <span className="flex flex-shrink-0 gap-1">
-                        {e.status === 'Scheduled' ? <button onClick={async () => {setBusy(true); try {await schedulingApi.setStatus(e, 'Completed'); notify('Marked done'); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-farm-green hover:bg-farm-accent-soft" title="Mark complete">Done</button> : null}
-                        <button onClick={async () => {setBusy(true); try {await schedulingApi.deleteEvent(e); notify('Event removed'); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded p-1 text-farm-danger hover:bg-red-50" aria-label="Delete event"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
-                      </span>
-                    ) : null}
-                  </div>
+                // Click the row → the shared detail panel (Read for all; managers get Edit/Done/Delete inside it).
+                // This is the ONLY event surface in Month view, so it must reach the same CRUD as Day/Week blocks.
+                <li key={e.id} className={cn('overflow-hidden rounded-xl border border-farm-accent-soft bg-farm-bg/40', e.status === 'Cancelled' && 'opacity-50')}>
+                  <button type="button" onClick={() => setDetail(e)} className="w-full p-3 text-left transition hover:bg-farm-bg/70">
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-farm-ink">
+                      <span className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_COLOR[e.event_type] ?? 'bg-farm-muted')} aria-hidden />
+                      <span className={cn('truncate', e.status === 'Completed' && 'line-through')}>{e.title}</span>
+                      {canManage ? <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-farm-muted" aria-hidden /> : null}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-farm-muted">
+                      {e.start_time ? <span className="font-bold text-farm-green">{e.start_time.slice(0, 5)}{e.end_time ? `–${e.end_time.slice(0, 5)}` : ''} · </span> : null}
+                      {e.event_type}{e.priority !== 'Normal' ? ` · ${e.priority}` : ''} · {e.status}
+                      {(e.visibility ?? 'General') === 'Management' ? <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-900" title="Only roles with the see-management-schedules permission can see this entry">Mgmt only</span> : null}
+                    </span>
+                    {e.description ? <span className="mt-1 block truncate text-xs text-farm-muted">{e.description}</span> : null}
+                  </button>
                 </li>
               ))}
             </ul>
