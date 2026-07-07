@@ -151,7 +151,8 @@ export default function SchedulesScreen() {
       const fields = {event_type: cType, title: cTitle.trim(), description: cDesc.trim() || null, event_date: cDate, priority: cPriority, visibility: (canReadPrivate ? cVisibility : 'General') as CalendarEvent['visibility'], start_time: cStart || null, end_time: cEnd || null};
       if (editingId) {
         const target = events.find((x) => x.id === editingId);
-        if (target) await schedulingApi.updateEvent(target, fields);
+        if (!target) throw new Error('That event is no longer available — reopen it and try again.');
+        await schedulingApi.updateEvent(target, fields);
         notify('Event updated');
       } else {
         await schedulingApi.createEvent(companyId, branchId, {event_type: cType, title: cTitle, description: cDesc, event_date: cDate, priority: cPriority, visibility: fields.visibility, start_time: cStart || null, end_time: cEnd || null} as EventInput);
