@@ -4,14 +4,14 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-07 · HEAD `81caea2` · branch `feature/phase-0-foundation` (2 local-only doc commits ahead of origin)._
+_Last updated: 2026-07-07 · HEAD `a327cc9` · branch `feature/phase-0-foundation` (in sync with origin — all pushed)._
 
 ---
 
 ## 0. READ THIS FIRST — branch & deploy reality (affects every row)
 
 - **Everything below is pushed to `origin/feature/phase-0-foundation` (local HEAD == remote, in sync).**
-- **NONE of it is on `origin/main`.** The feature branch is **179 commits ahead of `origin/main`, unmerged.**
+- **NONE of it is on `origin/main`.** The feature branch is **190 commits ahead of `origin/main`, unmerged.**
   `origin/main` contains only the initial docs/scaffold (`7833c9f`). **A reviewer checking `origin/main` will see
   almost nothing — review the feature branch.**
 - **The app currently runs in MOCK / OFFLINE mode** (no Supabase project configured; `VITE_SUPABASE_*` unset).
@@ -30,7 +30,7 @@ _Last updated: 2026-07-07 · HEAD `81caea2` · branch `feature/phase-0-foundatio
 | `tsc --noEmit` (type check) | ✅ clean |
 | `vitest` unit tests | ✅ **89 / 89** |
 | `vite build` | ✅ ok |
-| Latest CI run on the feature branch (`69a62be`) | ✅ green (install · tsc · test · build · DB guards · secret scan) |
+| Latest CI run on the feature branch (`a327cc9`, HEAD) | ✅ green (install · tsc · test · build · DB guards · secret scan) |
 | CI runs a browser? | ❌ no — E2E is manual, mock-mode only |
 
 Guard battery counts: rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 · scheduling 15 ·
@@ -68,8 +68,8 @@ the flow was not exercised.
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
 |---|---|---|
-| B2 digital payments (GCash/Maya/bank) | Not started (Blocked) | Money path — spec written (`Phase_2_B2_...`), code gated on cross-vendor money-path review (owner). |
-| Credit-limit enforcement in sale · delivery-settle tender/change edits | Not started (Blocked) | Money path — owner review gate. |
+| B2 digital payments (GCash/Maya/bank) | Not started (Blocked) | Money path. Spec written (`Phase_2_B2_...`); **cross-vendor review now DELIVERED** (`Phase_2_Cross_Vendor_Money_Path_Review.md`, 2026-07-06) = **GO for design**, but implementation is explicitly gated: owner must first sign off the M2E/M2C/M4A/M5A locks (§9), then authorize B2 build against the spec ("do not invert", §6.4). Not startable by the agent. |
+| Credit-limit enforcement in sale · delivery-settle tender/change edits | Not started (Blocked) | Money path — owner review/sign-off gate (same review). |
 | Cloud signup→approval queue | Not started | Owner-designated cloud phase. |
 | Supabase project + HTTPS hosting + Play packaging (AAB/assetlinks) | Not started | Owner infra decisions. |
 
@@ -137,3 +137,13 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   tracks for the owner: (a) sign off `Phase_2_Cross_Vendor_Money_Path_Review.md` §9 to lock
   M2E/M2C/M4A/M5A and unblock B2; (b) give D1 GO on `CAP_VG1_VeggieGenius_AI_Copilot_Spec.md` to start
   VeggieGenius steps 1–4 (local-only, no money/cloud crossing). No feature work was started without owner GO.
+- **2026-07-07 (later)** — Two things. (1) **Calendar edit hardening** (`a327cc9`, pushed): self-review of the
+  DayFlow work found `submit()`'s edit branch showed "Event updated" even when `events.find()` missed (a false
+  success on a no-op write); now throws → error toast, modal stays. Practically unreachable, but a write must not
+  claim success while doing nothing. tsc · 89/89 · build green; happy path unchanged (already browser-verified).
+  (2) **Reconciled this file to reality after the parallel GLM session pushed:** the 2026-07-07 doc commits
+  (`52f659d`/`81caea2`/`9f97ce6`) that the entry above called "local-only" are **now pushed**; my fix rebased
+  cleanly on top; HEAD is `a327cc9`, **in sync with origin** (corrected the header + the 179→190 ahead-count).
+  Read the delivered money-path review: **all four paths GO ("lock eligible"), zero NO-GO** — but §9 owner
+  sign-off is unchecked and B2 stays gated ("do not invert"), so **no money-path or B2 code was started.** The
+  DayFlow calendar is feature-complete (4 views + drag/resize + all-day + universal detail CRUD + RBAC + keyboard).
