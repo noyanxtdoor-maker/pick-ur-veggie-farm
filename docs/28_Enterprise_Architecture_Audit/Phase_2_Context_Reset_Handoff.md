@@ -465,7 +465,7 @@ handoff first and continues at the appropriate §6 "Immediate next step."
 
 ---
 
-### 13. Session 2026-07-08 (Track A sign-off recorded) — owner pasted the §12 Track A prompt verbatim (tip `9b247fe`)
+### 13. Session 2026-07-08 (Track A sign-off recorded) — owner pasted the §12 Track A prompt verbatim (tip of this §13 record: `3dd43bf`, the post-amend fold; the pre-amend intermediate was `9b247fe`)
 
 **Owner authorization (verbatim — the §12 Track A prompt):**
 
@@ -480,11 +480,18 @@ handoff first and continues at the appropriate §6 "Immediate next step."
   deployment (cloud project `jabjyvdkadcbfocaerno`, remote schema currently empty per §4 of this handoff);
   there is no prior-period data, so the OPERATING_EXPENSES reclassification has no historical tail. The
   §3.4 notice is therefore a no-op for a fresh launch.
-- Re-verified first-hand: `git status` clean; `git rev-list --left-right --count origin/feature/phase-0-foundation...HEAD` = 0/0
-  (local in sync with repo A origin); the 5 doc-only commits from this session (c89599a / 3bb498b / d2fcd6b /
-  4137fec / d256b80) are on both repo A and repo B `feature/phase-0-foundation`. The §12 prompt's
-  "push the local-only commits" action item is therefore a no-op — everything that was local-only at
-  the time the prompt was authored is now on both remotes.
+- Re-verified first-hand at the time of the §13 record: local HEAD `d256b80` was in sync with
+  `origin/feature/phase-0-foundation` on repo A (`ahead 0, behind 0`) and the same SHA
+  `d256b80cdaca3b23b0fd93a1edd1f57b05ecb739` was on `feature/phase-0-foundation` in repo B (the
+  canonical home, per the 2026-07-08 push task). The §12 Track A prompt's first action item ("push
+  the local-only commits") was therefore a no-op at the time the §13 record was written — everything
+  that was local-only at the time the §12 prompt was authored is now on both remotes at SHA
+  `d256b80`. The §12 prompt's remaining action items (`supabase db push` + B2 implementation start)
+  are QUEUED for the next session that has Docker + supabase CLI + the cloud project credentials —
+  this terminal is git-only and cannot run them.
+  *Addendum (post-amend):* the local tip has since advanced to `3dd43bf` (this §13 record) and then to
+  `52e04ea` (the §14 record). Both §13 and §14 records are themselves pushed to both remotes — see
+  STATUS.md §4 for the maintenance log of each fold step.
 
 **What was NOT done in this session (and why, honestly):**
 
@@ -531,7 +538,7 @@ modified, no guard added, no `supabase` command issued.
 
 ---
 
-### 14. Session 2026-07-08 (Tracks B / C / D / E sign-offs recorded) — owner pasted the §12 B/C/D/E prompts verbatim (tip `be1243d`)
+### 14. Session 2026-07-08 (Tracks B / C / D / E sign-offs recorded) — owner pasted the §12 B/C/D/E prompts verbatim (tip of this §14 record: `52e04ea`, the post-amend fold; intermediate SHAs in order: `be1243d` → `da1db9a` → `52e04ea`)
 
 **Owner authorizations (verbatim — four §12 prompts pasted in one message, owner explicitly chose "Authorize all four" in the confirm menu):**
 
@@ -578,4 +585,4 @@ modified, no guard added, no `supabase` command issued.
 - **Track C env-key channel:** "Track C env-key channel: [1Password / encrypted email / etc.]" + "Track C hosting: [Vercel / Netlify / Cloudflare]".
 - **Track D apply:** "Track D applied. Ruleset `protect-main-and-develop` Active on `main` + `develop`. Screenshot: <URL>." (this is the post-apply signal that triggers the agent's §3.2 audit and the §3.3 STATUS.md append).
 - **Track E Play Console:** "Track E Play Console email: [email]" (the agent still does not touch the Console account — this is just so the owner can receive the Bubblewrap signing-key fingerprint when step 3 runs).
-- **CI audit (any of the doc-only commits — `9b247fe` was amended to `3dd43bf`, plus the §14 record's commit `be1243d`):** "Here is the Actions run for <commit-sha>: <URL>. Audit against handoff §5 and update `STATUS.md §4` honestly."
+- **CI audit (any of the doc-only commits — `9b247fe` was amended to `3dd43bf`, plus the §14 record's commit chain `be1243d` → `da1db9a` → `52e04ea`):** "Here is the Actions run for <commit-sha>: <URL>. Audit against handoff §5 and update `STATUS.md §4` honestly."

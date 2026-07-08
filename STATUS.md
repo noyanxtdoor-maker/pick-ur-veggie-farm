@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-08 · HEAD `be1243d` · branch `feature/phase-0-foundation` (in sync with origin once the §14 commit is pushed)._
+_Last updated: 2026-07-08 · HEAD `52e04ea` · branch `feature/phase-0-foundation` (in sync with origin — pushed to repo A and repo B)._
 
 ---
 
@@ -214,4 +214,4 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   queued (gated on Track C). **Zero code lines changed** — append-only doc updates only.
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
-  The two `XXXXXXX` placeholders in the prior commit (handoff §14 title, this STATUS header) were folded into `be1243d` and then re-folded into `da1db9a` in the amend step; this STATUS entry is the matching append-only maintenance log row.
+  The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.

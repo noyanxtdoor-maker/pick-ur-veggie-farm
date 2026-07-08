@@ -284,11 +284,11 @@ policy confirmation, not a code defect; it resolves trivially for a green-field 
 
 ## 9. Owner sign-off
 
-- [ ] M2E — lock and push
-- [ ] M2C — lock and push
-- [ ] M4A — lock and push (with the §3.4 fresh-launch confirmation noted above)
-- [ ] M5A — lock and push
-- [ ] B2 — authorize implementation against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md`
+- [x] M2E — lock and push — **APPROVED 2026-07-08** (see §10 record below)
+- [x] M2C — lock and push — **APPROVED 2026-07-08** (see §10 record below)
+- [x] M4A — lock and push (with the §3.4 fresh-launch confirmation noted above) — **APPROVED 2026-07-08** (see §10 record below)
+- [x] M5A — lock and push — **APPROVED 2026-07-08** (see §10 record below)
+- [x] B2 — authorize implementation against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md` — **APPROVED 2026-07-08** (see §10 record below)
 
 On sign-off, the next session's immediate action is: green-light Phase D (Supabase project + HTTPS hosting)
 and/or green-light B2 implementation, in that order per spec §6.
