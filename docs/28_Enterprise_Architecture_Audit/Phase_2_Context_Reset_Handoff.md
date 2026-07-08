@@ -382,3 +382,48 @@ menu (money-path §9 sign-off · B2 · Supabase+hosting · Play packaging · CAP
 so no gated work was started. The buildable non-gated backlog remains exhausted — next real progress
 needs an explicit owner GO on one of those five tracks. **Tip unchanged at `8e1f064`; do not rebase or
 force-push** — the `.gitignore` + STATUS edits are uncommitted and local-only pending owner push.
+
+### 11. Session 2026-07-08 (continued) — captured 3 ChatGPT transcripts + produced PEGASUS cross-audit + 5-track owner decision package (tip `3bb498b`)
+
+Owner asked the agent to (a) capture three ChatGPT share conversations in full (PEGASUS/PIE design
+session, Architecture Migration session, ERP Stack V1 session), (b) read CAP-VG1 + System 23 + §5 of
+the Backlog + CLAUDE.md §6 + charter §4.6, and (c) produce ONE audit document comparing the
+PEGASUS/PIE governance vocabulary to the repo's existing AI/architecture artifacts. Three doc-only
+commits, all pushed to origin:
+
+- `c89599a` — gitignore + STATUS/handoff append-only entry for the 2026-07-08 inspection session.
+- `3bb498b` — `source_chats/PEGASUS_PIE_ChatGPT_Transcript.md` (31,161 lines) +
+  `source_chats/Architecture_Migration_ChatGPT_Transcript.md` (26,496 lines) +
+  `source_chats/AIStudio_Accounting_ChatGPT_Transcript.md` (18,777 lines) +
+  `AI_Feature_Cross_Audit_and_PEGASUS_Reconciliation.md` (179 lines).
+
+**Audit verdict (cross-audit §1–2):** the PEGASUS/PIE/ARB/ACR vocabulary is mostly DUPLICATE of
+existing repo artifacts (System 23, CAP-VG1, handoff, STATUS, charter), with 5 CONFLICTS rows — all
+5 resolved in favor of the repo's existing authority chain per CLAUDE.md §0 (ADR/ODR → Systems
+10–26 → … → owner gates). The PEGASUS/ARB "Architecture Review Board" and the "freeze v1.0, then
+global audit" lifecycle are **rejected** as additions: the repo's `spec → review → build → attack →
+owner-gate → lock` cadence and the owner-gate model in charter §4.4 are the binding form.
+
+**Recommendation (cross-audit §3):** keep CAP-VG1 as-is. (b) merge into System 23 rejected; (c)
+supersede with a new PEGASUS doc rejected. Optional later: a one-page terminology-addition
+`PEGASUS_Naming_Map.md` pointing existing artifacts at the PIE/PEGASUS names without creating new
+authorities — but only if the owner asks for it.
+
+**Then owner asked the agent to make all 5 owner-gated tracks decision-ready for the owner and
+audit-ready for GLM 5.2.** The deliverable is a single consolidated
+`Phase_2_Owner_Decision_Package.md` (this file's companion, in the same directory), which contains
+one sign-off sheet per track with the exact source document, exact decision text (mostly verbatim
+quoted from the source spec), exact reviewer-evidence requirement, and exact post-sign-off next
+step. **No owner gate was advanced** (none can be without the owner's own GO on the named track);
+the deliverable is *coordination*, not action.
+
+**Honest gaps surfaced by the package (for the reviewer):**
+- Track A's §3.4 fresh-launch notice is the one conditional GO; not yet owner-confirmed.
+- Track C step 1 (env-key hand-off) has no documented secure channel; recommend a vault tool.
+- Track E step 2 (PNG icons) requires a one-shot script not yet written; it will be created when Track C lands.
+
+**Working tree:** clean. **Tip:** `3bb498b` == origin (in sync). **No CI run for `3bb498b`**
+(no Actions URL pasted this session); expected identical to `8e1f064` because no code changed.
+**When owner pastes the Actions URL for `3bb498b`, audit it against handoff §5 and update STATUS.md
+§4 (append-only).** Until then, the push stands as "pushed, CI unverified" — same posture as
+`c89599a`.

@@ -155,3 +155,16 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   advanced.** Confirmed the buildable non-owner-gated backlog remains exhausted — all remaining tracks (money-path
   §9 sign-off, B2, Supabase+hosting, Play packaging, CAP-VG1) require an explicit owner GO per charter §4 and this
   file's §2. The owner-decision menu was surfaced via clarify; no response in time, so no gated work was started.
+- **2026-07-08 (later)** — Three doc-only commits, all pushed to origin (`c89599a` and `3bb498b`).
+  Captured 3 verbatim ChatGPT share transcripts (PEGASUS/PIE design 31,161 lines · Architecture
+  Migration 26,496 lines · ERP Stack V1 18,777 lines) in `source_chats/` via direct GET to
+  `chatgpt.com/backend-api/share/...` (no summary, no interpretation, no redaction). Produced
+  `AI_Feature_Cross_Audit_and_PEGASUS_Reconciliation.md` (179 lines): the PEGASUS/PIE/ARB/ACR
+  vocabulary is **mostly DUPLICATE** of System 23 + CAP-VG1 + handoff + STATUS + charter, with
+  **5 CONFLICTS rows** all resolved in favor of the repo's existing authority chain per
+  `CLAUDE.md §0`; recommendation **(a) keep CAP-VG1 as-is**, (b)/(c) rejected. Then produced
+  `Phase_2_Owner_Decision_Package.md` consolidating all 5 owner-gated tracks into one
+  decision-ready + audit-ready artifact (money-path §9 · CAP-VG1 D1–D4 · Supabase+hosting ·
+  branch protection · Play Console). **No feature code changed; no gate advanced; no other
+  file modified.** All 5 gates still pending owner GO. The handoff §11 records the same. Tip
+  `3bb498b` == origin (in sync); no CI run for the new tip yet (owner to paste Actions URL).
