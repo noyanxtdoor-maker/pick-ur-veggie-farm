@@ -462,3 +462,69 @@ with origin, all 5 gates decision-ready and audit-ready, none advanced. **Stop h
 on the next turn.** If the next message from the user is one of the above prompts, the next
 session acts on it directly. If the next message is something else, the next session reads this
 handoff first and continues at the appropriate §6 "Immediate next step."
+
+---
+
+### 13. Session 2026-07-08 (Track A sign-off recorded) — owner pasted the §12 Track A prompt verbatim (tip `9b247fe`)
+
+**Owner authorization (verbatim — the §12 Track A prompt):**
+
+> "Approve Track A money-path sign-off. All 5 boxes in `Phase_2_Cross_Vendor_Money_Path_Review.md §9` GO, including M4A §3.4 fresh-launch notice confirmed. Next session: push the local-only commits, `supabase db push`, and start B2 implementation per spec."
+
+**What was done in this session:**
+
+- Ticked all 5 boxes in `Phase_2_Cross_Vendor_Money_Path_Review.md §9` (M2E / M2C / M4A / M5A / B2).
+- Added `Phase_2_Cross_Vendor_Money_Path_Review.md §10` — an append-only authorization record quoting the
+  §12 prompt verbatim and recording the 5 sign-offs with their per-path verdict cross-reference (§1/§2/§3/§4/§6).
+- Recorded the §3.4 fresh-cloud-launch confirmation: the owner confirmed this is a green-field Supabase
+  deployment (cloud project `jabjyvdkadcbfocaerno`, remote schema currently empty per §4 of this handoff);
+  there is no prior-period data, so the OPERATING_EXPENSES reclassification has no historical tail. The
+  §3.4 notice is therefore a no-op for a fresh launch.
+- Re-verified first-hand: `git status` clean; `git rev-list --left-right --count origin/feature/phase-0-foundation...HEAD` = 0/0
+  (local in sync with repo A origin); the 5 doc-only commits from this session (c89599a / 3bb498b / d2fcd6b /
+  4137fec / d256b80) are on both repo A and repo B `feature/phase-0-foundation`. The §12 prompt's
+  "push the local-only commits" action item is therefore a no-op — everything that was local-only at
+  the time the prompt was authored is now on both remotes.
+
+**What was NOT done in this session (and why, honestly):**
+
+- `supabase db push` to the cloud project — this terminal is git-only (no Docker Desktop, no `supabase` CLI
+  on PATH, no cloud-project credentials). The handoff §4 line 237 is explicit: the Supabase local stack
+  needs Docker. This session cannot run the local stack and cannot reach the cloud project's API.
+  Fabricating a `db push` result here would be the exact "NEVER substitute plausible-looking fabricated
+  output for results you couldn't actually produce" failure mode. **Step is queued for the next session
+  that has Docker + supabase CLI + the cloud credentials.**
+- B2 implementation start against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md` — same reason;
+  the spec is a multi-day build, requires `supabase db push` to land first (Track C step 3 is the
+  prerequisite per the decision package §5), and the implementation cycle includes (per the spec's §6
+  sequence) `financial_accounts` table, additive generalization of three POS functions, 5 B2-specific
+  guards, B2 UI, browser E2E against the LIVE cloud, and a fresh cross-vendor review of B2's code before
+  B2 itself locks. None of this can start in this terminal; the next session that has the full
+  environment will pick it up from the queued-work list below.
+- Per the standing handoff-continuity rule (CLAUDE.md §8 + charter §4.5), the agent's role at the end of
+  this session is exactly this: record the authorization, queue the next steps, be honest about the
+  environment gap, let the next session with the right tools execute.
+
+**Queued work for the next session that has Docker + supabase CLI + the cloud project credentials:**
+
+1. Re-run the 164-guard battery against the freshly-pushed cloud schema, per the decision package §3
+   risk note. Expect 164 PASS / 0 DEFECT (matches the local battery at HEAD d256b80). If anything
+   regresses, reverse the `db push` via migration history and stop the lock here.
+2. `supabase db push` to cloud project `jabjyvdkadcbfocaerno`. Reversible via Supabase migration history;
+   do it in a maintenance window. The remote schema is currently EMPTY; this is the deploy that fills it.
+3. Append the `db push` event to the append-only lock log in this handoff (new §14) and in
+   `STATUS.md §4`, recording timestamp + migration files applied (8+) + the guard re-run result.
+4. Begin B2 implementation against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md` per the
+   spec's own §6 sequence. The cross-vendor review of B2's code (a new review, not this one) is the
+   gate before B2 itself locks.
+
+**Session-end posture:** clean tree (the §9 + §10 + §13 record is committed; the only changes in the
+working tree before commit were the two append-only doc edits). The new tip will be the commit made
+for this §13 record. **Push is owner-gated per CLAUDE.md §3** — the agent will commit the §13 record
+locally and ask the owner to authorize push before publishing.
+
+**Note on scope discipline:** the §12 prompt authorizes three things (push local-only / `db push` /
+start B2 build). I executed exactly the first (the documentation record of the authorization + the
+record of which boxes are ticked), honestly declined the second and third with a queued-work list for
+the next session, and did not silently start any code work. No money-path code touched, no migration
+modified, no guard added, no `supabase` command issued.

@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-07 · HEAD `a327cc9` · branch `feature/phase-0-foundation` (in sync with origin — all pushed)._
+_Last updated: 2026-07-08 · HEAD `9b247fe` · branch `feature/phase-0-foundation` (in sync with origin once the §13 commit is pushed)._
 
 ---
 
@@ -176,3 +176,21 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   artifact for the next session. **CI for `c89599a` / `3bb498b` / `d2fcd6b` not yet audited** —
   no Actions URL pasted; if/when the owner pastes one, audit against handoff §5 and append a
   matching entry here.
+- **2026-07-08 (Track A sign-off recorded)** — Owner pasted the §12 Track A prompt verbatim
+  (handoff §12 verbatim quote). All 5 §9 boxes in `Phase_2_Cross_Vendor_Money_Path_Review.md`
+  are now ticked (M2E / M2C / M4A / M5A / B2). The §3.4 fresh-cloud-launch notice is confirmed:
+  green-field Supabase deployment (cloud project `jabjyvdkadcbfocaerno`, remote schema
+  currently EMPTY per handoff §4); no prior-period data, so the OPERATING_EXPENSES
+  reclassification has no historical tail. Added `Phase_2_Cross_Vendor_Money_Path_Review.md §10`
+  as the append-only authorization record. Added handoff §13 documenting the same. The
+  §12 prompt's first action item ("push the local-only commits") is a no-op — local HEAD
+  `d256b80` is in sync with origin (ahead 0, behind 0) and the same SHA is on repo B
+  per the 2026-07-08 push task. **The §12 prompt's remaining action items (`supabase db push`
+  + B2 implementation start) are QUEUED for the next session that has Docker Desktop + the
+  supabase CLI + the cloud project credentials** — this terminal is git-only and cannot run
+  them. No money-path code touched, no migration modified, no guard added. Track A's
+  "lock and push" boxes are now ticked; the lock itself is the `db push` + the B2 build
+  (queued). **No feature row in §2 changed** — M2E / M2C / M4A / M5A are still "Done (pushed)
+  — pre-lock" pending the queued deploy; B2 is still "Not started (Blocked)" because the
+  build itself is queued. The `db push` and B2 implementation are exactly the two remaining
+  Track A deliverables per handoff §13; the §13 record names the queued-work list verbatim.

@@ -292,3 +292,36 @@ policy confirmation, not a code defect; it resolves trivially for a green-field 
 
 On sign-off, the next session's immediate action is: green-light Phase D (Supabase project + HTTPS hosting)
 and/or green-light B2 implementation, in that order per spec §6.
+
+---
+
+## 10. Authorization record (2026-07-08 — owner pasted the §12 Track A prompt verbatim)
+
+**Owner authorization (verbatim from `Phase_2_Context_Reset_Handoff.md §12`):**
+
+> "Approve Track A money-path sign-off. All 5 boxes in `Phase_2_Cross_Vendor_Money_Path_Review.md §9` GO, including M4A §3.4 fresh-launch notice confirmed. Next session: push the local-only commits, `supabase db push`, and start B2 implementation per spec."
+
+**Sign-off recorded (this section is append-only, no other content modified):**
+
+- [x] M2E — lock and push — **APPROVED 2026-07-08** (GO per §1)
+- [x] M2C — lock and push — **APPROVED 2026-07-08** (GO per §2)
+- [x] M4A — lock and push (with §3.4 fresh-launch confirmation noted above) — **APPROVED 2026-07-08**. The §3.4 fresh-cloud-launch notice is confirmed by the owner: this is a green-field Supabase deployment (cloud project `jabjyvdkadcbfocaerno`, remote schema currently empty per handoff §4); there is no prior-period data, so the OPERATING_EXPENSES reclassification has no historical tail. The notice is a no-op for a fresh launch.
+- [x] M5A — lock and push — **APPROVED 2026-07-08** (GO per §4)
+- [x] B2 — authorize implementation against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md` — **APPROVED 2026-07-08** (design GO per §6; implementation authorized to begin per the spec's §6 sequence: review + lock the existing money paths FIRST, then implement B2 against this spec, then review B2, then lock)
+
+**What happened in this session (the §12 prompt's first action item — "push the local-only commits"):**
+
+The "local-only commits" referenced in the §12 prompt are the ~30 commits the handoff §2 records as local-only (M4 + M5 + M6 + M7 + M8 + docs + mockup + B7 export + PWA foundation + a327cc9 edit-hardening). Re-verified first-hand before this commit: **local HEAD `d256b80` is in sync with `origin/feature/phase-0-foundation` on repo A (`ahead 0, behind 0`)** and the same SHA `d256b80cdaca3b23b0fd93a1edd1f57b05ecb739` is on `feature/phase-0-foundation` in repo B (the canonical home, per the 2026-07-08 push task). The "push the local-only commits" step of the §12 prompt is therefore **a no-op** — everything that was local-only is already on both remotes. The 5 doc-only commits from the 2026-07-08 sessions (c89599a / 3bb498b / d2fcd6b / 4137fec / d256b80) are also on both remotes.
+
+**What is QUEUED for the next session that has the right environment (the §12 prompt's remaining action items):**
+
+The next two action items in the §12 prompt — `supabase db push` to the linked cloud project `jabjyvdkadcbfocaerno`, and start B2 implementation against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md` — **could not be executed in this session's environment.** This terminal is git-only: it can read, write, commit, push, and run shell commands like `git`/`grep`/`ls`, but it does not have Docker Desktop (required to run the local Supabase stack per handoff §4 line 237), does not have the `supabase` CLI on PATH, and does not have the cloud project's authentication path (the previous environment that linked the cloud project had the credentials locally; this session does not). Inventing a `db push` result or a "B2 step 1 complete" line would be exactly the fabricated-output failure mode the system prompt forbids.
+
+**Honest queued work (the next session with Docker + supabase CLI + cloud credentials will pick this up from `Phase_2_Context_Reset_Handoff.md §13`):**
+
+1. **Re-run the 164-guard battery** against the freshly-pushed cloud schema, per the decision package §3 risk note ("the 164-guard battery must have been re-run on the cloud's freshly-pushed schema before any money-path code is touched"). Expect the same 164 PASS / 0 DEFECT that the local battery returns; if anything regresses, the `db push` must be reversed via migration history and the lock stops here.
+2. **`supabase db push`** to the cloud project `jabjyvdkadcbfocaerno`. This is the load-bearing deploy step. It is reversible via Supabase migration history but should happen in a maintenance window. The current state is: **remote schema EMPTY** (8+ migrations local-only).
+3. **Append the new `db push` to the append-only lock log** in `Phase_2_Context_Reset_Handoff.md §13` and `STATUS.md §4`, recording (a) timestamp, (b) the migration files applied (8+), (c) the guard re-run result (expect 164/0), (d) the on-call owner signal.
+4. **Begin B2 implementation** against `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md`, following the spec's own §6 sequence: (a) `financial_accounts` table (bank/GCash/Maya + opening balances), (b) additive generalization of `pos_record_sale` / `pos_settle_sale` / `pos_void_sale` with optional `p_financial_account_id` defaulting to CASH, (c) `pos.digital.*` permission keys, (d) the 5 B2-specific guards (per the spec's guards section), (e) B2 UI (tender split on slip+receipt, AAB settlement reconciliation), (f) browser E2E against the LIVE cloud, (g) cross-vendor review of the B2 code before B2's own lock. None of this can start in this session; the next session will run the build cycle, then a fresh review of B2's code is the gate before B2 itself locks.
+
+**No code changed in this §9 sign-off record.** Only §9 boxes ticked + this §10 record added. Working tree stays clean. The agent's role here was to record the authorization and queue the next steps, not to substitute a fabricated outcome.
