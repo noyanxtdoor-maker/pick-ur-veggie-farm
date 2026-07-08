@@ -147,3 +147,11 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   Read the delivered money-path review: **all four paths GO ("lock eligible"), zero NO-GO** — but §9 owner
   sign-off is unchecked and B2 stays gated ("do not invert"), so **no money-path or B2 code was started.** The
   DayFlow calendar is feature-complete (4 views + drag/resize + all-day + universal detail CRUD + RBAC + keyboard).
+- **2026-07-08** — Session start inspection only; **no feature code changed.** Re-verified first-hand: tsc clean ·
+  89/89 vitest. Working tree was clean except an untracked `.tmp_capture/` directory (browser-probe artifacts from
+  the prior GLM session's ChatGPT-share-link retrieval attempt — `blob.json`, `share.html`, `probe_*.txt`,
+  `render.mjs`, ~6 MB; session-local, not source). Added `.tmp_capture/` to `.gitignore` alongside the existing
+  `.codegraph/` + `graphify-out/` precedent (generated-output pattern). **No feature row in §2 changed; no gate
+  advanced.** Confirmed the buildable non-owner-gated backlog remains exhausted — all remaining tracks (money-path
+  §9 sign-off, B2, Supabase+hosting, Play packaging, CAP-VG1) require an explicit owner GO per charter §4 and this
+  file's §2. The owner-decision menu was surfaced via clarify; no response in time, so no gated work was started.

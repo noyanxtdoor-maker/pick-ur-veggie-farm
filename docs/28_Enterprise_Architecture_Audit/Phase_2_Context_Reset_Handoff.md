@@ -368,3 +368,17 @@ calendar commits plus the keyboard-a11y follow-up). Confirmed first-hand: tsc cl
 - Re-run `codegraph sync .` after any code change; `graphify update .` after substantial structural changes.
 - The next buildable, non-owner-gated increment is CAP-VG1 steps 1–4 — *only after* the owner gives the D1
   GO. Do not start it autonomously; the repo's own §5 says "decide later."
+
+### 10. Session 2026-07-08 — inspection + cleanup only (no code; tip still `8e1f064`)
+
+Cold-start resumption session. Read CLAUDE.md, STATUS.md, this handoff, the charter, and the money-path
+review §9. Verified first-hand: tsc clean · 89/89 vitest. HEAD `8e1f064` == origin == in sync. Working
+tree was clean except a stray untracked `.tmp_capture/` (browser-probe scratch from the prior GLM
+session's ChatGPT-share-link retrieval — `blob.json`, `share.html`, `probe_*.txt`, `render.mjs`,
+~6 MB; session-local). Added `.tmp_capture/` to `.gitignore` alongside `.codegraph/`+`graphify-out/`
+(generated-output precedent). Appended the matching entry to STATUS.md §4 (append-only). **No feature
+code changed; no gate advanced.** Surfaced the five owner-gated tracks to the owner via a clarify
+menu (money-path §9 sign-off · B2 · Supabase+hosting · Play packaging · CAP-VG1); no response in time,
+so no gated work was started. The buildable non-gated backlog remains exhausted — next real progress
+needs an explicit owner GO on one of those five tracks. **Tip unchanged at `8e1f064`; do not rebase or
+force-push** — the `.gitignore` + STATUS edits are uncommitted and local-only pending owner push.
