@@ -168,3 +168,11 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   branch protection · Play Console). **No feature code changed; no gate advanced; no other
   file modified.** All 5 gates still pending owner GO. The handoff §11 records the same. Tip
   `3bb498b` == origin (in sync); no CI run for the new tip yet (owner to paste Actions URL).
+- **2026-07-08 (final)** — Pushed `d2fcd6b` (the decision-package commit) to origin; tip now
+  in sync. Appended handoff §12 — a copy-paste-ready "Owner Authorization Prompts" cheat sheet
+  for each of the 5 tracks plus a CI-audit prompt, so the next session can act on a one-line
+  owner message without re-explanation. No feature code changed; no gate advanced; all 5 gates
+  still pending owner GO. The decision package + cheat sheet together are the complete landing
+  artifact for the next session. **CI for `c89599a` / `3bb498b` / `d2fcd6b` not yet audited** —
+  no Actions URL pasted; if/when the owner pastes one, audit against handoff §5 and append a
+  matching entry here.

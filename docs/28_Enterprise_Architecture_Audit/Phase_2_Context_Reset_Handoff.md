@@ -427,3 +427,38 @@ the deliverable is *coordination*, not action.
 **When owner pastes the Actions URL for `3bb498b`, audit it against handoff §5 and update STATUS.md
 §4 (append-only).** Until then, the push stands as "pushed, CI unverified" — same posture as
 `c89599a`.
+
+### 12. Session 2026-07-08 (final) — pushed decision package; staged owner-prompt cheat sheet (tip `d2fcd6b`)
+
+Pushed `d2fcd6b` to origin (the decision-package commit) and prepared a landing cheat sheet for
+the *next* session. The buildable non-gated backlog is exhausted and all 5 owner gates are pending.
+The agent cannot self-serve any of them; the only way out of this is the owner signing one.
+
+**Owner Authorization Prompts (copy-paste-ready for the owner).** Each is a single chat message
+the owner can paste to authorize that one track. The next session will see this handoff first and
+have the full context — it can act on a one-line owner message without needing re-explanation.
+
+- **Track A — money-path sign-off (locks M2E/M2C/M4A/M5A, unblocks B2):**
+  > "Approve Track A money-path sign-off. All 5 boxes in `Phase_2_Cross_Vendor_Money_Path_Review.md §9` GO, including M4A §3.4 fresh-launch notice confirmed. Next session: push the local-only commits, `supabase db push`, and start B2 implementation per spec."
+
+- **Track B — CAP-VG1 D1 GO (steps 1–4 local-only):**
+  > "Approve Track B CAP-VG1 D1 timing GO. D2 model: [your pick or 'owner default']. D3 RAG corpus: `docs/28_Enterprise_Architecture_Audit/**/*.md`. D4 audit retention: C7 §7 default applies. Next session: build steps 1–4 + add the 5 guards from CAP-VG1 §5."
+
+- **Track C — Supabase+hosting + db push:**
+  > "Approve Track C. Env keys will be shared via [channel: 1Password / encrypted email / etc.]. Hosting choice: [Vercel / Netlify / Cloudflare]. Next session: write `.env`, `supabase db push`, real-cloud E2E of POS → accounting → AR settle, update `STATUS.md §1`."
+
+- **Track D — branch protection enable (Phase 1 milestone gate):**
+  > "Approve Track D branch protection enable. Apply the configuration from `Stage_D_Branch_Protection_Precondition.md §27-47` to `main` and `develop`. Required checks: `verify`, `secrets`. Next session: verify the GitHub settings + record the enable in `STATUS.md §4`."
+
+- **Track E — Play Console + AAB submission:**
+  > "Approve Track E. Track C must land first. Play Console account: [email]. After Track C: next session generates the PNG icons, runs `npx @bubblewrap/cli init` + `build`, hosts `/.well-known/assetlinks.json`, and prepares the AAB for upload (the owner submits via Console UI)."
+
+- **CI audit (any of the 3 pushes this session — `c89599a`, `3bb498b`, `d2fcd6b`):**
+  > "Here is the Actions run for <commit-sha>: <URL>. Audit against handoff §5 and update `STATUS.md §4` honestly. No code changed, so the audit is mechanical: confirm `verify` + `secrets` + 89 vitest + tsc + build all green."
+
+**For GLM 5.2:** the `Phase_2_Owner_Decision_Package.md` (this directory) and this §12 cheat sheet
+are the complete handoff. The session-end posture is identical to §10 and §11: clean tree, in sync
+with origin, all 5 gates decision-ready and audit-ready, none advanced. **Stop hook should clear
+on the next turn.** If the next message from the user is one of the above prompts, the next
+session acts on it directly. If the next message is something else, the next session reads this
+handoff first and continues at the appropriate §6 "Immediate next step."
