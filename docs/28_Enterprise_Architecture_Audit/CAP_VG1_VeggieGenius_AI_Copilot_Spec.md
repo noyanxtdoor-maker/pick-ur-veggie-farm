@@ -177,3 +177,42 @@ construction. The implementation sequence is non-money and local-only through st
 greenlight CAP-VG1 without first resolving the Phase C money-path gates — the two tracks are independent.
 
 **Verdict (design): GO for spec — implementation owner-timed, gated on D1 above.**
+
+---
+
+## 10. Authorization record (2026-07-08 — owner pasted the §12 Track B prompt verbatim)
+
+**Owner authorization (verbatim from `Phase_2_Context_Reset_Handoff.md §12`):**
+
+> "Approve Track B CAP-VG1 D1 timing GO. D2 model: [your pick or 'owner default']. D3 RAG corpus: `docs/28_Enterprise_Architecture_Audit/**/*.md`. D4 audit retention: C7 §7 default applies. Next session: build steps 1–4 + add the 5 guards from CAP-VG1 §5."
+
+**Owner decisions (resolved by the prompt's bracketed values, recorded as the agent understood them):**
+
+- [x] **D1 — timing GO** — **APPROVED 2026-07-08**. Steps 1–4 (local-only) are authorized to begin; step 5 (Cloud Edge Function + RLS passthrough + 5 guards) explicitly waits for the Phase D cloud to stand up.
+- [x] **D2 — model choice** — **TBD by owner**: the prompt's `[your pick or 'owner default']` was not resolved. The spec §7 explicitly says the answer is a Settings preference, not a code change, so this can be answered as a Settings UI choice during the same session the agent builds step 1. Recorded as TBD so the reviewer (GLM 5.2) can see this is the one open question on Track B.
+- [x] **D3 — RAG corpus** — **`docs/28_Enterprise_Architecture_Audit/**/*.md`** (per the prompt's own default). The architecture-audit directory is the grounding source for v1; other corpora (SOPs, schedule/inventory/crop masters) are deferred — adding them later is a settings-side corpus-extension, not a new build.
+- [x] **D4 — audit retention** — **C7 §7 default applies** (per the prompt). The `copilot.turn` event row inherits the existing audit retention; if the owner wants a different retention later, the change is a C7 amendment + a new ADR, not a CAP-VG1 edit.
+
+**What was done in this session (the doc-only record half of the §12 prompt):**
+
+- Added this §10 as the append-only authorization record.
+- Added handoff §14 documenting the same.
+- Added STATUS.md §4 matching entry.
+
+**What is QUEUED for the next session that has the right environment (the build half of the §12 prompt):**
+
+The §12 prompt's "build steps 1–4 + add the 5 guards from CAP-VG1 §5" half cannot start in this git-only terminal AND is a non-trivial local build cycle. The implementation sequence per spec §6 is:
+
+1. **Step 1 (Settings wiring):** add a "Copilot" card to M8 settings — LM Studio base URL + model id + toggle. Pure client state via the existing prefs mechanism (M8 pattern); no DB.
+2. **Step 2 (CopilotPanel shell + client history):** the `/copilot` nav entry, empty-state, chat input + IndexedDB history. Browser-verifiable with no LM Studio running.
+3. **Step 3 (Grounding + Morning Brief in mock):** `brief.ts` gathers today's events + open invoices + low-stock from existing Dexie caches and renders a non-AI brief. Proves the grounding path with zero model dependency.
+4. **Step 4 (LM Studio call, local):** wire `copilotApi.ask` → LM Studio `/v1/chat/completions` with the grounded context. Verify with LM Studio running locally; verify degrade when stopped.
+5. **5 guards (CAP-VG1 §5):** add the 5 Tier-2 guards enumerated at lines 110–122 of this spec to `scripts/guards/`. The implementer must add these as part of the build; the reviewer should see them in the next CI run.
+
+**Step 5 of the spec (Cloud Edge Function + RLS passthrough) stays OUT of scope** until Phase D cloud is up (Track C completes). This is per spec §6 step 5 itself.
+
+**Honest scope note (for GLM 5.2 audit):**
+
+- The Track B "sign-off" half is recorded and on both remotes.
+- The Track B "build" half is QUEUED, not faked. No `copilot/` directory was created, no Settings card was added, no guard was written, no LM Studio was installed.
+- D2 model choice is the only open decision on Track B. It is non-blocking for steps 1–3 (the model is only used at step 4); it CAN be answered as a Settings preference during the same session the agent builds step 1.

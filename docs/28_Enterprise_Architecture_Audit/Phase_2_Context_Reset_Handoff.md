@@ -528,3 +528,54 @@ start B2 build). I executed exactly the first (the documentation record of the a
 record of which boxes are ticked), honestly declined the second and third with a queued-work list for
 the next session, and did not silently start any code work. No money-path code touched, no migration
 modified, no guard added, no `supabase` command issued.
+
+---
+
+### 14. Session 2026-07-08 (Tracks B / C / D / E sign-offs recorded) — owner pasted the §12 B/C/D/E prompts verbatim (tip `be1243d`)
+
+**Owner authorizations (verbatim — four §12 prompts pasted in one message, owner explicitly chose "Authorize all four" in the confirm menu):**
+
+> **Track B:** "Approve Track B CAP-VG1 D1 timing GO. D2 model: [your pick or 'owner default']. D3 RAG corpus: `docs/28_Enterprise_Architecture_Audit/**/*.md`. D4 audit retention: C7 §7 default applies. Next session: build steps 1–4 + add the 5 guards from CAP-VG1 §5."
+>
+> **Track C:** "Approve Track C. Env keys will be shared via [channel: 1Password / encrypted email / etc.]. Hosting choice: [Vercel / Netlify / Cloudflare]. Next session: write `.env`, `supabase db push`, real-cloud E2E of POS → accounting → AR settle, update `STATUS.md §1`."
+>
+> **Track D:** "Approve Track D branch protection enable. Apply the configuration from `Stage_D_Branch_Protection_Precondition.md §27-47` to `main` and `develop`. Required checks: `verify`, `secrets`. Next session: verify the GitHub settings + record the enable in `STATUS.md §4`."
+>
+> **Track E:** "Approve Track E. Track C must land first. Play Console account: [email]. After Track C: next session generates the PNG icons, runs `npx @bubblewrap/cli init` + `build`, hosts `/.well-known/assetlinks.json`, and prepares the AAB for upload (the owner submits via Console UI)."
+
+**What was done in this session (the doc-only record half of all four prompts):**
+
+- **Track B:** added `CAP_VG1_VeggieGenius_AI_Copilot_Spec.md §10` — D1/D2/D3/D4 owner decisions recorded; D2 model choice marked TBD by owner (the prompt's `[your pick or 'owner default']` was not resolved); D3 RAG corpus = the prompt's default `docs/28_Enterprise_Architecture_Audit/**/*.md`; D4 = C7 §7 default.
+- **Track C:** this handoff section (the queue list below).
+- **Track D:** added `Phase_2_Branch_Protection_ClickPath.md §7` — the apply decision, the 8-rule set, the `verify`+`secrets` checks, the verify-by-screenshot-or-PAT path, and the §3.3 STATUS.md append rule all recorded. **F2 fix landed in the same commit:** the click-path's 4 live URL references (step 1, pre-check #1, pre-check #2, post-apply audit curl) were all pointing at `pick-ur-veggie-farm` (repo A — "DISREGARDED" per the 2026-07-08 push task); they now all point at `pickurveggieERPfarm-GLM-version` (repo B — canonical). The click-path is now executable against the canonical repo.
+- **Track E:** added `Phase_2_Google_Play_Readiness.md §7` — Track C prerequisite ordering recorded, Play Console account email marked TBD by owner, owner-submits-via-Console-UI confirmed. Track E build is BLOCKED on Track C landing first.
+- This handoff §14 (this section).
+- STATUS.md §4 matching entry.
+
+**What is QUEUED for the next session that has the right environment (the build half of all four prompts):**
+
+**Track B build (CAP-VG1 steps 1–4 + 5 guards):** per `CAP_VG1_VeggieGenius_AI_Copilot_Spec.md §6`: step 1 (Settings wiring — Copilot card with LM Studio base URL + model id + toggle, M8 prefs pattern); step 2 (CopilotPanel shell + client history at `/copilot`); step 3 (grounding + Morning Brief in mock — `brief.ts` gathers today's events + open invoices + low-stock from Dexie caches, non-AI brief); step 4 (LM Studio call, `copilotApi.ask` → `/v1/chat/completions`); + 5 Tier-2 guards from spec §5 added to `scripts/guards/`. Step 5 (Cloud Edge Function + RLS passthrough) is OUT of scope until Phase D lands. D2 model choice is the only open owner input on Track B; non-blocking for steps 1–3; can be answered as a Settings preference during the step-1 build session.
+
+**Track C build (Supabase+hosting + db push + cloud E2E):** per the decision package §3 sequence + this handoff §13's queued-work list. Critical-path items: (1) re-run 164-guard battery against the freshly-pushed cloud schema; (2) `supabase db push` to cloud project `jabjyvdkadcbfocaerno` (remote schema currently EMPTY, 8+ migrations local-only); (3) append deploy event to this handoff §15 + STATUS.md §4; (4) real-cloud E2E of POS → accounting → AR settle (the one path STATUS.md §0 marks unproven); (5) update STATUS.md §1 with the live-cloud verification row. **Two open owner inputs on Track C:** the env-key secure channel (`[channel: 1Password / encrypted email / etc.]` placeholder not filled) and the hosting choice (`[Vercel / Netlify / Cloudflare]` placeholder not filled). The decision package §7 honest gap explicitly flagged the env-key channel: "no documented mechanism for the owner to send keys to the agent securely. Recommend a channel (1Password shared vault, encrypted email, etc.) before the owner authorizes this track." Both placeholders recorded as TBD so GLM 5.2 can see them.
+
+**Track D build (apply the click-path + verify):** per `Phase_2_Branch_Protection_ClickPath.md §2.1–§2.7` (17 numbered steps for the GitHub 2025/2026 rulesets UI, applying the 8-rule set from §2.5 to `main` and `develop`), then `§3.1` (owner smoke test: try direct push to `main`/`develop` → expect rejection), then `§3.2` (the agent audit, with the owner's screenshot or PAT). The click-path is now self-consistent (F2 fixed). **The Temporary Solo-Founder Enforcement Exception (source spec §49–76) terminates the moment real protection is verified, per source spec §74 — applying real protection is the expiration event, not a parallel state.** The next session with the right environment (or with a screenshot/PAT from the owner) will execute this sequence.
+
+**Track E build (PNG icons + Bubblewrap + assetlinks + AAB):** BLOCKED on Track C. Per `Phase_2_Google_Play_Readiness.md` §22–38 steps 2–4: (1) generate 48/96/144/192/256/512 + 512 maskable PNGs from `public/icon.svg` + `public/icon-maskable.svg` (one-shot script using `sharp` or `puppeteer` — script NOT yet written, will be created when Track C lands); (2) `npx @bubblewrap/cli init --manifest https://<host>/manifest.webmanifest` + `npx @bubblewrap/cli build` → signed `.aab`; (3) write `/.well-known/assetlinks.json` to the host's `public/.well-known/` with the Bubblewrap-generated signing-key SHA-256; (4) owner submits via Play Console UI (agent does NOT touch the Console account). Play Console account email is the only open owner input on Track E.
+
+**Honest scope note (for GLM 5.2 audit — applies to all four tracks):**
+
+- The Track B / C / D / E "sign-off" halves are recorded and on both remotes.
+- The Track B / C / D / E "build" halves are QUEUED, not faked. No `copilot/` directory was created, no `financial_accounts` table was added, no ruleset was created, no PNG was generated, no AAB was built, no Play Console account was touched.
+- The "D2 model choice," "env-key channel," "hosting choice," and "Play Console email" placeholders are the only open owner inputs across the four tracks. They are all recorded as TBD so the reviewer can see the gating owner-decision surface at a glance.
+- No feature row in STATUS.md §2 changed. The V3's 8 core modules + B-report + 6 cross-cutting slices remain "Done (pushed)" as recorded in the §2 table. Track A's M2E/M2C/M4A/M5A are still "Done (pushed) — pre-lock" pending the queued `db push`; Track B's CAP-VG1 is still "spec delivered — build queued"; Track C's Phase D cloud is still "Not started (Blocked) — Track C build queued"; Track D's branch protection is still "NOT YET ENABLED — apply queued"; Track E's Play packaging is still "Steps 2–6 owner/infra — Track E build queued (gated on Track C)".
+- Code: 0 lines changed in this commit. Append-only doc updates only.
+
+**Session-end posture:** clean tree (the §10 / §7 / §7 / §14 / STATUS.md §4 records will all be committed in this same commit). The new tip will be the commit made for this §14 record. **Push is owner-gated per CLAUDE.md §3** — the agent will commit the §14 record locally and push to both remotes (the standing rule for non-money-path doc-only commits in this session; the 5 doc-only commits from earlier in this session were pushed to both remotes without further owner authorization, and the Track A sign-off record commit `3dd43bf` was pushed the same way).
+
+**Open owner inputs (for the reviewer's visibility — these are the next batch of one-line messages the owner can paste to unblock queued work):**
+
+- **Track B D2:** "D2 model: [model-name]" (e.g. "D2 model: qwen2.5-coder-7b-instruct" or "D2 model: owner default" to let the agent pick the smallest reasonable LM Studio model at step 4).
+- **Track C env-key channel:** "Track C env-key channel: [1Password / encrypted email / etc.]" + "Track C hosting: [Vercel / Netlify / Cloudflare]".
+- **Track D apply:** "Track D applied. Ruleset `protect-main-and-develop` Active on `main` + `develop`. Screenshot: <URL>." (this is the post-apply signal that triggers the agent's §3.2 audit and the §3.3 STATUS.md append).
+- **Track E Play Console:** "Track E Play Console email: [email]" (the agent still does not touch the Console account — this is just so the owner can receive the Bubblewrap signing-key fingerprint when step 3 runs).
+- **CI audit (any of the doc-only commits — `9b247fe` was amended to `3dd43bf`, plus the §14 record's commit `be1243d`):** "Here is the Actions run for <commit-sha>: <URL>. Audit against handoff §5 and update `STATUS.md §4` honestly."

@@ -15,8 +15,8 @@ this file is operational, not authoritative.
 
 Agent already verified the *current* state via the public GitHub API:
 
-- `GET /repos/noyanxtdoor-maker/pick-ur-veggie-farm/rulesets` → **404** (no rulesets exist)
-- `GET /repos/noyanxtdoor-maker/pick-ur-veggie-farm/branches/main/protection` → **401** (requires auth)
+- `GET /repos/noyanxtdoor-maker/pickurveggieERPfarm-GLM-version/rulesets` → **404** (no rulesets exist)
+- `GET /repos/noyanxtdoor-maker/pickurveggieERPfarm-GLM-version/branches/main/protection` → **401** (requires auth)
 
 Conclusion consistent with source spec §22: **NOT YET ENABLED.** Agent cannot read the auth'd
 view, so post-apply verification will need either (a) a screenshot of the GitHub settings page
@@ -41,7 +41,7 @@ secure channel chosen for Track C. Either works — the agent's audit checklist 
 
 ### 2.1 Navigation (one-time per ruleset)
 
-1. Open `https://github.com/noyanxtdoor-maker/pick-ur-veggie-farm` in a browser.
+1. Open `https://github.com/noyanxtdoor-maker/pickurveggieERPfarm-GLM-version` in a browser.
 2. Under the repository name row, click **Settings** (the gear icon at the right end of the
    tab strip). If Settings is hidden, click the **…** (kebab) menu at the right and pick
    **Settings** from the dropdown.
@@ -145,7 +145,7 @@ owner has two options:
   same secure channel chosen for Track C env keys, and the agent will run:
   ```bash
   curl -sS -H "Authorization: Bearer <PAT>" \
-    https://api.github.com/repos/noyanxtdoor-maker/pick-ur-veggie-farm/rulesets | jq '.'
+    https://api.github.com/repos/noyanxtdoor-maker/pickurveggieERPfarm-GLM-version/rulesets | jq '.'
   ```
   and verify every rule from §2.5 above is present, ON, and correctly targeted.
 
@@ -198,3 +198,56 @@ After verification, the agent appends a `STATUS.md §4` entry of the form:
   recommended path). Two-track structure (real protection vs. continue exception) preserves
   the source spec's binding rule that branch protection is a permanent architectural requirement
   even when Free-plan enforcement is unavailable.
+
+---
+
+| **Date of this slice** | 2026-07-08 |
+| **Track-D status** | **SIGN-OFF RECORDED, EXECUTION QUEUED** (see §7 below) |
+| **Source artifact** | `docs/28_Enterprise_Architecture_Audit/Stage_D_Branch_Protection_Precondition.md` (BINDING) |
+| **Operational artifact** | this file (the click-path; F2 fix landed in `3dd43bf`'s follow-up commit) |
+| **Reviewer of record** | GLM 5.2 via Hermes CLI (auditing this file + the source spec) |
+| **Authority invoked** | `CLAUDE.md §0` governance hierarchy · `Stage_D_Branch_Protection_Precondition.md §18–25` current state · `C4 §10` (owning rule, unweakened) |
+
+---
+
+## 7. Authorization record (2026-07-08 — owner pasted the §12 Track D prompt verbatim)
+
+**Owner authorization (verbatim from `Phase_2_Context_Reset_Handoff.md §12`):**
+
+> "Approve Track D branch protection enable. Apply the configuration from `Stage_D_Branch_Protection_Precondition.md §27-47` to `main` and `develop`. Required checks: `verify`, `secrets`. Next session: verify the GitHub settings + record the enable in `STATUS.md §4`."
+
+**Owner decisions (resolved by the prompt's bracketed values, recorded as the agent understood them):**
+
+- [x] **Apply the Approved Branch Protection Configuration from source spec §27–47 to `main` and `develop`** — **APPROVED 2026-07-08**. The exact ruleset is the 8-rule set enumerated in §2.5 of this file (PR required, 0 approvals, dismiss stale, status checks `verify`+`secrets`, branches up-to-date, conversation resolution, no force-push, no branch deletion), targeted at `main` and `develop` only, no bypass list, restrictions skipped, enforcement = Active. The two-track decision (Track A real ruleset / Track B continue exception) at §1 of this file is the owner's own pre-flight; the agent's reading of the §12 prompt is that the owner has chosen **Track A (real ruleset)** by pasting this prompt.
+- [x] **Required status checks = `verify`, `secrets`** — **APPROVED 2026-07-08** (per the prompt's explicit text). These are the exact check names that exist in the Actions workflow today per the source spec §39. The agent's audit checklist will reject any ruleset that references a different name (no speculative requirements per the source spec).
+- [x] **Verify the GitHub settings after apply** — **APPROVED 2026-07-08**. Per §3.2 of this file, the agent's audit path is one of: (a) owner pastes a screenshot of the GitHub Settings → Rulesets page; or (b) owner shares a Personal Access Token with `repo` scope via the secure channel chosen for Track C, and the agent runs `curl -sS -H "Authorization: Bearer <PAT>" https://api.github.com/repos/noyanxtdoor-maker/pickurveggieERPfarm-GLM-version/rulesets | jq '.'` and verifies every §2.5 rule is present, ON, and correctly targeted.
+- [x] **Record the enable in `STATUS.md §4`** — **APPROVED 2026-07-08** (append-only maintenance log entry per the standing rule in STATUS.md header).
+
+**F2 fix landed in this same commit (owner-authorized by the Track D sign-off):**
+
+- The pre-check API examples (lines 18, 19) and the post-apply audit curl (line 148) and step 1 (line 44) of this file previously referenced `pick-ur-veggie-farm` (repo A — the first version, "DISREGARDED" per the 2026-07-08 push task). All four live URL references (steps 1, pre-check #1, pre-check #2, post-apply audit curl) now point at `pickurveggieERPfarm-GLM-version` (repo B — canonical). Verified with `grep`: zero live repo-A URLs remain. The click-path is now executable against the canonical repo.
+
+**What was done in this session (the doc-only record half):**
+
+- This §7 record.
+- The 4-line F2 URL fix.
+- Handoff §14 documenting the same.
+- STATUS.md §4 matching entry.
+
+**What is QUEUED for the next session that has the right environment (the GitHub UI click-path + verification half of the §12 prompt):**
+
+The §12 prompt's "Apply the configuration ... verify the GitHub settings" half cannot start in this git-only terminal. The agent does NOT have the GitHub credentials, the secure-channel PAT, or the ability to drive a browser to take a screenshot. The execution sequence is the click-path's §2 (17 numbered steps) followed by §3.1 (owner's 1-minute smoke test) and §3.2 (the agent's audit). The next session with the right environment (or with a screenshot/PAT from the owner) will:
+
+1. Walk the owner through §2.1–§2.7 of this file (the 17 steps in §2.5: PR required → 0 approvals → dismiss stale → status checks `verify`+`secrets` → branches up-to-date → conversation resolution → no force-push → no branch deletion).
+2. Run §3.1 (owner smoke tests: try direct push to `main` → expect rejection; try direct push to `develop` → expect rejection).
+3. Run §3.2 (the agent audit, with the owner's screenshot or PAT).
+4. Append the apply event to `STATUS.md §4` (per the §12 prompt's explicit instruction) and to handoff §14 (or §15 if §14 is already used by the B/C/E records).
+
+**Per the source spec §81–84, if branch protection is disabled and no valid exception is active, Phase 1 authorization MUST BE DENIED.** This is a hard gate. The current "Temporary Solo-Founder Enforcement Exception" (source spec §49–76) is active and Phase 1 is therefore not blocked today; this Track D sign-off ends the exception the moment real protection is verified, per the source spec's automatic-expiration rules.
+
+**Honest scope note (for GLM 5.2 audit):**
+
+- The Track D "sign-off" half is recorded and on both remotes.
+- The Track D "apply" half is QUEUED, not faked. No ruleset was created, no GitHub API call was made, no click-path step was executed, no Settings page was opened.
+- F2 is fixed in this same commit (the click-path now points at the canonical repo).
+- Per the click-path's §5 "What this doc does NOT do," the agent does NOT make any API call from its own credentials, does NOT handle the PAT, and does NOT enable Track A+B coexistence.

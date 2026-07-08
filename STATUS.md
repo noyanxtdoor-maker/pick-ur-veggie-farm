@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-08 · HEAD `9b247fe` · branch `feature/phase-0-foundation` (in sync with origin once the §13 commit is pushed)._
+_Last updated: 2026-07-08 · HEAD `be1243d` · branch `feature/phase-0-foundation` (in sync with origin once the §14 commit is pushed)._
 
 ---
 
@@ -194,3 +194,24 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   — pre-lock" pending the queued deploy; B2 is still "Not started (Blocked)" because the
   build itself is queued. The `db push` and B2 implementation are exactly the two remaining
   Track A deliverables per handoff §13; the §13 record names the queued-work list verbatim.
+- **2026-07-08 (Tracks B / C / D / E sign-offs recorded)** — Owner pasted the §12 B/C/D/E
+  prompts verbatim in one message (explicit "Authorize all four" confirm-menu choice). All
+  four tracks are now in the "SIGN-OFF RECORDED, BUILD QUEUED" state — same posture as
+  Track A: the documentation record is on both remotes, the actual build/deploy work is
+  queued for the next environment-capable session. **Track B (CAP-VG1):** D1 GO, D2 model
+  TBD by owner, D3 RAG corpus = `docs/28_Enterprise_Architecture_Audit/**/*.md`, D4 = C7 §7
+  default; spec §10 added; build steps 1–4 + 5 guards queued. **Track C (Supabase+hosting):**
+  §12 prompt pasted with `[channel: ...]` and `[Vercel / Netlify / Cloudflare]` placeholders
+  TBD by owner; queued-work list is the §13 sequence (re-run 164-guard battery, `supabase db
+  push`, real-cloud E2E of POS→accounting→AR, STATUS.md §1 update). **Track D (branch
+  protection):** §12 prompt pasted; click-path §7 added; **F2 fix landed in this same
+  commit** (4 URL references in the click-path swapped from `pick-ur-veggie-farm` to
+  `pickurveggieERPfarm-GLM-version`); apply is queued (17 steps + owner smoke test +
+  agent audit by screenshot or PAT). The Temporary Solo-Founder Enforcement Exception
+  (source spec §49–76) terminates the moment real protection is verified, per source
+  spec §74. **Track E (Play Console):** §12 prompt pasted with `[email]` placeholder TBD
+  by owner; Track C prerequisite confirmed; PNG icons + Bubblewrap + assetlinks + AAB
+  queued (gated on Track C). **Zero code lines changed** — append-only doc updates only.
+  No feature row in §2 changed. Handoff §14 added as the consolidated session log for
+  all four tracks; this STATUS entry is the matching append-only maintenance log row.
+  The two `XXXXXXX` placeholders in the prior commit (handoff §14 title, this STATUS header) were folded into `be1243d` and then re-folded into `da1db9a` in the amend step; this STATUS entry is the matching append-only maintenance log row.
