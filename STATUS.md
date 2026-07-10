@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-08 · HEAD `52e04ea` · branch `feature/phase-0-foundation` (in sync with origin — pushed to repo A and repo B)._
+_Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lands atop it) · branch `feature/phase-0-foundation` · Repo A only (repos diverged 2026-07-08, see §0)._
 
 ---
 
@@ -14,6 +14,13 @@ _Last updated: 2026-07-08 · HEAD `52e04ea` · branch `feature/phase-0-foundatio
 - **NONE of it is on `origin/main`.** The feature branch is **190 commits ahead of `origin/main`, unmerged.**
   `origin/main` contains only the initial docs/scaffold (`7833c9f`). **A reviewer checking `origin/main` will see
   almost nothing — review the feature branch.**
+- **TWO-REPO REALITY (owner, 2026-07-08–10):** this is **Repo A** (Claude-managed: Fable 5 / Opus 4.8). A fork
+  from `8e1f064` lives at github `noyanxtdoor-maker/pickurveggieERPfarm-GLM-version` (**Repo B**, GLM 5.2 +
+  MiniMax M3) and **owns the original Supabase project (`jabjyvdkadcbfocaerno`)**. Work boundary: each team
+  writes only its own repo. The 2026-07-08 Track A–E sign-offs were pushed to BOTH repos while they moved in
+  lockstep, so Repo A's review-doc §9 boxes ARE ticked — but the queued deploy target moved to Repo B with the
+  original Supabase; **Repo A's deploys re-target a FRESH owner-created project (pending), sequence: new
+  Supabase → Phase-1/auth → then B2.**
 - **The app currently runs in MOCK / OFFLINE mode** (no Supabase project configured; `VITE_SUPABASE_*` unset).
   - "Browser-verified" below therefore means **manually exercised in the running app against the local mock/Dexie
     data path** — NOT against a live cloud database.
@@ -215,3 +222,19 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-10** — **Two-repo reality recorded + discipline-transfer skill shipped (Fable 5).** Owner disclosed
+  the fork; verified against git: Repo B (`pickurveggieERPfarm-GLM-version`, GLM 5.2 + MiniMax M3, forked from
+  `8e1f064`, **owns the original Supabase project `jabjyvdkadcbfocaerno`**) vs this Repo A (Claude models; fresh
+  Supabase to be owner-created). Work boundary (owner, 2026-07-08–09): GLM/MiniMax → Repo B only; Claude → Repo A
+  only. §0 updated. **Sign-off provenance clarified during rebase:** the 2026-07-08 Track A–E sign-off entries
+  above were pushed to BOTH repos while they still moved in lockstep, so **Repo A's review-doc §9 boxes ARE
+  ticked** — but Track A's queued deploy targets (`db push` to `jabjyvdkadcbfocaerno`) now belong to Repo B; for
+  Repo A the deploy re-targets the NEW owner-created project, and per the owner's 2026-07-10 instruction Repo A's
+  sequence is **new Supabase → Phase-1/auth completion → then B2** (matching the review's own locks→push→B2 order).
+  Read-only scan of Repo B (26 commits past fork): CAP-VG1 steps 1–5 built there with our Engineering-Loop
+  discipline (5 copilot guards, Edge Function, migration); ⚠ their working tree has the entire React `app/`
+  deleted-uncommitted after a Bubblewrap/TWA scaffold was generated at repo root (recoverable via git restore;
+  flagged to owner — one `git add -A` from committed destruction). Built here: **`.claude/skills/think-like-fable/
+  SKILL.md`** (stance / session ritual / Engineering Loop / bug-catching patterns with the real bugs each caught /
+  repo commands / gates incl. repo boundary / anti-patterns) + CLAUDE.md §8 pointer + handoff §15. Docs/skill only
+  — no app code, no migrations, no feature-row changes.

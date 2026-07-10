@@ -586,3 +586,44 @@ modified, no guard added, no `supabase` command issued.
 - **Track D apply:** "Track D applied. Ruleset `protect-main-and-develop` Active on `main` + `develop`. Screenshot: <URL>." (this is the post-apply signal that triggers the agent's §3.2 audit and the §3.3 STATUS.md append).
 - **Track E Play Console:** "Track E Play Console email: [email]" (the agent still does not touch the Console account — this is just so the owner can receive the Bubblewrap signing-key fingerprint when step 3 runs).
 - **CI audit (any of the doc-only commits — `9b247fe` was amended to `3dd43bf`, plus the §14 record's commit chain `be1243d` → `da1db9a` → `52e04ea`):** "Here is the Actions run for <commit-sha>: <URL>. Audit against handoff §5 and update `STATUS.md §4` honestly."
+## 15. Session 2026-07-10 (Fable 5) — TWO-REPO REALITY + discipline-transfer skill
+
+**Owner disclosure (verified against git):** during the 3-day Claude usage gap the project FORKED.
+**Repo A** = this repo (`pick-ur-veggie-farm`, github `noyanxtdoor-maker/pick-ur-veggie-farm`), worked by
+Claude models (Fable 5 / Opus 4.8). **Repo B** = local `pick-ur-veggie-farm - GLM Version`
+(github `noyanxtdoor-maker/pickurveggieERPfarm-GLM-version`), worked by GLM 5.2 + MiniMax M3, forked from
+Repo A's HEAD `8e1f064` (so it contains everything through the full DayFlow calendar). **Repo B owns the
+ORIGINAL Supabase project (`jabjyvdkadcbfocaerno`)**; Repo A gets a FRESH Supabase project (owner will
+create + share access) — which incidentally re-confirms the M4A §3.4 fresh-launch answer for Repo A
+(greenfield = no prior periods). **Work-boundary rule (owner, 2026-07-08–09): GLM/MiniMax → Repo B only;
+Claude models → Repo A only; DO NOT TOUCH the other repo** (reading Repo B to learn from it is fine).
+
+**Sign-off provenance (corrected during the rebase that merged §§11–14 into this session):** the
+2026-07-08 Track A–E sign-offs (§§13–14 above) were recorded in commits pushed to **both** repos while
+they still moved in lockstep — so Repo A's `Phase_2_Cross_Vendor_Money_Path_Review.md` **§9 boxes ARE
+ticked here** and the sign-offs are valid for Repo A's identical pre-fork migrations. What does NOT carry
+over: the Track A/C queued deploy target (`db push` to `jabjyvdkadcbfocaerno`) — that project went to
+Repo B. **Repo A's deploy sequence per the owner's 2026-07-10 instruction: new Supabase project (owner
+creates, shares URL + anon key + DB password) → Phase-1/auth module completion (B7/C2 specs; Stage D
+branch-protection precondition / Solo-Founder Exception) → then B2** — matching the review's own
+locks→push→B2 order. The service_role key must never reach the app bundle; `.env` gets
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` only.
+
+**Repo B scan findings (read-only, 26 commits past the fork as of 2026-07-10):**
+- They built **CAP-VG1 VeggieGenius steps 1–5** (CopilotPanel + brief/api/history, `copilot.use`
+  permission migration, Deno Edge Function `copilot-ask` w/ JWT + permission check + money-path blocklist
+  + audit, **5 copilot guard batteries** — run via docker exec, PASS recorded). They adopted our
+  Engineering Loop, STATUS.md discipline, and guard style — the process transferred.
+- ⚠ **Repo B working-tree hazard (reported to owner; not fixed — their repo, boundary rule):** a
+  Bubblewrap/TWA Android scaffold was generated at the repo ROOT; its Android `app/` collided with the
+  React `app/`, leaving all 74 web-app files deleted-but-uncommitted (+11 untracked Android files).
+  Recoverable (`git restore app/` after relocating the Android project), but one blind `git add -A`
+  commits the destruction. Lesson encoded in the skill: generate TWA wrappers OUTSIDE the repo.
+
+**Built this session:** `.claude/skills/think-like-fable/SKILL.md` — the discipline-transfer skill the
+owner requested before Fable's July-12 promo cutoff: stance (evidence-or-it-didn't-happen, never round
+up, GO ≠ authorization, verify decision provenance not just file state), session-start ritual, the
+Engineering Loop cadence, the bug-catching patterns with the real bugs each caught, repo-specific
+commands (docker-exec guards, credential-fill CI check, commit -F), the owner gates incl. the new repo
+boundary, reporting rules, and observed anti-patterns (incl. the Repo B `app/` collision). Pointer added
+to CLAUDE.md §8. Sonnet 5 / Opus 4.8 / any future model: **load it at session start.**

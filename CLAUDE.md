@@ -159,3 +159,7 @@ The model-agnostic engineering organization (roles, pipeline, delegation policy,
 `docs/28_Enterprise_Architecture_Audit/Phase_2_Context_Reset_Handoff.md` — **read it at session start; update it
 (and auto-memory) at session end.** These two files are the "AI company"; no per-platform agent roster is
 installed speculatively.
+
+**Working-discipline transfer:** `.claude/skills/think-like-fable/SKILL.md` distills the verification cadence,
+repo-specific commands, and bug-catching patterns proven in the Fable 5 / Opus 4.8 sessions (Jun–Jul 2026).
+Any model working this repo loads it at session start, alongside the handoff.
