@@ -14,8 +14,9 @@ import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {Numpad} from './Numpad';
 import {posApi, type SaleLineInput, type SaleResult} from './api';
+import {paymentsApi} from '../finance/api';
 import {farmPerKg, formatPeso, lineTotal, round2} from './money';
-import type {FinishedGood, PosInvoice, Product} from '../../types/db';
+import type {FinancialAccount, FinishedGood, PosInvoice, Product} from '../../types/db';
 
 type RightPane = 'slip' | 'checkout' | 'receipt' | 'settle';
 type SaleKind = 'paid' | 'preorder';
@@ -40,10 +41,15 @@ export default function PosScreen() {
 
   const [products, setProducts] = useState<Product[] | null>(null);
   const [stock, setStock] = useState<FinishedGood[]>([]);
+  // P2-B2A payment-method picker: active bank/wallet accounts of this branch (empty list without
+  // finance.account.read — the drawer is always available as the default).
+  const [payAccounts, setPayAccounts] = useState<FinancialAccount[]>([]);
+  const [payAccountId, setPayAccountId] = useState(''); // '' = cash drawer
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
     posApi.fetchStock(companyId, branchId).then(setStock).catch(() => setStock([]));
+    paymentsApi.fetchPickerAccounts(companyId, branchId).then(setPayAccounts).catch(() => setPayAccounts([]));
   }, [companyId, branchId]);
   useEffect(reload, [reload]);
 
@@ -135,9 +141,10 @@ export default function PosScreen() {
         discountRate: saleKind === 'preorder' && preDiscount ? 0.1 : 0,
         deliveryFee: feeNum,
         note: note.trim() || undefined,
+        financialAccountId: saleKind === 'paid' && payAccountId ? payAccountId : null,
       });
       setLastSale(result);
-      setBasket([]); setCash(''); setNote(''); setDeliveryFee(''); setPreDelivery(false); setPreDiscount(true); setSaleKind('paid');
+      setBasket([]); setCash(''); setNote(''); setDeliveryFee(''); setPreDelivery(false); setPreDiscount(true); setSaleKind('paid'); setPayAccountId('');
       setPane('receipt');
       if (result.provisional) triggerSync();
       reload();
@@ -153,9 +160,9 @@ export default function PosScreen() {
     if (busy || !companyId || !settleTarget) return;
     setBusy(true);
     try {
-      const change = await posApi.settle(companyId, settleTarget, cashNum);
+      const change = await posApi.settle(companyId, settleTarget, cashNum, payAccountId || null);
       notify(`Settled — change ${formatPeso(change)}`);
-      setSettleTarget(null); setCash(''); setPane('slip');
+      setSettleTarget(null); setCash(''); setPane('slip'); setPayAccountId('');
       reload();
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Settlement failed', 'error');
@@ -355,7 +362,7 @@ export default function PosScreen() {
                 ) : null}
                 <div className="flex gap-2">
                   <Button variant="secondary" disabled={basket.length === 0} onClick={() => setBasket([])} aria-label="Clear slip"><Trash2 className="h-4 w-4" aria-hidden /></Button>
-                  <Button className="flex-1" disabled={basket.length === 0} onClick={() => {setCash(''); setSaleKind('paid'); setPane('checkout');}}>PROCEED CHECKOUT</Button>
+                  <Button className="flex-1" disabled={basket.length === 0} onClick={() => {setCash(''); setSaleKind('paid'); setPayAccountId(''); setPane('checkout');}}>PROCEED CHECKOUT</Button>
                 </div>
               </div>
             </Card>
@@ -374,6 +381,13 @@ export default function PosScreen() {
 
               {saleKind === 'paid' ? (
                 <>
+                  {payAccounts.length > 0 ? (
+                    <div className="mb-3">
+                      <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted">Money received into</label>
+                      <SelectField value={payAccountId} onChange={setPayAccountId}
+                        options={[{value: '', label: 'Cash (drawer)'}, ...payAccounts.map((a) => ({value: a.id, label: `${a.name}${a.provider ? ` · ${a.provider}` : ''}`}))]} />
+                    </div>
+                  ) : null}
                   <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted" htmlFor="pos-cash">Cash received (₱)</label>
                   <input
                     id="pos-cash"
@@ -444,6 +458,13 @@ export default function PosScreen() {
                 <span>Change given:</span>
                 <span className={cn('tabular text-sm font-extrabold', cashNum >= settleTarget.total ? 'text-farm-green' : 'text-farm-danger')}>{formatPeso(Math.max(0, round2(cashNum - settleTarget.total)))}</span>
               </div>
+              {payAccounts.length > 0 ? (
+                <div className="mb-3">
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted">Money received into</label>
+                  <SelectField value={payAccountId} onChange={setPayAccountId}
+                    options={[{value: '', label: 'Cash (drawer)'}, ...payAccounts.map((a) => ({value: a.id, label: `${a.name}${a.provider ? ` · ${a.provider}` : ''}`}))]} />
+                </div>
+              ) : null}
               <Numpad value={cash} onChange={setCash} />
               <div className="mt-4 flex gap-2">
                 <Button variant="secondary" onClick={() => {setSettleTarget(null); setPane('slip');}} disabled={busy}>Close</Button>
@@ -604,7 +625,7 @@ export default function PosScreen() {
                     <td className="py-3 text-right">
                       <span className="flex justify-end gap-1.5">
                         {t.status === 'Unpaid' && canSettle ? (
-                          <button onClick={() => {setSettleTarget(t); setCash(''); setPane('settle');}} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100">Mark Paid</button>
+                          <button onClick={() => {setSettleTarget(t); setCash(''); setPayAccountId(''); setPane('settle');}} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100">Mark Paid</button>
                         ) : null}
                         {t.status !== 'Voided' && t.status !== 'PendingSync' && canVoid ? (
                           <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Void</button>

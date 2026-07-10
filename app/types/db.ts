@@ -121,7 +121,37 @@ export type PermissionKey =
   | 'project.read'
   | 'project.manage'
   | 'customer.read'
-  | 'customer.manage';
+  | 'customer.manage'
+  | 'finance.account.read' // P2-B2A: view financial accounts + derived balances
+  | 'finance.account.manage'; // P2-B2A: create/edit accounts + transfer between them
+
+// ── Digital payments (P2-B2A / backlog B2, 20.24 + 22.10) ──
+// Thin registry keyed to a chart_of_accounts Asset code. NO stored balance anywhere —
+// `balance` on reads is DERIVED from journal_lines (server) or paid invoices + transfers (mock).
+export interface FinancialAccount {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  name: string;
+  account_type: 'Cash' | 'Bank' | 'Digital Wallet';
+  provider: string | null;
+  account_number: string | null;
+  coa_code: string;
+  status: 'Active' | 'Archived';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialTransfer {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  from_account_id: string;
+  to_account_id: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+}
 
 // ── Customers & Credit (P2-M9A / backlog B1) ──
 export interface Customer {
@@ -202,6 +232,7 @@ export interface PosInvoice {
   change_amount: number;
   note: string | null;
   customer_id?: string | null; // P2-M9A: optional customer attribution (credit sales)
+  financial_account_id?: string | null; // P2-B2A: where the money landed (null = cash drawer)
   status: 'Paid' | 'Unpaid' | 'Voided' | 'PendingSync';
   created_at: string;
 }

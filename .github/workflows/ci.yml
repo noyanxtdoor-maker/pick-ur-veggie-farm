@@ -117,6 +117,9 @@ jobs:
       - name: Customers security tests (tenant isolation · customer.manage/read gates · non-money attribution · AR standing)
         run: npm run guard:customers
 
+      - name: Payments security tests (account routing · void mirrors account · transfer zero-net/no-P&L · derived balances · gates)
+        run: npm run guard:payments
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

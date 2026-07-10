@@ -37,6 +37,7 @@ export interface SaleOptions {
   discountRate?: 0 | 0.1; // server-constrained to {0, 0.10}
   deliveryFee?: number;
   note?: string;
+  financialAccountId?: string | null; // P2-B2A: where a PAID sale's money lands (null = cash drawer)
 }
 
 export interface SaleResult {
@@ -96,6 +97,7 @@ export const posApi = {
       tender_cash: kind === 'paid' ? tenderCash : 0,
       change_amount: kind === 'paid' ? round2(tenderCash - total) : 0,
       note: opts.note ?? null,
+      financial_account_id: kind === 'paid' ? (opts.financialAccountId ?? null) : null,
       status: 'PendingSync', created_at: new Date().toISOString(),
     };
 
@@ -130,6 +132,7 @@ export const posApi = {
         : {product_id: l.product_id, finished_goods_batch_id: l.finished_goods_batch_id, weight_kg: l.weight_kg}),
       p_tender_cash: tenderCash, p_idempotency_key: idem,
       p_sale_kind: kind, p_discount_rate: discountRate, p_delivery_fee: deliveryFee, p_customer_note: opts.note ?? null,
+      p_financial_account_id: kind === 'paid' ? (opts.financialAccountId ?? null) : null,
     };
 
     if (online()) {
@@ -230,21 +233,23 @@ export const posApi = {
   },
 
   // Settle a pre-order (Mark Paid). Returns change. Status-idempotent server-side.
-  async settle(companyId: string, invoice: PosInvoice, cash: number): Promise<number> {
+  // P2-B2A: the settlement money can land in a chosen financial account (null = cash drawer).
+  async settle(companyId: string, invoice: PosInvoice, cash: number, financialAccountId?: string | null): Promise<number> {
     if (cash < invoice.total) throw new Error('Cash must cover the outstanding total.');
     const change = round2(cash - invoice.total);
+    const settled: PosInvoice = {...invoice, status: 'Paid', tender_cash: cash, change_amount: change, financial_account_id: financialAccountId ?? null};
     if (MOCK_MODE) {
-      await offlineDB.posInvoices.put({...invoice, status: 'Paid', tender_cash: cash, change_amount: change});
+      await offlineDB.posInvoices.put(settled);
       return change;
     }
-    const payload = {p_invoice_id: invoice.id, p_cash: cash};
+    const payload = {p_invoice_id: invoice.id, p_cash: cash, p_financial_account_id: financialAccountId ?? null};
     if (online()) {
       const {error} = await supabase.rpc('pos_settle_sale', payload);
       if (error) throw new Error(error.message);
     } else {
       await enqueue({companyId, kind: 'pos.settle', request: {type: 'rpc', rpc: 'pos_settle_sale', payload}});
     }
-    await offlineDB.posInvoices.put({...invoice, status: 'Paid', tender_cash: cash, change_amount: change});
+    await offlineDB.posInvoices.put(settled);
     return change;
   },
 

@@ -8,12 +8,13 @@
 import {useCallback, useEffect, useMemo, useState, type ReactNode} from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
-import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, PieChart, Plus, TrendingUp, Wallet, X} from 'lucide-react';
+import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, Landmark, PieChart, Plus, TrendingUp, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, StatCard, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
+import {AccountsTab} from './AccountsTab';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {formatPeso, round2} from '../pos/money';
 import {accountingApi} from './api';
@@ -21,7 +22,7 @@ import {accountBreakdown, equityRollforward} from './reports';
 import type {BalanceSheet, CashEntry, CashEntryCategory, CashFlowDirection, CashFlowLine, IncomeStatementMonth, TrialBalanceRow} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-type Tab = 'dashboard' | 'statements' | 'reports' | 'cash_ledger';
+type Tab = 'dashboard' | 'statements' | 'reports' | 'accounts' | 'cash_ledger';
 type Statement = 'income' | 'balance_sheet' | 'cash_flow' | 'trial_balance' | 'chart_accounts';
 
 // Plain-language "what is this?" for each statement (owner ask: a non-accountant should understand every screen).
@@ -150,6 +151,7 @@ export default function AccountingScreen() {
           {tab === 'dashboard' ? 'Company-wide KPIs compiled from every posted sale, purchase, and cash movement — live and always balanced.' : null}
           {tab === 'statements' ? 'Statutory statements read directly from the balanced general ledger. Filter by branch or view the whole company.' : null}
           {tab === 'reports' ? 'Management reports composed live from the same posted ledger — where the money goes, where it comes from, and how equity has changed.' : null}
+          {tab === 'accounts' ? 'Every place the farm keeps money — drawer, bank, GCash/Maya — with balances derived live from the ledger. Sales can land in any account; transfers move money between them with no income or expense.' : null}
           {tab === 'cash_ledger' ? "Log cash movements that are NOT crop sales and NOT standard purchases — Owner Investment, Loans, Drawings — to complete the equity and liability picture." : null}
         </p>
       </Card>
@@ -159,6 +161,7 @@ export default function AccountingScreen() {
           ['dashboard', 'General Ledger Dashboard', BarChart3],
           ['statements', 'Financial Statements', FileText],
           ['reports', 'Management Reports', PieChart],
+          ['accounts', 'Cash & Accounts', Landmark],
           ['cash_ledger', 'Cash Flow Inputs', Wallet],
         ] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
@@ -395,6 +398,10 @@ export default function AccountingScreen() {
               </dl>
             )}
           </Card>
+        </div>
+      ) : tab === 'accounts' ? (
+        <div className="animate-fade-in">
+          <AccountsTab branchId={branchId ?? null} />
         </div>
       ) : (
         <div className="animate-fade-in space-y-6">
