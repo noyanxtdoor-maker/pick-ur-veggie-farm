@@ -26,8 +26,12 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
   **41 tables, all 41 RLS-FORCED, 23 rows in schema_migrations**, anon-key REST probes return 42501 permission-denied
   on real tables (zero anon grants — the revoke-based posture holds in the cloud). `.env` (gitignored) carries the
   URL + anon key with `VITE_USE_MOCK=true` so the app STAYS on mock data until cloud auth users exist.
-- **The app still RUNS in MOCK mode** (deliberate — no auth users exist in the cloud project yet; the
-  Phase-1/auth session flips `VITE_USE_MOCK` off).
+- **THE APP NOW RUNS LIVE against the cloud (2026-07-10, Phase-1 auth complete).** `VITE_USE_MOCK` removed from
+  `.env`; the tenant is bootstrapped (company "Pick Ur Veggie Farm" / branch "Main Farm" / owner identity with the
+  full 31-permission catalog); the owner logs in with his own credentials. **"Browser-verified" for rows dated
+  2026-07-10+ can mean REAL-cloud** (each row says which). Earlier rows remain mock-verified as recorded — their
+  real-cloud proof is the guard batteries + the live POS E2E below. Unit tests are pinned to mock
+  (`vite.config.ts` forces `VITE_USE_MOCK=true` in vitest) so the suite can never touch production.
   - "Browser-verified" below therefore means **manually exercised in the running app against the local mock/Dexie
     data path** — NOT against a live cloud database.
   - The **real-cloud path** (online Supabase PostgREST + RPC) for every feature is proven **only by the SQL guard
@@ -59,7 +63,8 @@ the flow was not exercised.
 
 | Feature | Status | Last touched | Verified (fact) vs assumed |
 |---|---|---|---|
-| **Phase-1 foundation** — identity, multi-tenant, roles/permissions, resolver + tenant RLS (`has_permission`, `is_branch_member`, `current_app_user_id`), append-only audit, controlled bootstrap | Done (pushed) | 2026-06-22 | **guard**: rls-behavior 23, org 13, bootstrap 8; CI-green. **Assumed/untested:** the mock app does NOT exercise real auth/RLS (it uses a mock session) — real-cloud login/RLS unproven end-to-end. |
+| **Phase-1 foundation** — identity, multi-tenant, roles/permissions, resolver + tenant RLS (`has_permission`, `is_branch_member`, `current_app_user_id`), append-only audit, controlled bootstrap | Done (pushed) | 2026-07-10 | **guard**: rls-behavior 23, org 13, bootstrap 8; CI-green. **NOW REAL-CLOUD PROVEN (2026-07-10):** live bootstrap ran on the cloud project; real owner login → resolver + 31-key permission snapshot + RLS reads all live (company visible through PostgREST as the real user). |
+| **Phase-1 AUTH MODULE (P1A+P1B)** — self-signup → approval queue (signup trigger; pending = Active identity with zero memberships, blind by C2 §3; `list_pending_users` w/ requested-role), split-panel login (SIGN IN / CREATE POS ACCOUNT tabs, role-request dropdown, demo quick-identities in mock only), self-service password reset (email link → `/auth/reset`), OTP-guarded password change in Settings (email nonce, ODR-003 re-auth), admin-assisted recovery (send reset email from Approvals), AwaitingApproval gate, Google OAuth scaffold (owner enables provider per `Phase_1_OAuth_Setup.md`), break-glass runbook | Done (pushed) | 2026-07-10 | **guard** auth-lifecycle **7/7** (trigger, pending-is-blind, queue gate + requested-role, approval lights exact scope, suspension kills resolver, idempotent) — full suite **182 PASS / 0** after clean reset. **REAL-CLOUD E2E:** owner login w/ own credentials → tester signed up via the UI → email-confirmed → pending & blind → owner approved in the queue (branch+role) → membership landed on cloud → tester logged in and saw the app. **Found+fixed live:** approve dialog had zero options on a fresh device (Dexie cache not hydrated) — now hydrates from the server. **Assumed/untested:** reset-email delivery + OTP email arrival (needs a real inbox — owner to smoke-test); Google OAuth (provider not yet enabled); MFA/TOTP enrollment deferred (runbook notes). |
 | **Organization setup** (company/branch/role/membership writes, invitations, invite/accept) | Done (pushed) | 2026-06-22 | **guard** org 13; **browser-mock** (org screens render/CRUD in mock). Real invite email flow untested (needs cloud). |
 | **Crop management** (categories/varieties/profiles/templates) — FROZEN master data | Done (pushed) | 2026-06-23 | **guard** crop 11; browser-mock. |
 | **POS — Weigh sale engine** (M2A finished-goods spine w/ append-only movement ledger; M2B `pos_record_sale` atomic + **balanced double-entry GL**; M2C pre-order→AR / settle / void reversing-journal / cash-session; M2E farm pricing + bulk lines) + Active Slip Counter UI | Done (pushed) | 2026-07-04 | **guard** pos 18 + inventory 24; **browser-mock** full sale → receipt → journal, multiple sessions. Real-cloud sale RPC unproven end-to-end. |
@@ -230,6 +235,22 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-10 (Phase 1 complete)** — **AUTH MODULE SHIPPED + THE APP WENT LIVE ON THE CLOUD (Fable 5).**
+  Commits `e852c93` (P1A: signup trigger → approval queue, reset page, admin recovery, OAuth scaffold, break-glass
+  runbook; guard auth 7/7, full suite 182/0; 12 guard fixtures patched for the trigger via a transaction-local GUC
+  escape that can only WITHHOLD, never grant; CI green) + `9a79545` (P1B: split-panel login w/ role-request, OTP
+  password change, approvals hydration fix — **CI RED**: the no-float static guard matched the word "real" in a
+  function COMMENT string) + `14a493e` (fix: comment reworded — a DISCLOSED comment-only edit to the minutes-old
+  P1B migration, schema identical; weakening the C6 guard would have been worse). Cloud: 25 migrations live; tenant bootstrapped (Pick Ur Veggie Farm / Main
+  Farm / owner = full catalog); owner credentials set at his request; **first real POS sale on the cloud:
+  invoice #1 ₱270 Paid, journal Dr CASH 270 / Cr SALES 270 + Dr COGS 120 / Cr FG 120 — balanced, stock 50→48
+  derived**; full signup→approve→access loop proven live. **Bugs found by going live:** (a) unit tests were firing
+  at the production cloud once `.env` existed — vitest now forces mock (safety fix); (b) approve dialog empty on
+  fresh devices (cache hydration) — fixed; (c) manual auth users need non-NULL token columns (GoTrue scanner) —
+  operator-noted in the runbook. **Open (owner):** suspend the E2E test account (`pickurveggie.e2e.tester@gmail.com`
+  — holds an owner-role membership w/ a known password; classifier blocked my production write); smoke-test
+  reset-email + OTP delivery to a real inbox; enable Google provider; enable MFA when ready; rotate the DB password
+  (his stated plan now that Phase 1 is done).
 - **2026-07-10 (later)** — **B2A digital payments BUILT + Repo A cloud schema LIVE (Fable 5).** (1) **B2A** (commit
   `4662411`, CI green): migration `20260710090000_p2b2a` + payments guard 11/11 + full suite **175 PASS / 0** after
   clean reset + app layer (paymentsApi, POS picker, Cash & Accounts tab) + browser E2E (GCash sale ₱270 → account on

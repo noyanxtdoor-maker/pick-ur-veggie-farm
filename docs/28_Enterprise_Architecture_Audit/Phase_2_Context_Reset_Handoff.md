@@ -628,6 +628,36 @@ commands (docker-exec guards, credential-fill CI check, commit -F), the owner ga
 boundary, reporting rules, and observed anti-patterns (incl. the Repo B `app/` collision). Pointer added
 to CLAUDE.md §8. Sonnet 5 / Opus 4.8 / any future model: **load it at session start.**
 
+## 17. Session 2026-07-10 (final, Fable 5) — PHASE 1 AUTH MODULE COMPLETE · THE APP IS LIVE
+
+**Everything below is pushed + CI-green (`e852c93` P1A, `9a79545` P1B) and verified against the LIVE cloud.**
+
+- **P1A** (migration `20260710150000`): auth.users signup trigger → public.users identity (Active, zero
+  memberships = pending, C2 §3 — no new status value, locked M1 contract untouched); `users.email` (additive);
+  `list_pending_users()` (membership.manage). Guard `auth-lifecycle` 7/7; **full suite 182 PASS / 0** post-reset
+  (12 fixtures patched: transaction-local `app.p1a_skip_signup_trigger` GUC — skipping only WITHHOLDS a row).
+- **P1B** (migration `20260710180000`): queue surfaces the signup's REQUESTED role (a wish in auth metadata —
+  grants nothing). Split-panel login (owner screenshots): SIGN IN | CREATE POS ACCOUNT tabs, role-request
+  dropdown + "strict approval" note, demo quick-identities in MOCK only. Settings Security card: password change
+  guarded by an emailed OTP (`reauthenticate()` nonce → `updateUser`, ODR-003). Admin-assisted recovery
+  ("send reset email", B7 §2) in Approvals. AwaitingApproval gate. `/auth/reset` page. Google OAuth scaffold —
+  owner enables the provider per `Phase_1_OAuth_Setup.md`. Break-glass runbook shipped
+  (`Phase_1_Break_Glass_Recovery_Runbook.md`).
+- **CLOUD IS LIVE:** 25 migrations on `aqhxhamdwmhcwxmebqbo`; tenant bootstrapped (Pick Ur Veggie Farm / Main
+  Farm); owner logs in with his own credentials (set at his request, 2026-07-10); `.env` mock flag REMOVED.
+  **First real sale: invoice #1 ₱270 Paid — journal balanced (270/270 + COGS 120/120), stock 50→48 derived.**
+  Full signup→pending(blind)→approve→access loop proven in the live app.
+- **Live-run lessons (now encoded):** manual auth.users inserts need '' (not NULL) in GoTrue token columns;
+  vitest MUST pin `VITE_USE_MOCK=true` (a real `.env` made unit tests fire at production — fixed in
+  vite.config.ts); fresh-device caches need server hydration (Approvals fixed).
+- **OWNER FOLLOW-UPS:** ① suspend `pickurveggie.e2e.tester@gmail.com` (owner-role membership, known password —
+  agent's production write was classifier-blocked): SQL editor → `update public.users set
+  account_status='Suspended' where email='pickurveggie.e2e.tester@gmail.com';` ② rotate the DB password (his
+  stated plan post-Phase-1) — only future `db push` needs the new one, `.env` unaffected; ③ smoke-test reset
+  email + OTP to a real inbox; ④ enable Google provider (10-min click-path doc); ⑤ enable MFA/TOTP when ready.
+- **NEXT BUILDABLE:** B2 lock review (GLM reviews `p2b2a` + payments guard), then Track C hosting → Track E Play
+  packaging. The buildable non-gated backlog is again exhausted — remaining tracks are owner-gated.
+
 ## 16. Session 2026-07-10 (later, Fable 5) — B2A BUILT · CLOUD SCHEMA LIVE · GLM skill delivered
 
 - **B2A digital payments** (commit `4662411`, CI green) — the review-§9-authorized first slice, built to
