@@ -21,7 +21,13 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
   lockstep, so Repo A's review-doc §9 boxes ARE ticked — but the queued deploy target moved to Repo B with the
   original Supabase; **Repo A's deploys re-target a FRESH owner-created project (pending), sequence: new
   Supabase → Phase-1/auth → then B2.**
-- **The app currently runs in MOCK / OFFLINE mode** (no Supabase project configured; `VITE_SUPABASE_*` unset).
+- **CLOUD (2026-07-10): Repo A's Supabase project EXISTS and carries the full schema.** Owner created project
+  `aqhxhamdwmhcwxmebqbo` (ap-northeast-1); all **23 migrations pushed** via the session pooler; verified live:
+  **41 tables, all 41 RLS-FORCED, 23 rows in schema_migrations**, anon-key REST probes return 42501 permission-denied
+  on real tables (zero anon grants — the revoke-based posture holds in the cloud). `.env` (gitignored) carries the
+  URL + anon key with `VITE_USE_MOCK=true` so the app STAYS on mock data until cloud auth users exist.
+- **The app still RUNS in MOCK mode** (deliberate — no auth users exist in the cloud project yet; the
+  Phase-1/auth session flips `VITE_USE_MOCK` off).
   - "Browser-verified" below therefore means **manually exercised in the running app against the local mock/Dexie
     data path** — NOT against a live cloud database.
   - The **real-cloud path** (online Supabase PostgREST + RPC) for every feature is proven **only by the SQL guard
@@ -32,8 +38,8 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
 
 | Check | Result |
 |---|---|
-| `supabase db reset` (22 migrations apply) | ✅ clean |
-| All 12 guard batteries (behavioral SQL security tests) | ✅ **164 PASS / 0 DEFECT** |
+| `supabase db reset` (23 migrations apply) | ✅ clean |
+| All 13 guard batteries (behavioral SQL security tests) | ✅ **175 PASS / 0 DEFECT** |
 | `tsc --noEmit` (type check) | ✅ clean |
 | `vitest` unit tests | ✅ **89 / 89** |
 | `vite build` | ✅ ok |
@@ -41,7 +47,7 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
 | CI runs a browser? | ❌ no — E2E is manual, mock-mode only |
 
 Guard battery counts: rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 · scheduling 15 ·
-crop 11 · bootstrap 8 · projects 7 · customers 6 · db-guards 1.
+crop 11 · **payments 11** · bootstrap 8 · projects 7 · customers 6 · db-guards 1.
 
 ---
 
@@ -72,10 +78,12 @@ the flow was not exercised.
 | **PWA foundation** (manifest, service worker, icons, prod-only SW registration) | Done (pushed) | 2026-07-04 | **browser-mock** (manifest+sw served 200, SW registers). Not yet wrapped for Play (Bubblewrap/AAB not done). |
 | **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + now-line + drag, **full DayFlow: Year/Month/Week/Day view set, cross-day drag, all-day rows in every view, event detail panel with CRUD reachable from every view, per-role read-only UX**) | Done (pushed) | 2026-07-06 | **guard** scheduling 15 (tenant/branch/tier isolation, timed-event + end>start, **+ cross-day move allowed+audited for schedule.manage / denied→0 rows for read-only**). **browser-mock** full E2E: create timed + all-day → both render in Day AND Week; edit via detail→modal persists; mark done↔reopen; delete removes from DB; cross-day drag Mon→Tue persisted `event_date` 07-06→07-07 (times preserved); read-only role (schedule.read only) sees events + opens detail to READ but gets "View only" (no New Event, no Management filter, no edit/drag). CAL-1 resolved — see §3. |
 
+| **Digital payments (B2A first slice)** — `financial_accounts` registry (thin, keyed to COA Asset codes, **no stored balance ever**), account-routed `pos_record_sale`/`pos_settle_sale` (+`p_financial_account_id`, null = drawer), `pos_void_sale` reverses against the account actually debited, `balance_sheet`/`cash_flow_statement` over Cash & equivalents, `financial_account_transfer` (Dr/Cr, no P&L), POS payment-method picker (checkout + settle), Accounting "Cash & Accounts" tab (derived-balance cards, CRUD, transfer) | **BUILT (pushed) — pre-lock** | 2026-07-10 | **guard** payments 11/11 (GCash sale→WALLET not CASH w/ assets unchanged; void mirrors account; transfer zero-net/no-P&L/idempotent; cash-flow closing = Σ balances; full gate matrix; derived-only; code immutable) + full suite 175/0 after clean reset. **unit** 89/89 · tsc · build. **browser-mock** E2E: drawer+GCash created via UI; 2 kg GCash sale → invoice stores account id, GCash balance ₱270 derived; transfer ₱100 GCash→drawer → 170/100, total unchanged. **NOT locked:** B2 requires its own cross-vendor review (spec §6c) before lock; real-cloud RPC path unexercised by the app (schema is live, auth pending). Settle-to-account: guard-proven server-side; mock settle browser path not exercised this session. |
+
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
 |---|---|---|
-| B2 digital payments (GCash/Maya/bank) | Not started (Blocked) | Money path. Spec written (`Phase_2_B2_...`); **cross-vendor review now DELIVERED** (`Phase_2_Cross_Vendor_Money_Path_Review.md`, 2026-07-06) = **GO for design**, but implementation is explicitly gated: owner must first sign off the M2E/M2C/M4A/M5A locks (§9), then authorize B2 build against the spec ("do not invert", §6.4). Not startable by the agent. |
+| B2 digital payments (GCash/Maya/bank) | **BUILT (pushed) — pre-lock** | Moved to §2 (row "Digital payments"). Authorized by review §9 (B2 APPROVED 2026-07-08); built 2026-07-10; **B2's own cross-vendor review before lock still pending (spec §6c)**. |
 | Credit-limit enforcement in sale · delivery-settle tender/change edits | Not started (Blocked) | Money path — owner review/sign-off gate (same review). |
 | Cloud signup→approval queue | Not started | Owner-designated cloud phase. |
 | Supabase project + HTTPS hosting + Play packaging (AAB/assetlinks) | Not started | Owner infra decisions. |
@@ -222,6 +230,17 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-10 (later)** — **B2A digital payments BUILT + Repo A cloud schema LIVE (Fable 5).** (1) **B2A** (commit
+  `4662411`, CI green): migration `20260710090000_p2b2a` + payments guard 11/11 + full suite **175 PASS / 0** after
+  clean reset + app layer (paymentsApi, POS picker, Cash & Accounts tab) + browser E2E (GCash sale ₱270 → account on
+  invoice + derived balance; transfer ₱100 zero-net). Authorized by review §9 (B2 APPROVED); **pre-lock** — B2's own
+  cross-vendor review still required (spec §6c). (2) **Cloud**: owner created Supabase project `aqhxhamdwmhcwxmebqbo`
+  (ap-northeast-1); all 23 migrations pushed via session pooler (direct host is IPv6-only; region identified from the
+  AWS prefix); verified live: **41 tables / 41 RLS-forced / 23 migrations**, anon REST probes → 42501 on every real
+  table. `.env` (gitignored) wired with URL + anon key + `VITE_USE_MOCK=true` (app stays on mock until cloud auth
+  users exist — the Phase-1/auth session flips it). **No secret committed anywhere** (DB password used in ephemeral
+  shell only). (3) Owner-requested **engineering-discipline skill for GLM/MiniMax written into Repo B**
+  (`.claude/skills/engineering-discipline/SKILL.md`, untracked — their session commits it after tree recovery).
 - **2026-07-10** — **Two-repo reality recorded + discipline-transfer skill shipped (Fable 5).** Owner disclosed
   the fork; verified against git: Repo B (`pickurveggieERPfarm-GLM-version`, GLM 5.2 + MiniMax M3, forked from
   `8e1f064`, **owns the original Supabase project `jabjyvdkadcbfocaerno`**) vs this Repo A (Claude models; fresh

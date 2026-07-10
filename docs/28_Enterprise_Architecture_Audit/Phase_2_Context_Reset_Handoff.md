@@ -627,3 +627,33 @@ Engineering Loop cadence, the bug-catching patterns with the real bugs each caug
 commands (docker-exec guards, credential-fill CI check, commit -F), the owner gates incl. the new repo
 boundary, reporting rules, and observed anti-patterns (incl. the Repo B `app/` collision). Pointer added
 to CLAUDE.md §8. Sonnet 5 / Opus 4.8 / any future model: **load it at session start.**
+
+## 16. Session 2026-07-10 (later, Fable 5) — B2A BUILT · CLOUD SCHEMA LIVE · GLM skill delivered
+
+- **B2A digital payments** (commit `4662411`, CI green) — the review-§9-authorized first slice, built to
+  `Phase_2_B2_Digital_Payments_Reconciliation_Spec.md §4`: financial_accounts registry (no stored balance,
+  COA-Asset-keyed), account-routed sale/settle, **void reverses against the account actually debited**
+  (C7 §4 mirror — required beyond the spec's §3 table), Cash-&-equivalents reads (transfers net out of the
+  cash-flow by construction), governed transfer fn, payments guard **11/11**, full suite **175/0** post-reset,
+  POS picker + Cash & Accounts tab, browser E2E proven from the data layer. **Pre-lock:** B2 needs its own
+  cross-vendor review (spec §6c) before lock — hand `scripts/guards/payments-security.sql` + the migration to
+  the reviewer.
+- **Cloud (Phase D step 1 DONE):** owner-created project `aqhxhamdwmhcwxmebqbo` (ap-northeast-1). All 23
+  migrations pushed (`db push --db-url` via **session pooler `aws-0-ap-northeast-1`** — the direct
+  `db.<ref>` host is **IPv6-only**, unreachable from this IPv4 network; region derived from the AAAA record's
+  AWS prefix via ip-ranges.json). Live verification: **41 tables / 41 RLS-forced / 23 schema_migrations**;
+  anon REST probes → 42501 permission-denied on every real table (zero anon grants holds in the cloud).
+  `.env` (gitignored) = URL + anon key + **`VITE_USE_MOCK=true`** — the app deliberately stays on mock until
+  auth users exist; the Phase-1/auth session removes that line to go live. **DB password: ephemeral shell use
+  only, never on disk — owner may rotate at will; only `.env` (URL + anon key) would need re-entry.**
+- **Next session (Phase-1/auth completion, B7/C2):** real signup/login against the cloud project, controlled
+  bootstrap (`bootstrap_initial_tenant()` — service_role/SQL-editor territory; coordinate with owner), then
+  the real-cloud app E2E (POS sale → GL → AR settle) that STATUS.md §0 still marks unproven, then flip
+  `VITE_USE_MOCK` off. Branch-protection precondition: Solo-Founder Exception still applies.
+- **GLM/MiniMax discipline skill delivered** (owner ask): written to REPO B at
+  `.claude/skills/engineering-discipline/SKILL.md` (untracked there; their session commits it AFTER the §15
+  tree recovery). Contents target their audited incident classes: working-tree covenant (generators outside
+  the repo, no `git add -A`, deletions never incidental, session-end tree check), anti-doc-fold rules (never
+  self-referential SHAs), owner-quote-verbatim rule, security read-twice rules (secrets sweep pre-push,
+  guard-must-be-able-to-fail, cross-runtime code exercised in its runtime), the five bug-catching patterns
+  with receipts, verification-chain rules, session protocol, gates, and a 60-second pre-commit ritual.
