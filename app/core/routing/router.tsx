@@ -26,6 +26,7 @@ const PayrollScreen = lazy(() => import('../../features/payroll/PayrollScreen'))
 const SchedulesScreen = lazy(() => import('../../features/scheduling/SchedulesScreen'));
 const ProjectsScreen = lazy(() => import('../../features/projects/ProjectsScreen'));
 const SettingsScreen = lazy(() => import('../../features/settings/SettingsScreen'));
+const CopilotPanel = lazy(() => import('../../features/copilot/CopilotPanel'));
 const OperationsLayout = lazy(() => import('../../features/operations/OperationsLayout'));
 const CustomersScreen = lazy(() => import('../../features/customers/CustomersScreen'));
 const CropsLayout = lazy(() => import('../../features/crops/CropsLayout'));
@@ -109,6 +110,7 @@ export const router = createBrowserRouter([
       {path: 'crops/*', element: <Navigate to="/operations/crops" replace />},
       {path: 'reports', element: <Placeholder title="Reports" />},
       {path: 'settings', element: <SettingsScreen />},
+      {path: 'copilot', element: <CopilotPanel />}, // CAP-VG1: advisory only; copilot.use DB gate arrives with step 5
     ],
   },
   {path: '*', element: <Navigate to="/dashboard" replace />},

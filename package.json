@@ -35,6 +35,7 @@
     "guard:customers": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/customers-security.sql",
     "guard:payments": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/payments-security.sql",
     "guard:auth": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/auth-lifecycle-security.sql",
+    "guard:copilot": "psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/copilot-degrade-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {

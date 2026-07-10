@@ -45,6 +45,7 @@ const CORE_MODULES = [
   {to: '/payroll', label: 'Salaries & Payroll', icon: Users2},
   {to: '/operations', label: 'Operations', icon: ClipboardList},
   {to: '/reports', label: 'Reports', icon: BarChart3},
+  {to: '/copilot', label: 'VeggieGenius', icon: Sparkles}, // CAP-VG1: advisory copilot (read-only, C7 §11)
   {to: '/settings', label: 'Settings Hub', icon: Settings},
 ] as const;
 

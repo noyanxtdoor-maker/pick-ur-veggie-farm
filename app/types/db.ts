@@ -153,6 +153,20 @@ export interface FinancialTransfer {
   created_at: string;
 }
 
+// ── VeggieGenius Copilot (CAP-VG1 v1) — CLIENT-ONLY chat history (spec §3: "the answer is not stored"
+// server-side; no sync, no audit surface, no money path). Field is `chatRole`, NOT `role` — chat message
+// roles are not auth roles, and the no-role-name-auth static guard must stay clean (lesson ported from
+// Repo B's build, owner-authorized lane).
+export interface CopilotMessage {
+  id: string;
+  chatRole: 'user' | 'assistant';
+  content: string;
+  timestamp: number; // epoch ms
+  grounded?: boolean;
+  model?: string; // assistant messages: which local model answered
+  offline?: boolean; // true = offline-degrade fallback (no model involved)
+}
+
 // ── Customers & Credit (P2-M9A / backlog B1) ──
 export interface Customer {
   id: string;

@@ -5,7 +5,7 @@
 // multi-tenant server world those are governed server operations, not a client button. No migration, no new
 // permission, no RLS surface: a device configuring its own look and labels.
 import {useState} from 'react';
-import {Palette, Check, Store, Cloud, Download, KeyRound, LogOut, MonitorCog} from 'lucide-react';
+import {Palette, Check, Store, Cloud, Download, KeyRound, LogOut, MonitorCog, Sparkles} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
@@ -75,6 +75,39 @@ function SecurityCard() {
           )}
         </>
       )}
+    </Card>
+  );
+}
+
+// CAP-VG1 step 1 — the Copilot's LM Studio connection (D2 model choice is deliberately a preference,
+// spec §7). Client state only; turning it off leaves the whole ERP untouched (spec §1 failure mode).
+function CopilotCard() {
+  const {notify} = useToast();
+  const [enabled, setEnabled] = usePref('copilot_enabled', '1');
+  const [lmUrl, setLmUrl] = usePref('copilot_lm_url', 'http://localhost:1234');
+  const [model, setModel] = usePref('copilot_model', 'owner-default');
+  return (
+    <Card>
+      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Sparkles className="h-5 w-5" aria-hidden /> VeggieGenius Copilot</h3>
+      <p className="mb-3 text-xs text-farm-muted">
+        Connects the Copilot to a local LM Studio model on this device. Advisory only — it reads your data to
+        answer questions and never writes anything. Switch it off and the ERP works exactly the same.
+      </p>
+      <div className="space-y-3 text-sm">
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 font-bold text-farm-ink">
+          <input type="checkbox" checked={enabled === '1'} className="h-4 w-4 accent-farm-green"
+            onChange={(e) => {setEnabled(e.target.checked ? '1' : '0'); notify(e.target.checked ? 'Copilot enabled' : 'Copilot off — ERP unaffected');}} />
+          Enable Copilot
+        </label>
+        <div>
+          <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-url">LM Studio server URL</label>
+          <input id="cp-url" value={lmUrl} onChange={(e) => setLmUrl(e.target.value)} placeholder="http://localhost:1234" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-model">Model id <span className="normal-case text-farm-muted/70">(as shown in LM Studio)</span></label>
+          <input id="cp-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. google/gemma-3-4b" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
+        </div>
+      </div>
     </Card>
   );
 }
@@ -176,6 +209,9 @@ export default function SettingsScreen() {
           {/* Security — OTP-guarded password change (P1, ODR-003 sensitive-action re-auth).
               Google-login users have no app password; they change it at their Google account. */}
           <SecurityCard />
+
+          {/* VeggieGenius Copilot (CAP-VG1 step 1) — local LM Studio connection; pure client prefs, no DB. */}
+          <CopilotCard />
 
           {/* Session */}
           <Card>

@@ -123,6 +123,9 @@ jobs:
       - name: Auth lifecycle security tests (signup trigger · pending-is-blind · approval queue gate · suspension · idempotency)
         run: npm run guard:auth
 
+      - name: Copilot degrade guard (CAP-VG1 v1 = zero Postgres surface — no tables/permissions/policies/functions)
+        run: npm run guard:copilot
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
