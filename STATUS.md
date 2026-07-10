@@ -85,6 +85,8 @@ the flow was not exercised.
 
 | **Digital payments (B2A first slice)** — `financial_accounts` registry (thin, keyed to COA Asset codes, **no stored balance ever**), account-routed `pos_record_sale`/`pos_settle_sale` (+`p_financial_account_id`, null = drawer), `pos_void_sale` reverses against the account actually debited, `balance_sheet`/`cash_flow_statement` over Cash & equivalents, `financial_account_transfer` (Dr/Cr, no P&L), POS payment-method picker (checkout + settle), Accounting "Cash & Accounts" tab (derived-balance cards, CRUD, transfer) | **BUILT (pushed) — pre-lock** | 2026-07-10 | **guard** payments 11/11 (GCash sale→WALLET not CASH w/ assets unchanged; void mirrors account; transfer zero-net/no-P&L/idempotent; cash-flow closing = Σ balances; full gate matrix; derived-only; code immutable) + full suite 175/0 after clean reset. **unit** 89/89 · tsc · build. **browser-mock** E2E: drawer+GCash created via UI; 2 kg GCash sale → invoice stores account id, GCash balance ₱270 derived; transfer ₱100 GCash→drawer → 170/100, total unchanged. **NOT locked:** B2 requires its own cross-vendor review (spec §6c) before lock; real-cloud RPC path unexercised by the app (schema is live, auth pending). Settle-to-account: guard-proven server-side; mock settle browser path not exercised this session. |
 
+| **VeggieGenius Copilot (CAP-VG1 v1, steps 1–4)** — Settings card (LM Studio URL/model/toggle), `/copilot` panel + client-only chat history (Dexie; `chatRole` field), grounded non-AI **Morning Brief** (events · unpaid invoices · low material+produce stock · active projects), local-model ask with **offline-degrade** (never load-bearing) | BUILT (pushed) | 2026-07-10 | **guard** copilot-degrade **4/4** (zero Postgres surface: no tables/permissions/policies/functions — run vs the LIVE cloud schema + CI local reset). **unit** 3 brief tests (empty→honest calm; seeded→exact grounded numbers). **LIVE browser E2E** as the real owner: nav entry, Settings fields, brief renders model-free, ask → graceful offline degrade. **Assumed/untested:** an actual LM Studio round-trip (no model installed on this machine — owner smoke-tests step 4 with LM Studio running; the degrade path is the tested default). Step 5 (Edge Function + `copilot.use` + 4 guards) = next slice, now unblocked by the live cloud. |
+
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
 |---|---|---|
@@ -235,6 +237,15 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-10 (four-step directive, Fable 5)** — Owner ordered all four next-steps at once. **① Security
+  follow-ups:** E2E tester **SUSPENDED on the cloud** (owner named the write; verified `Suspended`) and a
+  password-reset email triggered to the owner's inbox (HTTP 200 — owner verifies delivery + may complete it,
+  recommended since his password appeared in chat). Dashboard-only leftovers: rotate DB password, enable Google
+  provider, MFA toggle. **② B2A lock-review package** shipped (`Phase_2_B2A_Lock_Review_Request.md` — 8-claim
+  attack brief + paste-ready GLM prompt). **③ CAP-VG1 steps 1–4 BUILT** (`21ab385` — see the new §2 row; guard
+  copilot-degrade 4/4 vs the live cloud; 92/92 unit; live browser E2E incl. offline-degrade; `chatRole` naming
+  lesson ported from Repo B under the collab lane). **④ Hosting decision-pack** shipped
+  (`Phase_7_Hosting_Decision_Pack.md`; recommendation Cloudflare Pages — MNL edge; owner picks one word).
 - **2026-07-10 (post-completion AUDIT + Phase-2 verdict, Fable 5)** — Owner-ordered review of Phase 1 before
   advancing. **All evidence green:** CI success on every session commit incl. the fix (`14a493e`) and docs tip
   (`d08b60a`); tree clean, in sync; **clean reset + all 14 guard batteries = 182 PASS / 0 DEFECT; static + drift
