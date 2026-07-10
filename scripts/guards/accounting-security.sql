@@ -7,6 +7,9 @@
 -- owners/workers with simulated JWT. Self-contained BEGIN/ROLLBACK; any DEFECT raises under ON_ERROR_STOP.
 \set ON_ERROR_STOP on
 begin;
+-- P1A: the signup trigger is under test in auth-lifecycle-security.sql; these fixtures construct
+-- identities manually with fixed ids, so silence it inside this rolled-back transaction.
+set local app.p1a_skip_signup_trigger = '1';
 
 -- ── fixtures (postgres) ──
 insert into auth.users (instance_id, id, aud, role, email) values

@@ -7,6 +7,7 @@ import {usePermissions} from '../permissions/permissions';
 import {AppShell, OrganizationLayout} from '../../components/layout/AppShell';
 import {Loading} from '../../components/feedback';
 import Login from '../../pages/Login';
+import ResetPassword from '../../pages/ResetPassword';
 import AcceptInvitation from '../../pages/AcceptInvitation';
 import Placeholder from '../../pages/Placeholder';
 import type {PermissionKey} from '../../types/db';
@@ -50,6 +51,7 @@ function RequirePermission({perm, children}: {perm: PermissionKey; children: Rea
 
 export const router = createBrowserRouter([
   {path: '/login', element: <Login />},
+  {path: '/auth/reset', element: <ResetPassword />},
   {path: '/accept', element: <RequireAuth><AcceptInvitation /></RequireAuth>},
   {
     path: '/',

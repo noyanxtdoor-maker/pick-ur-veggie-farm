@@ -27,6 +27,7 @@ import {
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSession} from '../../core/auth/session';
+import {MOCK_MODE} from '../../core/mock/mock';
 import {useDarkToggle, usePref} from '../../core/prefs/prefs';
 import {offlineDB} from '../../core/offline/db';
 import type {PermissionKey} from '../../types/db';
@@ -257,8 +258,30 @@ function TopBar() {
   );
 }
 
+// P1A: an authenticated identity with no company membership is "awaiting approval" (C2 §3 — RLS shows
+// them nothing anyway; this screen says WHY instead of rendering an empty shell). Real mode only.
+function AwaitingApproval() {
+  const {signOut, user} = useSession();
+  const {refresh} = usePermissions();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
+      <div className="w-full max-w-md rounded-2xl bg-farm-card p-8 text-center shadow-xl">
+        <h1 className="mb-2 text-xl font-extrabold text-farm-green">Almost in — awaiting approval</h1>
+        <p className="mb-1 text-sm text-farm-muted">Your account ({user?.email ?? 'signed in'}) was created successfully.</p>
+        <p className="mb-6 text-sm text-farm-muted">An admin now needs to assign you to a branch and role. You will see the farm data the moment that happens.</p>
+        <div className="flex justify-center gap-2">
+          <button onClick={() => void refresh()} className="rounded-xl bg-farm-green px-4 py-2 text-sm font-bold text-white">Check again</button>
+          <button onClick={() => void signOut()} className="rounded-xl border border-farm-accent px-4 py-2 text-sm font-bold text-farm-green">Sign out</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AppShell() {
   const {online, pending} = useSync();
+  const {companyId, loading} = usePermissions();
+  if (!MOCK_MODE && !loading && !companyId) return <AwaitingApproval />;
   return (
     <div className="flex h-screen bg-farm-bg text-farm-ink">
       <NavRail />

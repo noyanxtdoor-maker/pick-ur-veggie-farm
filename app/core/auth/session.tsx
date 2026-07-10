@@ -19,6 +19,13 @@ interface SessionValue {
   authUserId: string | null;
   configured: boolean;
   signIn: (email: string, password: string) => Promise<{error: string | null}>;
+  // P1A self-signup: creates the auth identity; the DB trigger creates the ERP identity (Active, zero
+  // memberships = awaiting approval, C2 §3). needsConfirmation = email-confirm is on and no session yet.
+  signUp: (email: string, password: string, displayName: string) => Promise<{error: string | null; needsConfirmation: boolean}>;
+  // P1 self-service reset (B7 §2): emails a recovery link that lands on /auth/reset.
+  resetPassword: (email: string) => Promise<{error: string | null}>;
+  updatePassword: (newPassword: string) => Promise<{error: string | null}>;
+  signInWithGoogle: () => Promise<{error: string | null}>;
   signOut: () => Promise<void>;
 }
 
@@ -72,6 +79,36 @@ export function SessionProvider({children}: {children: ReactNode}) {
           return {error: null};
         }
         const {error} = await supabase.auth.signInWithPassword({email, password});
+        return {error: error ? error.message : null};
+      },
+      signUp: async (email, password, displayName) => {
+        if (MOCK_MODE) {
+          // demo mode has no cloud identities — signing up just signs you in
+          await offlineDB.meta.put({key: 'mock-auth', value: true});
+          setSession(MOCK_SESSION);
+          setStatus('authenticated');
+          return {error: null, needsConfirmation: false};
+        }
+        const {data, error} = await supabase.auth.signUp({
+          email, password,
+          options: {data: {display_name: displayName}, emailRedirectTo: `${window.location.origin}/login`},
+        });
+        if (error) return {error: error.message, needsConfirmation: false};
+        return {error: null, needsConfirmation: !data.session};
+      },
+      resetPassword: async (email) => {
+        if (MOCK_MODE) return {error: 'Demo mode has no passwords — just sign in with anything.'};
+        const {error} = await supabase.auth.resetPasswordForEmail(email, {redirectTo: `${window.location.origin}/auth/reset`});
+        return {error: error ? error.message : null};
+      },
+      updatePassword: async (newPassword) => {
+        if (MOCK_MODE) return {error: 'Demo mode has no passwords.'};
+        const {error} = await supabase.auth.updateUser({password: newPassword});
+        return {error: error ? error.message : null};
+      },
+      signInWithGoogle: async () => {
+        if (MOCK_MODE) return {error: 'Demo mode — just sign in with any email & password.'};
+        const {error} = await supabase.auth.signInWithOAuth({provider: 'google', options: {redirectTo: `${window.location.origin}/dashboard`}});
         return {error: error ? error.message : null};
       },
       signOut: async () => {

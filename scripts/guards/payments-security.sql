@@ -6,6 +6,9 @@
 -- balance surface). Runs as authenticated users with simulated JWTs. Self-contained BEGIN/ROLLBACK.
 \set ON_ERROR_STOP on
 begin;
+-- P1A: the signup trigger is under test in auth-lifecycle-security.sql; these fixtures construct
+-- identities manually with fixed ids, so silence it inside this rolled-back transaction.
+set local app.p1a_skip_signup_trigger = '1';
 
 -- ── fixtures ──
 insert into auth.users (instance_id, id, aud, role, email) values

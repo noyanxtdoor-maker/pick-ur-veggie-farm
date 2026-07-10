@@ -5,6 +5,9 @@
 -- → fails under -v ON_ERROR_STOP=1.
 \set ON_ERROR_STOP on
 begin;
+-- P1A: the signup trigger is under test in auth-lifecycle-security.sql; these fixtures construct
+-- identities manually with fixed ids, so silence it inside this rolled-back transaction.
+set local app.p1a_skip_signup_trigger = '1';
 
 -- ── fixtures (postgres): two companies; A has branches A1+A2; an owner per company (crop.manage) + a worker who
 --    is a member of A2 ONLY and holds NO crop.manage. Company B gets a full catalog so isolation has data to hide.

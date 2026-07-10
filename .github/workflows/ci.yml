@@ -120,6 +120,9 @@ jobs:
       - name: Payments security tests (account routing · void mirrors account · transfer zero-net/no-P&L · derived balances · gates)
         run: npm run guard:payments
 
+      - name: Auth lifecycle security tests (signup trigger · pending-is-blind · approval queue gate · suspension · idempotency)
+        run: npm run guard:auth
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

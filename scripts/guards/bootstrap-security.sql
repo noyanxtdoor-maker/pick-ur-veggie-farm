@@ -4,6 +4,9 @@
 -- Self-contained: BEGIN/ROLLBACK, leaves no data, no drift. Any DEFECT raises → fails under -v ON_ERROR_STOP=1.
 \set ON_ERROR_STOP on
 begin;
+-- P1A: the signup trigger is under test in auth-lifecycle-security.sql; these fixtures construct
+-- identities manually with fixed ids, so silence it inside this rolled-back transaction.
+set local app.p1a_skip_signup_trigger = '1';
 
 -- Owner auth identities (simulate Supabase Auth signup; the operator passes one to bootstrap — ownership is
 -- NOT granted by being first to register).
