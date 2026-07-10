@@ -9,8 +9,10 @@ import App from '@/app/App';
 describe('V3 application renders', () => {
   it('mounts providers + router and shows the login screen (mock mode)', async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/PickUrVeggie ERP/i)).toBeDefined(), {timeout: 4000});
-    // The shared Button component renders the sign-in action.
+    // P1 split-panel login: brand headline on the marketing panel + the two auth tabs.
+    await waitFor(() => expect(screen.getAllByText(/Pick Ur Veggie/i).length).toBeGreaterThan(0), {timeout: 4000});
     expect(screen.getByRole('button', {name: /sign in/i})).toBeDefined();
+    expect(screen.getByRole('button', {name: /create pos account/i})).toBeDefined();
+    expect(screen.getByRole('button', {name: /log in to erp/i})).toBeDefined();
   });
 });

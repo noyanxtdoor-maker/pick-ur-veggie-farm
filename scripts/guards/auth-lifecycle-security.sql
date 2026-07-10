@@ -41,7 +41,7 @@ insert into public.products (id, company_id, product_code, name, retail_per_kg) 
 
 -- ── a NEW self-signup arrives (simulates supabase.auth.signUp) ──
 insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data) values
-  ('00000000-0000-0000-0000-000000000000','0d000000-0000-0000-0000-00000000000d','authenticated','authenticated','newhire@t.local','{"display_name":"Bagong Kasama"}');
+  ('00000000-0000-0000-0000-000000000000','0d000000-0000-0000-0000-00000000000d','authenticated','authenticated','newhire@t.local','{"display_name":"Bagong Kasama","requested_role":"operator"}');
 
 -- TRIGGER: identity captured with metadata display name + email
 do $$ declare v_name text; v_email text; v_status text;
@@ -73,8 +73,8 @@ end $$;
 do $$ declare n int; v_denied boolean := false;
 begin
   set local role authenticated; set local request.jwt.claims = '{"sub":"0a000000-0000-0000-0000-00000000000a"}';
-  select count(*) into n from public.list_pending_users() where email = 'newhire@t.local';
-  if n <> 1 then raise exception 'DEFECT auth: approver does not see the pending signup (n=%)', n; end if;
+  select count(*) into n from public.list_pending_users() where email = 'newhire@t.local' and requested_role = 'operator';
+  if n <> 1 then raise exception 'DEFECT auth: approver does not see the pending signup with its requested role (n=%)', n; end if;
   set local role authenticated; set local request.jwt.claims = '{"sub":"0c000000-0000-0000-0000-00000000000c"}';
   begin perform * from public.list_pending_users();
   exception when insufficient_privilege then v_denied := true; end;

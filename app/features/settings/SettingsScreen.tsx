@@ -5,7 +5,7 @@
 // multi-tenant server world those are governed server operations, not a client button. No migration, no new
 // permission, no RLS surface: a device configuring its own look and labels.
 import {useState} from 'react';
-import {Palette, Check, Store, Cloud, Download, LogOut, MonitorCog} from 'lucide-react';
+import {Palette, Check, Store, Cloud, Download, KeyRound, LogOut, MonitorCog} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
@@ -18,6 +18,66 @@ const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> 
   cream: {name: 'Warm Retro', desc: 'Cozy paper-white amber', swatch: '#d97706'},
   green: {name: 'Green Pastures', desc: 'Bright pasture green, minty daylight', swatch: '#1e7a3f'},
 };
+
+// P1 security card: change password guarded by an emailed one-time code (ODR-003 re-auth for sensitive
+// actions). Flow: "Send code" → supabase emails a 6-digit OTP → user enters code + new password →
+// updateUser carries the OTP as its nonce. Google-only users are told to manage the password at Google.
+function SecurityCard() {
+  const {user, requestPasswordOtp, updatePasswordWithOtp} = useSession();
+  const [step, setStep] = useState<'idle' | 'otp'>('idle');
+  const [otp, setOtp] = useState('');
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const isGoogleOnly = (user?.app_metadata?.providers as string[] | undefined)?.every((p) => p === 'google') ?? false;
+
+  async function sendCode() {
+    setBusy(true); setErr(null); setMsg(null);
+    const r = await requestPasswordOtp();
+    if (r.error) setErr(r.error);
+    else {setStep('otp'); setMsg(`We emailed a one-time code to ${user?.email ?? 'your address'}. Enter it below with your new password.`);}
+    setBusy(false);
+  }
+  async function save() {
+    if (pw.length < 12) return setErr('New password needs at least 12 characters — a short sentence works well.');
+    if (pw !== pw2) return setErr('Passwords do not match.');
+    setBusy(true); setErr(null);
+    const r = await updatePasswordWithOtp(pw, otp.trim());
+    if (r.error) setErr(r.error);
+    else {setStep('idle'); setOtp(''); setPw(''); setPw2(''); setMsg('Password changed. Use it from your next sign-in.');}
+    setBusy(false);
+  }
+
+  return (
+    <Card>
+      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><KeyRound className="h-5 w-5" aria-hidden /> Security — change password</h3>
+      {isGoogleOnly ? (
+        <p className="text-xs text-farm-muted">You sign in with Google, so there is no app password here — manage your password in your Google account.</p>
+      ) : (
+        <>
+          <p className="mb-3 text-xs text-farm-muted">For your protection, changing the password needs a one-time code we email to <strong className="font-mono text-farm-ink">{user?.email ?? 'you'}</strong>.</p>
+          {msg ? <p className="mb-2 rounded-lg bg-farm-accent-soft px-3 py-2 text-xs font-semibold text-farm-green" role="status">{msg}</p> : null}
+          {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
+          {step === 'idle' ? (
+            <Button variant="secondary" onClick={() => void sendCode()} disabled={busy}>{busy ? 'Sending…' : 'Email me a one-time code'}</Button>
+          ) : (
+            <div className="space-y-2.5">
+              <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="6-digit code from the email" aria-label="One-time code" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-sm tracking-widest" />
+              <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password" placeholder="New password (12+ characters)" aria-label="New password" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              <input value={pw2} onChange={(e) => setPw2(e.target.value)} type="password" autoComplete="new-password" placeholder="Repeat new password" aria-label="Repeat new password" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => {setStep('idle'); setErr(null); setMsg(null);}} disabled={busy}>Cancel</Button>
+                <Button className="flex-1" onClick={() => void save()} disabled={busy || otp.length < 6 || !pw}>{busy ? 'Saving…' : 'Change password'}</Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
 
 export default function SettingsScreen() {
   const {user, signOut} = useSession();
@@ -112,6 +172,10 @@ export default function SettingsScreen() {
             </p>
             <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
           </Card>
+
+          {/* Security — OTP-guarded password change (P1, ODR-003 sensitive-action re-auth).
+              Google-login users have no app password; they change it at their Google account. */}
+          <SecurityCard />
 
           {/* Session */}
           <Card>

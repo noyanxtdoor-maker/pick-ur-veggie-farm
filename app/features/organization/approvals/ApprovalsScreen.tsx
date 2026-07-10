@@ -12,6 +12,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Clock3, ShieldCheck, UserCog, X} from 'lucide-react';
 import {offlineDB} from '../../../core/offline/db';
+import {supabase} from '../../../core/supabase/client';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
@@ -60,6 +61,15 @@ export default function ApprovalsScreen() {
     if (!companyId) return;
     membershipsApi.fetch(companyId).then(setRows).catch(() => setRows([]));
     if (canManage) authApi.listPendingUsers().then(setPending).catch(() => setPending([]));
+    // Real mode on a fresh device: the branch/role dropdowns read the Dexie cache, which is empty until the
+    // Branches/Roles screens have been visited — hydrate it here so approval works standalone (found by the
+    // first live-cloud E2E: the approve dialog had zero options).
+    if (!MOCK_MODE && (typeof navigator === 'undefined' || navigator.onLine)) {
+      void supabase.from('branches').select('*').eq('company_id', companyId)
+        .then(({data}) => data && offlineDB.branches.bulkPut(data as never[]));
+      void supabase.from('roles').select('*').eq('company_id', companyId)
+        .then(({data}) => data && offlineDB.roles.bulkPut(data as never[]));
+    }
   };
   useEffect(reload, [companyId, canManage]);
 
@@ -141,7 +151,10 @@ export default function ApprovalsScreen() {
             {pending.map((p) => (
               <li key={p.user_id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <div>
-                  <p className="text-sm font-bold text-farm-ink">{p.display_name ?? 'New member'}</p>
+                  <p className="flex items-center gap-2 text-sm font-bold text-farm-ink">
+                    {p.display_name ?? 'New member'}
+                    {p.requested_role ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-900" title="What they ASKED for at sign-up — you still choose the actual role">wants: {p.requested_role}</span> : null}
+                  </p>
                   <p className="text-xs text-farm-muted">{p.email ?? 'no email'} · signed up {new Date(p.created_at).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}</p>
                 </div>
                 <button onClick={() => {setApproveTarget(p); setApBranch(''); setApRole('');}} disabled={busy}

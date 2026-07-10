@@ -29,6 +29,10 @@ export default defineConfig(() => {
     test: {
       include: ['tests/**/*.test.{ts,tsx}'],
       environment: 'node', // default; component tests opt into jsdom via a per-file `// @vitest-environment jsdom`.
+      // Unit tests exercise the LOCAL mock/Dexie logic and must NEVER reach a real cloud project —
+      // without this, a developer's .env (real VITE_SUPABASE_*) flips MOCK_MODE off inside vitest and
+      // the suite fires live network calls (observed 2026-07-10: 32 failures hitting the cloud as anon).
+      env: {VITE_USE_MOCK: 'true'},
     },
     server: {
       // Tooling (preview harness) assigns a port via PORT; `npm run dev`'s explicit --port=3000 still wins.

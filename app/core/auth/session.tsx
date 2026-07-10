@@ -20,11 +20,16 @@ interface SessionValue {
   configured: boolean;
   signIn: (email: string, password: string) => Promise<{error: string | null}>;
   // P1A self-signup: creates the auth identity; the DB trigger creates the ERP identity (Active, zero
-  // memberships = awaiting approval, C2 §3). needsConfirmation = email-confirm is on and no session yet.
-  signUp: (email: string, password: string, displayName: string) => Promise<{error: string | null; needsConfirmation: boolean}>;
+  // memberships = awaiting approval, C2 §3). requestedRole is a WISH in metadata — the queue shows it,
+  // the approver assigns the real role. needsConfirmation = email-confirm is on and no session yet.
+  signUp: (email: string, password: string, displayName: string, requestedRole?: string) => Promise<{error: string | null; needsConfirmation: boolean}>;
   // P1 self-service reset (B7 §2): emails a recovery link that lands on /auth/reset.
   resetPassword: (email: string) => Promise<{error: string | null}>;
   updatePassword: (newPassword: string) => Promise<{error: string | null}>;
+  // P1 OTP-guarded password change (ODR-003 sensitive-action re-auth): requestOtp emails a 6-digit code;
+  // updatePassword then carries it as the nonce.
+  requestPasswordOtp: () => Promise<{error: string | null}>;
+  updatePasswordWithOtp: (newPassword: string, otp: string) => Promise<{error: string | null}>;
   signInWithGoogle: () => Promise<{error: string | null}>;
   signOut: () => Promise<void>;
 }
@@ -81,7 +86,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
         const {error} = await supabase.auth.signInWithPassword({email, password});
         return {error: error ? error.message : null};
       },
-      signUp: async (email, password, displayName) => {
+      signUp: async (email, password, displayName, requestedRole) => {
         if (MOCK_MODE) {
           // demo mode has no cloud identities — signing up just signs you in
           await offlineDB.meta.put({key: 'mock-auth', value: true});
@@ -91,7 +96,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
         }
         const {data, error} = await supabase.auth.signUp({
           email, password,
-          options: {data: {display_name: displayName}, emailRedirectTo: `${window.location.origin}/login`},
+          options: {data: {display_name: displayName, requested_role: requestedRole ?? null}, emailRedirectTo: `${window.location.origin}/login`},
         });
         if (error) return {error: error.message, needsConfirmation: false};
         return {error: null, needsConfirmation: !data.session};
@@ -104,6 +109,16 @@ export function SessionProvider({children}: {children: ReactNode}) {
       updatePassword: async (newPassword) => {
         if (MOCK_MODE) return {error: 'Demo mode has no passwords.'};
         const {error} = await supabase.auth.updateUser({password: newPassword});
+        return {error: error ? error.message : null};
+      },
+      requestPasswordOtp: async () => {
+        if (MOCK_MODE) return {error: 'Demo mode has no passwords.'};
+        const {error} = await supabase.auth.reauthenticate(); // emails a one-time code (nonce)
+        return {error: error ? error.message : null};
+      },
+      updatePasswordWithOtp: async (newPassword, otp) => {
+        if (MOCK_MODE) return {error: 'Demo mode has no passwords.'};
+        const {error} = await supabase.auth.updateUser({password: newPassword, nonce: otp});
         return {error: error ? error.message : null};
       },
       signInWithGoogle: async () => {

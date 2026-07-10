@@ -12,6 +12,7 @@ export interface PendingUser {
   user_id: string;
   display_name: string | null;
   email: string | null;
+  requested_role: string | null; // the sign-up's WISH (P1B) — grants nothing; approver assigns the real role
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ const MOCK_PENDING: PendingUser = {
   user_id: '00000000-0000-7000-8000-0000000000c9',
   display_name: 'Pending Demo (self-signup)',
   email: 'pending@demo.local',
+  requested_role: 'operator',
   created_at: new Date().toISOString(),
 };
 
