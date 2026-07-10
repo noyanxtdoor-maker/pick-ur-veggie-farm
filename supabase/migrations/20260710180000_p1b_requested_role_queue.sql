@@ -32,6 +32,6 @@ begin
     )
   order by u.created_at;
 end; $$;
-comment on function public.list_pending_users() is 'P1B: the approval queue with the sign-up''s REQUESTED role (a wish from auth metadata — grants nothing; the approver assigns the real role). membership.manage required.';
+comment on function public.list_pending_users() is 'P1B: the approval queue with the sign-up''s REQUESTED role (a wish from auth metadata — grants nothing; the approver assigns the actual role). membership.manage required.';
 revoke all on function public.list_pending_users() from public;
 grant execute on function public.list_pending_users() to authenticated;
