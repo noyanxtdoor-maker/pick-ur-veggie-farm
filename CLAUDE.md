@@ -162,4 +162,12 @@ installed speculatively.
 
 **Working-discipline transfer:** `.claude/skills/think-like-fable/SKILL.md` distills the verification cadence,
 repo-specific commands, and bug-catching patterns proven in the Fable 5 / Opus 4.8 sessions (Jun–Jul 2026).
-Any model working this repo loads it at session start, alongside the handoff.
+Any model working this repo loads it at session start, alongside the handoff. **New models (ChatGPT 5.6,
+Sonnet 5, or any future model) start with `AGENTS.md` at the repo root**, then this file, the skill, `STATUS.md`,
+and `docs/28_Enterprise_Architecture_Audit/Launch_Runbook.md`.
+
+**Standing owner order (2026-07-11) — Team-B handoffs:** every feature, update, bug, or security-leak fix
+Team A ships MUST also produce a handoff file in `docs/handoffs-for-team-b/` (what it is, why, how it was
+built/fixed, and how Team B ports it) and a one-line entry in that folder's `README.md` index. Team A is the
+official-launch repo; Team B (GLM 5.2 / MiniMax M3, sibling repo) learns from our successes as we learned from
+their mistakes. All cross-repo porting requires the owner's explicit authorization, per port.

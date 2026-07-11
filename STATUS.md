@@ -237,6 +237,23 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-11 (infra + onboarding + Team-B system, Fable 5)** — Owner deleted the shared Vercel project
+  (creating a Team-A-only account); old URL now 404, stale `.vercel/` link removed. **Branch protection APPLIED
+  on Repo A** via the owner's 1-day PAT: repo made public (Free-tier requirement for rulesets; tracked files
+  swept clean of secrets first — anon key isn't even committed), ruleset `protect-main-and-develop` created on
+  `main`+`develop` (PR required, CI checks `Verify`/`Secret scan`/`DB guards` required + strict, force-push +
+  deletion blocked). Repo B's ruleset confirmed already Active (id 18794543). **Onboarding for all future models:**
+  new root `AGENTS.md` (model-agnostic: ChatGPT 5.6 / Opus 4.8 / Sonnet 5) + `Launch_Runbook.md` (ordered path to
+  launch + post-launch duties + the P1C bug-fix spec + the advisor cost pattern). **Team-B handoff SYSTEM
+  established** (standing owner order, now in CLAUDE.md §8): `docs/handoffs-for-team-b/` with a README index, a
+  scanning prompt, handoff 001 (their doc-fold spiral + Bubblewrap `app/` collision + discipline fixes), and
+  handoff 002 (the 7 P1C Approvals/Roles bugs — incl. the Dexie-only-override SECURITY LEAK they likely share).
+  **App fixes shipped (verified tsc/92 tests/build):** removed the top-bar Sign-Out (Settings-only now);
+  AwaitingApproval now auto-polls `refresh()` every 15s + on focus so an approved user enters the app with no
+  manual reload. Cloud DB password rotated by owner (old one 400s) → the P1C **DB** work (5-role seed, server-
+  enforced per-user permission overrides, rank-based revoke, signup→queue fix) is spec'd in the runbook §2 and
+  awaits the local-stack window + the new password to build+guard+push. **Not deployed yet — new Vercel account
+  pending (owner).**
 - **2026-07-10 (HOSTED, Fable 5)** — **The app is LIVE on the web: https://pick-ur-veggie-farm.vercel.app**
   (owner chose Vercel + authorized the deploy; CLI was already authenticated as his account). `vercel.json`
   (SPA rewrites, SW no-cache, immutable assets) committed (`5f8e290`); production env = ONLY the public

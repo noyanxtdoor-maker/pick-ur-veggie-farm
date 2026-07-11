@@ -1,7 +1,7 @@
 // Application shell in the AI Studio prototype's design language (owner decision 2026-06-28: the prototype is the
 // visual authority). White sidebar with PV logo + section labels + profile block; header with BRANCH LIVE chip,
 // session pill, red sign-out; farm-bg main stage. Tablet-first, ≥56px targets preserved.
-import {Suspense, useState} from 'react';
+import {Suspense, useEffect, useState} from 'react';
 import {NavLink, Outlet} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {
@@ -11,7 +11,6 @@ import {
   CloudOff,
   Contact,
   Landmark,
-  LogOut,
   Menu,
   Moon,
   Package,
@@ -208,7 +207,6 @@ function NavRail() {
 function TopBar() {
   const {online, pending, syncing, triggerSync} = useSync();
   const {companyId} = usePermissions();
-  const {signOut} = useSession();
   const [farmName] = usePref('farm_display_name');
   const [terminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
   const [isDark, toggleDark] = useDarkToggle();
@@ -247,13 +245,7 @@ function TopBar() {
           <span className="h-2 w-2 animate-pulse rounded-full bg-farm-green" aria-hidden />
           <span>Station: <strong className="font-mono text-farm-green">{terminalId}</strong></span>
         </div>
-        <button
-          onClick={() => void signOut()}
-          className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-red-500 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-600"
-          aria-label="Sign out"
-        >
-          <LogOut size={16} aria-hidden /> <span className="hidden sm:inline">Sign Out</span>
-        </button>
+        {/* Sign-out removed from the top bar (owner 2026-07-11) — log out from Settings → Session only. */}
       </div>
     </header>
   );
@@ -264,14 +256,23 @@ function TopBar() {
 function AwaitingApproval() {
   const {signOut, user} = useSession();
   const {refresh} = usePermissions();
+  // P1C: auto-detect approval — poll the permission snapshot every 15s and on window-focus. The moment an
+  // admin assigns a membership, companyId becomes non-null and AppShell drops this screen automatically
+  // (no manual reload). Cheap: one user_branch_roles read per tick, only while unapproved.
+  useEffect(() => {
+    const t = setInterval(() => void refresh(), 15000);
+    const onFocus = () => void refresh();
+    window.addEventListener('focus', onFocus);
+    return () => {clearInterval(t); window.removeEventListener('focus', onFocus);};
+  }, [refresh]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
       <div className="w-full max-w-md rounded-2xl bg-farm-card p-8 text-center shadow-xl">
         <h1 className="mb-2 text-xl font-extrabold text-farm-green">Almost in — awaiting approval</h1>
         <p className="mb-1 text-sm text-farm-muted">Your account ({user?.email ?? 'signed in'}) was created successfully.</p>
-        <p className="mb-6 text-sm text-farm-muted">An admin now needs to assign you to a branch and role. You will see the farm data the moment that happens.</p>
+        <p className="mb-6 text-sm text-farm-muted">An admin now needs to assign you to a branch and role. This screen updates on its own the moment that happens — no need to refresh.</p>
         <div className="flex justify-center gap-2">
-          <button onClick={() => void refresh()} className="rounded-xl bg-farm-green px-4 py-2 text-sm font-bold text-white">Check again</button>
+          <button onClick={() => void refresh()} className="rounded-xl bg-farm-green px-4 py-2 text-sm font-bold text-white">Check now</button>
           <button onClick={() => void signOut()} className="rounded-xl border border-farm-accent px-4 py-2 text-sm font-bold text-farm-green">Sign out</button>
         </div>
       </div>
