@@ -237,6 +237,18 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   No feature row in §2 changed. Handoff §14 added as the consolidated session log for
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
+- **2026-07-10 (HOSTED, Fable 5)** — **The app is LIVE on the web: https://pick-ur-veggie-farm.vercel.app**
+  (owner chose Vercel + authorized the deploy; CLI was already authenticated as his account). `vercel.json`
+  (SPA rewrites, SW no-cache, immutable assets) committed (`5f8e290`); production env = ONLY the public
+  VITE_SUPABASE_URL + anon key (C2 §7). Verified live: root/login/manifest/sw all 200; SPA fallback works;
+  hosted login reaches cloud auth (rejected with "invalid credentials" because the owner had completed the
+  reset email and rotated his password — the wiring itself is proven). Deploys are CLI-driven
+  (`npx vercel deploy --prod`) — Git auto-deploy deliberately NOT connected (Vercel's default production
+  branch would ship the stale `main`). Owner unblocked on Google OAuth: JS origins =
+  `https://pick-ur-veggie-farm.vercel.app` + `http://localhost:3000`; redirect URI =
+  `https://aqhxhamdwmhcwxmebqbo.supabase.co/auth/v1/callback`. ⚠ Owner must also set Supabase Auth → URL
+  Configuration: Site URL = the vercel.app domain + add `https://pick-ur-veggie-farm.vercel.app/**` to the
+  redirect allow-list (reset emails/OAuth land on the hosted domain). Track E (Play packaging) is now unblocked.
 - **2026-07-10 (four-step directive, Fable 5)** — Owner ordered all four next-steps at once. **① Security
   follow-ups:** E2E tester **SUSPENDED on the cloud** (owner named the write; verified `Suspended`) and a
   password-reset email triggered to the owner's inbox (HTTP 200 — owner verifies delivery + may complete it,
