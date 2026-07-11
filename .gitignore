@@ -13,3 +13,4 @@ graphify-out/
 
 # Browser-probe scratch artifacts (session-local, not source)
 .tmp_capture/
+.vercel
