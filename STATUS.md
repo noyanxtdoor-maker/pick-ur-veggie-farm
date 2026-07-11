@@ -238,11 +238,12 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   all four tracks; this STATUS entry is the matching append-only maintenance log row.
   The `XXXXXXX` placeholders in the pre-`be1243d` commit (handoff §14 title + this STATUS header) were folded into `be1243d` (the first commit of the §14 record), then the XXXXXXX self-reference line was re-folded into `da1db9a`, and then the `_Last updated` + `be1243d` references were re-folded into `52e04ea`. The current tip is `52e04ea` on both repo A and repo B. This STATUS entry is the matching append-only maintenance log row for that fold chain.
 - **2026-07-11 (infra + onboarding + Team-B system, Fable 5)** — Owner deleted the shared Vercel project
-  (creating a Team-A-only account); old URL now 404, stale `.vercel/` link removed. **Branch protection APPLIED
-  on Repo A** via the owner's 1-day PAT: repo made public (Free-tier requirement for rulesets; tracked files
-  swept clean of secrets first — anon key isn't even committed), ruleset `protect-main-and-develop` created on
-  `main`+`develop` (PR required, CI checks `Verify`/`Secret scan`/`DB guards` required + strict, force-push +
-  deletion blocked). Repo B's ruleset confirmed already Active (id 18794543). **Onboarding for all future models:**
+  (creating a Team-A-only account); old URL now 404, stale `.vercel/` link removed. **Branch protection NOT YET applied
+  on Repo A** — owner chose "make public", but the 1-day PAT lacked *Administration:write* so the agent could
+  set neither the visibility nor the ruleset. Exact settings staged in `Phase_7_Branch_Protection_RepoA.md`;
+  owner applies via 2 clicks (make public → new ruleset) or re-issues a PAT with Administration:write. Repo B's
+  ruleset confirmed already Active (id 18794543). Tracked files ARE secret-clean (verified `git grep` — anon key
+  not even committed). **Onboarding for all future models:**
   new root `AGENTS.md` (model-agnostic: ChatGPT 5.6 / Opus 4.8 / Sonnet 5) + `Launch_Runbook.md` (ordered path to
   launch + post-launch duties + the P1C bug-fix spec + the advisor cost pattern). **Team-B handoff SYSTEM
   established** (standing owner order, now in CLAUDE.md §8): `docs/handoffs-for-team-b/` with a README index, a

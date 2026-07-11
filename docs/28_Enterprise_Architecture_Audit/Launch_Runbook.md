@@ -117,8 +117,13 @@ That Dexie-only storage is exactly the security hole §2.4 fixes by moving enfor
    flags as needing a live run per feature.
 4. **MFA enrollment for privileged roles** (ODR-003): enable in Supabase → Auth → MFA; enroll the owner;
    app-side enforcement UI is a follow-up but the toggle + owner enrollment is a launch item.
-5. **Branch protection** — DONE on Repo A 2026-07-11 (ruleset `protect-main-and-develop`: PR required,
-   CI checks required, force-push + deletion blocked, on `main`+`develop`). Verify it's still Active.
+5. **Branch protection** — **NOT yet applied on Repo A** (owner chose "make public" 2026-07-11, but the
+   provided PAT lacked *Administration:write*, so neither the visibility flip nor the ruleset could be set
+   by the agent). OWNER, two clicks: (a) GitHub → repo → Settings → General → Danger Zone → **Change
+   visibility → Public**; (b) Settings → **Rules → Rulesets → New branch ruleset**, apply the settings in
+   `Phase_7_Branch_Protection_RepoA.md` (name `protect-main-and-develop`, targets `main`+`develop`,
+   enforcement Active). OR re-issue the PAT with *Administration: Read and write* and the agent applies it
+   via the API in one call. Repo B's ruleset is already Active (id 18794543).
 6. **Google Play packaging (Track E)** — only after §1 gives a stable HTTPS domain: generate PNG icons,
    `npx @bubblewrap/cli init --manifest https://<domain>/manifest.webmanifest` in a SIBLING folder
    (NEVER inside the repo), build the signed AAB, write `/.well-known/assetlinks.json` with the signing
