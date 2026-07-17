@@ -28,7 +28,7 @@ describe('payroll (mock mode)', () => {
   });
 
   it('hires a worker and starts with a cleared advance balance', async () => {
-    await payrollApi.hire(DEMO.companyId, {name: 'Juan Dela Cruz', position: 'Harvester', dailyRate: 500});
+    await payrollApi.hire(DEMO.companyId, {name: 'Juan Dela Cruz', positionId: 'pos-harvester-fixture', dailyRate: 500});
     const emps = await payrollApi.fetchEmployees(DEMO.companyId);
     const juan = emps.find((e) => e.name === 'Juan Dela Cruz')!;
     expect(juan.daily_rate).toBe(500);
@@ -62,7 +62,7 @@ describe('payroll (mock mode)', () => {
   });
 
   it('rejects advances to an inactive worker', async () => {
-    await payrollApi.hire(DEMO.companyId, {name: 'Temp Worker', position: 'Packer', dailyRate: 450});
+    await payrollApi.hire(DEMO.companyId, {name: 'Temp Worker', positionId: 'pos-packer-fixture', dailyRate: 450});
     let temp = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.name === 'Temp Worker')!;
     await payrollApi.setActive(temp, false);
     temp = (await payrollApi.fetchEmployees(DEMO.companyId)).find((e) => e.id === temp.id)!;

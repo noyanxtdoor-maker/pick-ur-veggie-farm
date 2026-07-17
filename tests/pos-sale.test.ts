@@ -106,7 +106,7 @@ describe('weigh-POS (mock mode)', () => {
     await expect(posApi.voidSale(DEMO.companyId, settled, '  ')).rejects.toThrow(/reason/i);
   });
 
-  it('price book management: add / reprice / archive (archive drops it from the grid)', async () => {
+  it('price book management: add / reprice', async () => {
     await posApi.addProduct(DEMO.companyId, 'Red Cherry Tomatoes', 200);
     let products = await posApi.fetchProducts(DEMO.companyId);
     const cherry = products.find((p) => p.name === 'Red Cherry Tomatoes')!;
@@ -116,10 +116,14 @@ describe('weigh-POS (mock mode)', () => {
     await posApi.updateProductPrice(cherry, 220);
     products = await posApi.fetchProducts(DEMO.companyId);
     expect(products.find((p) => p.id === cherry.id)!.retail_per_kg).toBe(220);
+  });
 
-    await posApi.archiveProduct({...cherry, retail_per_kg: 220});
-    products = await posApi.fetchProducts(DEMO.companyId);
-    expect(products.find((p) => p.id === cherry.id)).toBeUndefined(); // Active-only grid
+  // P1O: removal now goes through request_product_removal (governed RPC; needs a real second approver
+  // for the queued path), same reasoning as the revoke-approval workflow — demo mode has only one
+  // account, so it honestly reports unavailability rather than faking a queue nobody can approve.
+  it('demo mode has no product-removal approval workflow', async () => {
+    const products = await posApi.fetchProducts(DEMO.companyId);
+    await expect(posApi.requestProductRemoval(products[0]!.id, 'test')).rejects.toThrow(/demo mode/i);
   });
 
   it('rejects oversell and insufficient cash', async () => {
@@ -129,5 +133,22 @@ describe('weigh-POS (mock mode)', () => {
     const batch = stock.find((f) => f.product_id === p.id)!;
     await expect(posApi.recordSale(DEMO.companyId, DEMO.branchA, [weighedLine(p, batch.id, 9999)], 9_999_999)).rejects.toThrow(/stock/i);
     await expect(posApi.recordSale(DEMO.companyId, DEMO.branchA, [weighedLine(p, batch.id, 1)], 1)).rejects.toThrow(/cash/i);
+  });
+
+  // P2-M2F (owner directive 2026-07-17/18): produce isn't stock-counted — a freshly-added product has no
+  // finished_goods_batch (record_opening_finished_goods() has no caller anywhere in the app), and must still
+  // be sellable. A weighed line with finished_goods_batch_id: null must record regardless of "quantity" — no
+  // batch means nothing to oversell against.
+  it('records a weighed sale with no tracked stock (new product, no finished_goods_batch)', async () => {
+    const products = await posApi.fetchProducts(DEMO.companyId);
+    const lettuce = products.find((p) => p.product_code === 'LETTUCE')!;
+    const line = {...weighedLine(lettuce, 'unused', 9999), finished_goods_batch_id: null};
+    const {invoice} = await posApi.recordSale(DEMO.companyId, DEMO.branchA, [line], 9_999_999);
+    expect(invoice.sale_type).toBe('retail'); // still a weighed retail sale, not reclassified as bulk
+    expect(invoice.lines[0]!.finished_goods_batch_id).toBeNull();
+    expect(invoice.total).toBe(lineTotal(9999, farmPerKg(lettuce.retail_per_kg)));
+    // real stock for other products is untouched — this line never claimed against any batch
+    const stockAfter = await posApi.fetchStock(DEMO.companyId, DEMO.branchA);
+    expect(stockAfter.every((f) => f.product_id !== lettuce.id || f.available > 0)).toBe(true);
   });
 });

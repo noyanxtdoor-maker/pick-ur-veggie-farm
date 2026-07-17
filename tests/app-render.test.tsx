@@ -9,10 +9,11 @@ import App from '@/app/App';
 describe('V3 application renders', () => {
   it('mounts providers + router and shows the login screen (mock mode)', async () => {
     render(<App />);
-    // P1 split-panel login: brand headline on the marketing panel + the two auth tabs.
+    // Login screen (2026-07-13 redesign): brand headline + the two auth tabs + the submit button, which
+    // shares the "Sign In" label with the tab button (getAllByRole, not getByRole, for that one).
     await waitFor(() => expect(screen.getAllByText(/Pick Ur Veggie/i).length).toBeGreaterThan(0), {timeout: 4000});
-    expect(screen.getByRole('button', {name: /sign in/i})).toBeDefined();
+    expect(screen.getAllByRole('button', {name: /sign in/i}).length).toBeGreaterThanOrEqual(2); // tab + submit
     expect(screen.getByRole('button', {name: /create pos account/i})).toBeDefined();
-    expect(screen.getByRole('button', {name: /log in to erp/i})).toBeDefined();
+    // Google sign-in is hidden in mock mode (MOCK_MODE ? null : ...) — not asserted here.
   });
 });
