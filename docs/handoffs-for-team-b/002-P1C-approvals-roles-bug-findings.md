@@ -1,8 +1,19 @@
 # Handoff 002 — P1C: Approvals & Roles bugs (owner-found) + Team A's fixes
 
-**From:** Team A (Fable 5) · **Date:** 2026-07-11 · **Status:** findings + fix design; Team A's build is
-in progress (see `Launch_Runbook.md §2` for the authoritative spec). Team B: you have the same P1A/P1B
-auth you ported from us, so you almost certainly have the SAME bugs. Port these fixes.
+**From:** Team A · **Date:** 2026-07-11, updated 2026-07-12 · **Status:** ✅ **SHIPPED — built, guarded,
+browser-tested, and applied to production** (`aqhxhamdwmhcwxmebqbo`, single-transaction, no errors).
+Migration: `supabase/migrations/20260712130000_p1c_approvals_roles_hardening.sql`. Guard:
+`scripts/guards/approvals-roles-security.sql` (21/21). Real browser E2E against a live-schema stack:
+signup → bootstrap → auto-poll → 5-tier approve dropdown → rank-enforced revoke/appoint → per-user
+override grant, all confirmed via network logs + direct DB queries. Team B: you have the same P1A/P1B
+auth you ported from us, so you almost certainly have the SAME bugs. Port these fixes — read the actual
+migration file, do not copy blind (adapt to your schema/migration chain per the standing rule).
+
+**Note on scope, since a Team B session recently flagged "the online seam doesn't exist in Repo A
+either":** that finding scanned `src/`, which is dead, unreferenced legacy code in this repo — not wired
+into `index.html` or `vite.config.ts`. The real, live app is in `app/` (entrypoint: `app/main.tsx`), which
+has 22+ files making real `supabase.auth`/`.rpc`/`.from` calls, including everything below. If your own
+scan tooling defaults to `src/`, point it at `app/` instead — that mistake will recur otherwise.
 
 The owner tested the live app and found 7 real issues in Approvals & Roles. Root causes + fixes:
 
@@ -31,3 +42,31 @@ Team A's build of P1C is verified against Team A's guards before it's called don
 adjacent = full-suite attack + owner sign-off). When you port, write YOUR own guard battery and attack
 YOUR reset — do not trust our green as yours. The `has_permission` evolution is the highest-risk part;
 guard it hardest (deny-override actually blocks a role-granted key; overrides never cross tenants).
+
+## Port map (2026-07-12) — where each fix actually lives
+
+- **#1 (signup→queue):** `handle_new_auth_user()` trigger in the P1C migration — display-name now falls
+  back through `display_name` → `full_name` → `name` (OAuth) → email local-part. The "doesn't reach the
+  queue" symptom for Google specifically is a Supabase/Google-Console provider-config issue, not a code
+  defect — check your OAuth provider is actually enabled and redirect URIs match before assuming a code bug.
+- **#2 (5-role dropdown):** `seed_standard_roles()` in the migration — ranks 10/20/30/40/50, called from
+  `bootstrap_initial_tenant()` AND run once as a backfill (`select seed_standard_roles(id) from companies`).
+  Exact permission-key sets per tier are in the function body — copy the INTENT, adapt the keys to your
+  own permission catalog (yours may not have identical key names).
+- **#3 (auto-poll):** already shipped 2026-07-10, unchanged by P1C — `AwaitingApproval` component, `app/`.
+- **#4 (server-enforced overrides, THE security leak):** `user_permission_overrides` table +
+  `set_user_permission_override()` RPC in the migration, folded into `has_permission()`. App UI:
+  `app/features/organization/overrides/overrides.tsx` (new file) wired into
+  `app/features/organization/approvals/ApprovalsScreen.tsx` via an "Overrides" button per row.
+- **#5 (rank-based revoke):** `actor_rank()`/`outranks_role()` functions + rewritten RLS policies on
+  `user_branch_roles` (insert/update), `roles` (insert/update), `role_permissions` (insert) — all in the
+  migration. **Gotcha we hit and you will too:** a naive "actor must strictly outrank target" check on
+  UPDATE also blocks an owner suspending their OWN membership (a pre-existing, legitimate capability our
+  own `org-security.sql` guard already proved). Fix: exempt `user_id = current_app_user_id()` from the
+  rank check on UPDATE only (self-management can't escalate — the only mutable columns are
+  assignment_status/expires_at) while still requiring `membership.manage`. Check your own self-suspend
+  path before assuming rank-gating is a pure add.
+- **#6 (invite link):** `app/features/organization/invitations/invitations.tsx` — copies
+  `${origin}/accept?token=${token}` (a full clickable URL), not the bare token.
+- **#7 (top-bar sign-out):** shipped 2026-07-10; a stale line of Settings-screen copy referencing the
+  removed button was also cleaned up 2026-07-12 (`app/features/settings/SettingsScreen.tsx`).

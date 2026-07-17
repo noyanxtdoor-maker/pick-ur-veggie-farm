@@ -21,12 +21,14 @@ Authority order: `ADR/ODR → Enterprise Architecture (10–26) → B1–B8 → 
 |---|---|
 | `docs/` | Architecture & governance (the source of truth). See [`docs/INDEX.md`](docs/INDEX.md). |
 | `docs/28_Enterprise_Architecture_Audit/` | The Enterprise Engineering Baseline (audit, ADRs/ODRs, Stage A/B/C). |
-| `src/` | **Current code = the V2 prototype**, retained as the behavioral reference (e.g. money rules) pending the V3 rebuild. Per **ODR-001**, V3 is a clean rebuild, not an in-place upgrade; this prototype is **not** the V3 enterprise implementation. |
-| `.github/` | Issue/PR templates (C4). |
+| `app/` | **The live V3 application** (entrypoint `app/main.tsx`, per `index.html`). This is where Phases 0–6 were built — auth, RLS-backed org/roles, POS, inventory, accounting, payroll, scheduling, projects, customers, digital payments. |
+| `src/` | **Dead legacy code** from an earlier prototype — retained for git history only. Not referenced by `index.html` or `vite.config.ts`; no build output includes it. Do not edit it; do not scan it expecting current behavior. |
+| `.github/` | Issue/PR templates + CI (C4). |
 
 ## Branch model (C4)
 
-- **`main`** — production releases only (protected; **branch protection pending owner action** — see `docs/28_.../Stage_D_Branch_Protection_Precondition.md`).
+- **`main`** — production releases only (protected — branch-protection ruleset `protect-main-and-develop`
+  Active as of 2026-07-12: PR required, 3 CI checks required, force-push/deletion blocked).
 - **`develop`** — official integration branch; carries the adopted Enterprise Engineering Baseline.
 - **`feature/*`** — all implementation work, off `develop`. Current: `feature/phase-0-foundation`.
 - **`architecture-audit`** — preserved historical record of the architecture journey.
@@ -45,7 +47,9 @@ Environment variables: copy `.env.example` and fill values locally. **Never comm
 
 ### Local Supabase development
 
-A local Supabase stack for development (C2 §1). **Phase 0 sets up the empty environment only — no schema, RLS, auth, or business tables.**
+A local Supabase stack for development (C2 §1). The full schema (41 tables, RLS-forced, permission-based
+authorization, double-entry accounting) lives in `supabase/migrations/` — `npm run db:reset` applies it
+from zero.
 
 **Prerequisites:** Docker running locally, and `npm ci` (the Supabase CLI is a pinned dev dependency — no global install).
 
@@ -59,7 +63,12 @@ npm run db:stop     # stop the local stack
 
 ## Status
 
-**Stage D — Phase 0 (Development Foundation)** in progress on `feature/phase-0-foundation`: standing up the engineering foundation (toolchain, tests, CI guards, local Supabase). **No business modules, schema, or UI are built in Phase 0.** Business-module construction (Stage D Phase 1+) is separately gated and requires branch protection enabled.
+**Stage D, Phases 0–6 built** on `feature/phase-0-foundation` (identity/RLS, master data, operational
+ledger, financial engine, all business modules, reporting/AI copilot) — see [`STATUS.md`](STATUS.md) for
+the per-feature, never-round-up source of truth. **Phase 7 (Optimization & Production Readiness) is the
+current frontier** — see [`docs/28_Enterprise_Architecture_Audit/Launch_Runbook.md`](docs/28_Enterprise_Architecture_Audit/Launch_Runbook.md)
+for the ordered path to launch and post-launch duties. Hosted at `pick-ur-veggie-farm.vercel.app`, backed
+by Supabase project `aqhxhamdwmhcwxmebqbo`.
 
 ## Contributing
 

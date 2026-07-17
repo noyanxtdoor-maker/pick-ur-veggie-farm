@@ -10,34 +10,51 @@ proof. Work top to bottom; do not skip gates.
 
 ---
 
-## SECTION 1 — Re-host on the NEW Vercel account (Track C redo)
+## SECTION 1 — Re-host on the NEW Vercel account (Track C redo) — ✅ DONE 2026-07-12
 
-The old Vercel project was deleted (shared account). Repo A gets its own account.
-
-1. **OWNER:** create the new Vercel account/team for Team A. Then give the AGENT ONE of:
-   - a Vercel **access token** (Account Settings → Tokens) — paste it once; the agent runs
-     `vercel login --token <T>` (or `VERCEL_TOKEN=<T> npx vercel …`) and never stores it; OR
-   - do the `npx vercel link` + first deploy yourself and just hand the AGENT the production URL.
-   **What the agent needs from the new account:** the token (or a completed link) + confirmation the
-   Supabase integration is attached (owner said it is). Nothing else — the two env vars are public.
-2. **AGENT:** `vercel link` → set env (production): `VITE_SUPABASE_URL=https://aqhxhamdwmhcwxmebqbo.supabase.co`
-   and `VITE_SUPABASE_ANON_KEY=<the anon key>` (anon ONLY — never service_role). `vercel.json` already
-   in repo (SPA rewrites + SW no-cache). Deploy: `npx vercel deploy --prod`.
-   **Evidence:** curl the new URL — `/`, `/login`, `/manifest.webmanifest`, `/sw.js` all 200; a real
-   owner login reaches the dashboard.
-3. **OWNER (Supabase dashboard):** Authentication → URL Configuration → Site URL = the new vercel.app
-   domain; add `<domain>/**` to redirect allow-list (so reset emails + OAuth land on the live site).
-4. **OWNER (Google Cloud Console):** OAuth client → Authorized JS origins = the new domain +
-   `http://localhost:3000`; redirect URI = `https://aqhxhamdwmhcwxmebqbo.supabase.co/auth/v1/callback`.
-   Paste Client ID/secret into Supabase → Providers → Google. **Evidence:** "Continue with Google"
-   completes a sign-in that lands in the approval queue.
+1. **OWNER:** ✅ created the new Vercel account/team (`pickurveggie-original-version`) and provided an
+   access token.
+2. **AGENT:** ✅ `vercel link` → env vars set (production): `VITE_SUPABASE_URL` +
+   `VITE_SUPABASE_ANON_KEY` (anon ONLY). Deployed via `npx vercel deploy --prod`.
+   **Evidence:** `pick-ur-veggie-farm.vercel.app` — `/`, `/login`, `/manifest.webmanifest`, `/sw.js` all
+   return 200.
+3. **OWNER (Supabase dashboard):** ✅ **owner-reported DONE 2026-07-13** — Site URL + redirect allow-list
+   set for the `pick-ur-veggie-farm.vercel.app` domain. (Dashboard-only action — owner attestation is the
+   only possible evidence; not independently agent-verifiable.)
+4. **OWNER (Google Cloud Console + Supabase provider toggle):** ✅ **DONE 2026-07-13, agent-verified
+   working end-to-end.** Owner created the Google OAuth client, pasted Client ID/secret into Supabase's
+   Google provider, enabled it. **Found + fixed a real bug in the process:** first live attempt bounced
+   back to the login screen with no error after picking a Google account. Root cause:
+   `app/core/supabase/client.ts` had `detectSessionInUrl: false` — the client was never reading the
+   `?code=` Google's redirect carries, so the session it should have created from it silently never
+   happened (the same latent bug would have broken password-reset email links too, on the first real
+   attempt — untested until now, since no real inbox had exercised it). Fix: flip to `true` (safe —
+   `/accept?token=…` uses its own `token` param, not `code`, so no collision). Verified: tsc clean, 92/92
+   vitest, local browser check (a bad/fake code degrades to login with no crash, same as before).
+   **Deployed to production** (`npx vercel deploy --prod`) and the **owner then completed a real Google
+   sign-in on the live site and confirmed it worked** — first genuine agent-verified OAuth E2E proof.
+5. **OWNER (Supabase Auth → MFA):** ✅ **owner-reported DONE 2026-07-13** — TOTP MFA enabled at the
+   project level (dashboard-only action, same evidence caveat as item 3).
+6. **OWNER:** ✅ **owner-reported DONE 2026-07-13** — database password rotated (the one shared for the
+   P1D.1/P1E push).
 
 ---
 
-## SECTION 2 — Approvals & Roles hardening (P1C) — the owner's 2026-07-11 bug list
+## SECTION 2 — Approvals & Roles hardening (P1C) — the owner's 2026-07-11 bug list — ✅ DONE 2026-07-12
 
-These are REAL bugs the owner found in production. Build them as one migration + app slice = **P1C**.
-Each needs a guard battery and full-suite attack (money-adjacent auth domain).
+All 7 items built, guarded, browser-tested, and **applied to production** (`aqhxhamdwmhcwxmebqbo`,
+single-transaction, no errors; read-only post-check confirms the real owner resolves correctly).
+Migration: `supabase/migrations/20260712130000_p1c_approvals_roles_hardening.sql`. Guard:
+`scripts/guards/approvals-roles-security.sql` (21/21, `npm run guard:approvals`). Full local suite:
+206/206 across 16 guard files + tsc + 92 vitest + build, all clean on a from-zero `db reset`.
+**Known follow-up:** the migration is applied on cloud but NOT registered in
+`supabase_migrations.schema_migrations` (that specific write was correctly permission-gated as a
+production-metadata change) — the next session with a real Supabase CLI access token should run
+`supabase migration repair --status applied 20260712130000` to bring the tracking table in sync. This
+does not affect runtime behavior; the schema objects are live and verified.
+
+These were REAL bugs the owner found in production. Built as one migration + app slice = **P1C**.
+Each needed a guard battery and full-suite attack (money-adjacent auth domain).
 
 **2.1 Google/email signups don't appear in the approval queue.**
 Root cause to verify first (read the live `auth.users` vs `public.users`): the P1A signup trigger fires
@@ -110,26 +127,30 @@ That Dexie-only storage is exactly the security hole §2.4 fixes by moving enfor
 
 1. **B2A digital-payments LOCK REVIEW** — hand `Phase_2_B2A_Lock_Review_Request.md` to the cross-vendor
    reviewer; on GO + owner sign-off, B2A locks. (Payments already built + guarded; this is the gate.)
-2. **Full-suite attack on the launch candidate** — `supabase db reset` from zero + every guard battery
-   green + `tsc` + `vitest` + `build` + CI green on the tip. Record the numbers in STATUS.md §1.
+   **Status: not started — needs a human reviewer outside this session.**
+2. **Full-suite attack on the launch candidate** — ✅ **DONE 2026-07-12**: `supabase db reset` from zero,
+   16 guard files / 206 assertions, `tsc`, 92 vitest, build — all clean. Recorded in STATUS.md §1.
+   Re-run before the actual go-live push since code moves between now and then.
 3. **Real-cloud E2E of the money spine** on the hosted site: login → POS sale → verify the journal via
-   psql → settle a pre-order → void one → confirm balances tie. This is the one path STATUS.md still
-   flags as needing a live run per feature.
+   psql → settle a pre-order → void one → confirm balances tie. **Status: not started** — the auth E2E
+   is proven (see §2), the money-spine walk is the remaining piece.
 4. **MFA enrollment for privileged roles** (ODR-003): enable in Supabase → Auth → MFA; enroll the owner;
    app-side enforcement UI is a follow-up but the toggle + owner enrollment is a launch item.
-5. **Branch protection** — **NOT yet applied on Repo A** (owner chose "make public" 2026-07-11, but the
-   provided PAT lacked *Administration:write*, so neither the visibility flip nor the ruleset could be set
-   by the agent). OWNER, two clicks: (a) GitHub → repo → Settings → General → Danger Zone → **Change
-   visibility → Public**; (b) Settings → **Rules → Rulesets → New branch ruleset**, apply the settings in
-   `Phase_7_Branch_Protection_RepoA.md` (name `protect-main-and-develop`, targets `main`+`develop`,
-   enforcement Active). OR re-issue the PAT with *Administration: Read and write* and the agent applies it
-   via the API in one call. Repo B's ruleset is already Active (id 18794543).
-6. **Google Play packaging (Track E)** — only after §1 gives a stable HTTPS domain: generate PNG icons,
-   `npx @bubblewrap/cli init --manifest https://<domain>/manifest.webmanifest` in a SIBLING folder
-   (NEVER inside the repo), build the signed AAB, write `/.well-known/assetlinks.json` with the signing
-   fingerprint, OWNER submits via Play Console.
+   **Status: not started — Supabase dashboard, owner action.**
+5. **Branch protection** — ✅ **DONE 2026-07-12**: owner applied `protect-main-and-develop` via the
+   GitHub UI (ruleset id 18817763), verified via API — matches the staged spec exactly (deletion block,
+   force-push block, PR-required with stale-review dismissal + thread resolution, 3 CI checks required,
+   strict policy). Direct pushes to `main`/`develop` now rejected. Repo B's ruleset also Active (id
+   18794543). Two older, now-redundant rulesets on Repo A can be deleted at leisure (not urgent — every
+   requirement they had is already covered by the new one).
+6. **Google Play packaging (Track E)** — only after §1 gives a stable HTTPS domain (✅ done, §1): generate
+   PNG icons, `npx @bubblewrap/cli init --manifest https://<domain>/manifest.webmanifest` in a SIBLING
+   folder (NEVER inside the repo), build the signed AAB, write `/.well-known/assetlinks.json` with the
+   signing fingerprint, OWNER submits via Play Console. **Status: not started — unblocked, needs owner's
+   Play Developer account + signing key.**
 7. **Backups & DR (B7)** — Supabase free tier = daily backups only; PITR needs a paid plan. Decide at
    launch. Run one restore drill (B7 §12: "a backup never restored is only a theory").
+   **Status: not started — owner plan decision.**
 
 ---
 

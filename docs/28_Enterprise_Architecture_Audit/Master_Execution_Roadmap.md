@@ -39,11 +39,21 @@ per-feature source of truth; this file stays the phase-level map.
 ## 2. Next Approved Action
 
 ```
-1. Owner: suspend the E2E test account; rotate the DB password; smoke-test
-   reset/OTP emails; enable Google OAuth provider (Phase_1_OAuth_Setup.md).
-2. B2 digital-payments LOCK REVIEW (cross-vendor, per B2 spec §6c) — reviewer task.
-3. Phase 7 items in owner order: hosting (Track C) → Play packaging (Track E) →
-   MFA enrollment → DR drill (B7 §12).
+DONE (2026-07-13): owner rotated the DB password, wired Supabase URL config +
+Google OAuth + MFA. Google sign-in confirmed working live (a real
+detectSessionInUrl bug was found and fixed in the process). E2E test account
+was suspended in an earlier session.
+
+Remaining, in order:
+1. B2 digital-payments LOCK REVIEW (cross-vendor, per B2 spec §6c) — needs an
+   external reviewer; not agent-buildable.
+2. Real-cloud money-spine E2E on the hosted site (login → sale → verify
+   journal → settle/void → balances tie) — owner decision pending on approach
+   (agent cannot type the owner's password; a throwaway test account is the
+   proposed alternative).
+3. Google Play packaging (Track E) — owner infra decision (Play Developer
+   account + signing key).
+4. Backups beyond free tier + DR restore drill — owner plan decision.
 ```
 
 Knowledge Intelligence Layer: Graphify + CodeGraph are now active in-repo; Obsidian/ClaudeMem/TaskMaster

@@ -4,7 +4,22 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lands atop it) · branch `feature/phase-0-foundation` · Repo A only (repos diverged 2026-07-08, see §0)._
+_Last updated: 2026-07-17 (later same day) · branch `feature/phase-0-foundation` · Repo A only (repos diverged 2026-07-08, see §0)._
+
+**2026-07-17 session addendum (not yet folded into the numbered sections below):** shipped P1O (POS
+product-removal request/approval — see §2 for the new row), a 3-layer Google OAuth sign-in fix + the
+cross-device password-reset regression that fix introduced (both live-E2E-verified; see §2), and the
+Usage Summary "Used By" column rename. Full guard battery re-verified clean after these changes: **26
+guard files, 317 PASS assertions, 0 defects** (fresh count, this session — see per-file breakdown in
+`docs/dr-restore-drill-2026-07-17.md`'s companion work). A DR restore-drill against production
+(`docs/dr-restore-drill-2026-07-17.md`) confirmed the local stack is a faithful restore target — at
+drill time, the only schema deltas were P1O + P1C4's `remove_role_permission`, both then unpushed by
+the owner's own choice ("keep going, push later"). **Update, same session: owner then authorized the
+push.** P1C4 + P1M.2 + P1O were applied to production together in one transaction (verified read-only:
+object counts match, all 5 new functions present, P1M.2's owner-instant-revoke branch confirmed live,
+zero anon EXECUTE grants), and the app was deployed to Vercel production. See the P1O and OAuth-fix
+rows in §2 for exact per-item verified state — **the OAuth fix is only PARTIALLY live on production**
+(2 of its 3 layers; the redirect-allowlist layer only ever touched local config, see that row).
 
 ---
 
@@ -26,6 +41,10 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
   **41 tables, all 41 RLS-FORCED, 23 rows in schema_migrations**, anon-key REST probes return 42501 permission-denied
   on real tables (zero anon grants — the revoke-based posture holds in the cloud). `.env` (gitignored) carries the
   URL + anon key with `VITE_USE_MOCK=true` so the app STAYS on mock data until cloud auth users exist.
+  **(2026-07-12 update: migration count has since grown to 26 with P1C applied — see the auth-module row
+  in §2. The `schema_migrations` tracking table itself is one row behind, 25/26, since that specific
+  registration write was correctly permission-gated — see Launch Runbook §2's "Known follow-up" note. The
+  schema objects are live and verified regardless.)**
 - **THE APP NOW RUNS LIVE against the cloud (2026-07-10, Phase-1 auth complete).** `VITE_USE_MOCK` removed from
   `.env`; the tenant is bootstrapped (company "Pick Ur Veggie Farm" / branch "Main Farm" / owner identity with the
   full 31-permission catalog); the owner logs in with his own credentials. **"Browser-verified" for rows dated
@@ -34,24 +53,30 @@ _Last updated: 2026-07-10 · last verified remote tip `fefcfed` (this commit lan
   (`vite.config.ts` forces `VITE_USE_MOCK=true` in vitest) so the suite can never touch production.
   - "Browser-verified" below therefore means **manually exercised in the running app against the local mock/Dexie
     data path** — NOT against a live cloud database.
-  - The **real-cloud path** (online Supabase PostgREST + RPC) for every feature is proven **only by the SQL guard
-    batteries** (behavioral tests run against a real local Postgres with simulated JWTs) — it has **never been
-    tested end-to-end by the app against a live Supabase.** That end-to-end cloud test is a launch-phase task.
+  - The **real-cloud path** (online Supabase PostgREST + RPC) is now proven **both ways**: the SQL guard
+    batteries (behavioral tests against a real local Postgres with simulated JWTs) AND, as of **2026-07-12**, a
+    **real browser E2E against a live-schema local stack** (signup → auto-poll → bootstrap → 5-tier approve
+    dropdown → server-enforced rank checks → per-user override grant, all via the actual `app/` UI hitting real
+    Supabase Auth + PostgREST + RPC — see the P1C row below). The remaining gap is the SAME test walked through
+    the app against the **production** `aqhxhamdwmhcwxmebqbo` project specifically (money-spine E2E, Track A) —
+    that is still a launch-phase task.
 
-## 1. Global verification snapshot (re-run 2026-07-06, all first-hand)
+## 1. Global verification snapshot (re-run 2026-07-12, all first-hand)
 
 | Check | Result |
 |---|---|
-| `supabase db reset` (23 migrations apply) | ✅ clean |
-| All 13 guard batteries (behavioral SQL security tests) | ✅ **175 PASS / 0 DEFECT** |
+| `supabase db reset` (26 migrations apply) | ✅ clean |
+| All 16 guard files (behavioral SQL security tests) | ✅ **206 PASS / 0 DEFECT** |
 | `tsc --noEmit` (type check) | ✅ clean |
-| `vitest` unit tests | ✅ **89 / 89** |
+| `vitest` unit tests | ✅ **92 / 92** |
 | `vite build` | ✅ ok |
-| Latest CI run on the feature branch (`a327cc9`, HEAD) | ✅ green (install · tsc · test · build · DB guards · secret scan) |
+| `node scripts/guards/check-drift.mjs` | ✅ clean (schema matches migration history) |
+| P1C migration applied to production (`aqhxhamdwmhcwxmebqbo`) | ✅ 2026-07-12 — single-transaction apply, no errors; read-only post-check confirms the real production owner resolves correctly (`has_permission`/`actor_rank`) |
 | CI runs a browser? | ❌ no — E2E is manual, mock-mode only |
 
-Guard battery counts: rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 · scheduling 15 ·
-crop 11 · **payments 11** · bootstrap 8 · projects 7 · customers 6 · db-guards 1.
+Guard battery counts (2026-07-12): rls-behavior 23 · inventory 24 · payroll 19 · accounting 19 · pos 18 · org 13 ·
+scheduling 15 · crop 11 · payments 11 · bootstrap 8 · projects 7 · customers 6 · auth-lifecycle 7 ·
+copilot-degrade 4 · **approvals-roles (P1C, new) 21** · db-guards (structural, unnamed).
 
 ---
 
@@ -64,7 +89,7 @@ the flow was not exercised.
 | Feature | Status | Last touched | Verified (fact) vs assumed |
 |---|---|---|---|
 | **Phase-1 foundation** — identity, multi-tenant, roles/permissions, resolver + tenant RLS (`has_permission`, `is_branch_member`, `current_app_user_id`), append-only audit, controlled bootstrap | Done (pushed) | 2026-07-10 | **guard**: rls-behavior 23, org 13, bootstrap 8; CI-green. **NOW REAL-CLOUD PROVEN (2026-07-10):** live bootstrap ran on the cloud project; real owner login → resolver + 31-key permission snapshot + RLS reads all live (company visible through PostgREST as the real user). |
-| **Phase-1 AUTH MODULE (P1A+P1B)** — self-signup → approval queue (signup trigger; pending = Active identity with zero memberships, blind by C2 §3; `list_pending_users` w/ requested-role), split-panel login (SIGN IN / CREATE POS ACCOUNT tabs, role-request dropdown, demo quick-identities in mock only), self-service password reset (email link → `/auth/reset`), OTP-guarded password change in Settings (email nonce, ODR-003 re-auth), admin-assisted recovery (send reset email from Approvals), AwaitingApproval gate, Google OAuth scaffold (owner enables provider per `Phase_1_OAuth_Setup.md`), break-glass runbook | Done (pushed) | 2026-07-10 | **guard** auth-lifecycle **7/7** (trigger, pending-is-blind, queue gate + requested-role, approval lights exact scope, suspension kills resolver, idempotent) — full suite **182 PASS / 0** after clean reset. **REAL-CLOUD E2E:** owner login w/ own credentials → tester signed up via the UI → email-confirmed → pending & blind → owner approved in the queue (branch+role) → membership landed on cloud → tester logged in and saw the app. **Found+fixed live:** approve dialog had zero options on a fresh device (Dexie cache not hydrated) — now hydrates from the server. **Assumed/untested:** reset-email delivery + OTP email arrival (needs a real inbox — owner to smoke-test); Google OAuth (provider not yet enabled); MFA/TOTP enrollment deferred (runbook notes). |
+| **Phase-1 AUTH MODULE (P1A+P1B+P1C)** — self-signup → approval queue (signup trigger; pending = Active identity with zero memberships, blind by C2 §3; `list_pending_users` w/ requested-role; OAuth display-name fallback `full_name`/`name`), split-panel login (SIGN IN / CREATE POS ACCOUNT tabs, role-request dropdown, demo quick-identities in mock only), self-service password reset (email link → `/auth/reset`), OTP-guarded password change in Settings (email nonce, ODR-003 re-auth), admin-assisted recovery (send reset email from Approvals), AwaitingApproval gate w/ 15s auto-poll + on-focus (no manual reload), Google OAuth scaffold (owner enables provider per `Phase_1_OAuth_Setup.md`), break-glass runbook, **P1C hardening (2026-07-12): 5 standard role tiers seeded per company (employee/operator/admin/co_owner/owner, rank 10/20/30/40/50, strictly-widening permission sets) both at bootstrap and backfilled onto the live tenant; server-enforced rank-based appoint/revoke authority (`actor_rank`/`outranks_role`) on memberships AND role creation/editing/permission-mapping, self-management exempt from the rank check but still membership.manage-gated; server-enforced per-user permission overrides (`user_permission_overrides` + `set_user_permission_override`, deny beats grant, grant requires a live membership, self-override forbidden, folded into `has_permission`); invite flow now copies a clickable `/accept?token=` URL, not a raw token; top-bar sign-out fully removed (stale Settings copy also fixed)** | Done (pushed + **cloud-deployed 2026-07-12**) | 2026-07-12 | **guard** auth-lifecycle **7/7** + **approvals-roles (P1C) 21/21** — full suite **206 PASS / 0** after clean reset. **REAL-CLOUD E2E (2026-07-10):** owner login w/ own credentials → tester signed up via the UI → email-confirmed → pending & blind → owner approved in the queue (branch+role) → membership landed on cloud → tester logged in and saw the app. **REAL browser E2E of P1C (2026-07-12, local live-schema stack):** signup → bootstrap → auto-poll routed in with no reload → 5-tier approve dropdown (all 4 non-owner tiers shown) → approved as operator → per-user Overrides dialog granted `accounting.read` → confirmed in DB. **Found+fixed live (2026-07-10):** approve dialog had zero options on a fresh device (Dexie cache not hydrated) — now hydrates from the server. **Found+fixed live (2026-07-12):** `isMe` self-action hiding never worked in real (non-mock) mode (hardcoded null) — now resolves via `current_app_user_id()` RPC. **P1C applied to production `aqhxhamdwmhcwxmebqbo` 2026-07-12** (single-transaction, no errors; read-only post-check confirms the real owner resolves correctly). **Assumed/untested:** reset-email delivery + OTP email arrival (needs a real inbox — owner to smoke-test); Google OAuth (provider not yet enabled — root cause of "Google signups don't appear in queue" is provider/redirect config, an owner dashboard action per Launch Runbook §1, not a code defect); MFA/TOTP enrollment deferred (runbook notes); invite email delivery still manual copy/paste (by design — Launch Runbook §2.6 option (a), zero infra). |
 | **Organization setup** (company/branch/role/membership writes, invitations, invite/accept) | Done (pushed) | 2026-06-22 | **guard** org 13; **browser-mock** (org screens render/CRUD in mock). Real invite email flow untested (needs cloud). |
 | **Crop management** (categories/varieties/profiles/templates) — FROZEN master data | Done (pushed) | 2026-06-23 | **guard** crop 11; browser-mock. |
 | **POS — Weigh sale engine** (M2A finished-goods spine w/ append-only movement ledger; M2B `pos_record_sale` atomic + **balanced double-entry GL**; M2C pre-order→AR / settle / void reversing-journal / cash-session; M2E farm pricing + bulk lines) + Active Slip Counter UI | Done (pushed) | 2026-07-04 | **guard** pos 18 + inventory 24; **browser-mock** full sale → receipt → journal, multiple sessions. Real-cloud sale RPC unproven end-to-end. |
@@ -79,7 +104,7 @@ the flow was not exercised.
 | **Data export** (B7 — client-side JSON dump of local tables, outbox excluded) | Done (pushed) | 2026-07-04 | **unit** export.test; **browser-mock**. Import/restore + governed cloud backup NOT built. |
 | **Operations hub** (Schedules+Crops+Projects under one nav entry w/ tabs; legacy path redirects) | Done (pushed) | 2026-07-04 | **browser-mock** (tabs + redirects verified). |
 | **Mobile bottom nav** (4 customizable slots + More sheet, safe-area) + responsive pass + dark-mode top-bar toggle | Done (pushed) | 2026-07-05 | **browser-mock** at 375px (bar, customize, persistence). |
-| **Approvals & Roles admin screen** (users directory, role dropdown w/ appointment hierarchy, role-authority text, revoke/reactivate, self-protection) | Done (pushed) | 2026-07-05 | **browser-mock** (renders, self-protection). **Note:** UI over existing `membership.manage` RLS (guard org 13); the "Pending approvals" panel is a **placeholder** — the self-signup queue is a cloud-phase item, NOT built. |
+| **Approvals & Roles admin screen** (users directory, role dropdown w/ appointment hierarchy, role-authority text, revoke/reactivate, self-protection, **P1C: per-user Overrides dialog — server-enforced grant/deny over the full 31-key catalog**) | Done (pushed + cloud-deployed) | 2026-07-12 | **REAL browser E2E** (2026-07-12, see auth-module row above) — live signup, approval, override grant, all confirmed against the DB. Pending queue is the **live** `list_pending_users()` RPC, not a placeholder (was updated 2026-07-10; this row was stale). UI over `membership.manage` + P1C rank RLS (guard org 13 + approvals-roles 21). |
 | **PWA foundation** (manifest, service worker, icons, prod-only SW registration) | Done (pushed) | 2026-07-04 | **browser-mock** (manifest+sw served 200, SW registers). Not yet wrapped for Play (Bubblewrap/AAB not done). |
 | **Calendar / Scheduling** (M6A events + RLS, M6C visibility tiers, M6D times + now-line + drag, **full DayFlow: Year/Month/Week/Day view set, cross-day drag, all-day rows in every view, event detail panel with CRUD reachable from every view, per-role read-only UX**) | Done (pushed) | 2026-07-06 | **guard** scheduling 15 (tenant/branch/tier isolation, timed-event + end>start, **+ cross-day move allowed+audited for schedule.manage / denied→0 rows for read-only**). **browser-mock** full E2E: create timed + all-day → both render in Day AND Week; edit via detail→modal persists; mark done↔reopen; delete removes from DB; cross-day drag Mon→Tue persisted `event_date` 07-06→07-07 (times preserved); read-only role (schedule.read only) sees events + opens detail to READ but gets "View only" (no New Event, no Management filter, no edit/drag). CAL-1 resolved — see §3. |
 
@@ -87,17 +112,151 @@ the flow was not exercised.
 
 | **VeggieGenius Copilot (CAP-VG1 v1, steps 1–4)** — Settings card (LM Studio URL/model/toggle), `/copilot` panel + client-only chat history (Dexie; `chatRole` field), grounded non-AI **Morning Brief** (events · unpaid invoices · low material+produce stock · active projects), local-model ask with **offline-degrade** (never load-bearing) | BUILT (pushed) | 2026-07-10 | **guard** copilot-degrade **4/4** (zero Postgres surface: no tables/permissions/policies/functions — run vs the LIVE cloud schema + CI local reset). **unit** 3 brief tests (empty→honest calm; seeded→exact grounded numbers). **LIVE browser E2E** as the real owner: nav entry, Settings fields, brief renders model-free, ask → graceful offline degrade. **Assumed/untested:** an actual LM Studio round-trip (no model installed on this machine — owner smoke-tests step 4 with LM Studio running; the degrade path is the tested default). Step 5 (Edge Function + `copilot.use` + 4 guards) = next slice, now unblocked by the live cloud. |
 
+| **P1O — POS product-removal request/approval** — Crop Pricing Menu "Archive"→"Remove" rename + confirmation dialog; `product.remove` (new lesser key, employee/operator default) queues a Pending request, `product.manage` (admin+) removes instantly and decides on queued requests; one Pending row per product (partial unique index); decider≠requester self-check holds even after the requester later gains `product.manage` via override; full audit trail either way | **Applied to production** 2026-07-17 (single-transaction push alongside P1C4 + P1M.2; app deployed to Vercel) | 2026-07-17 | **guard** p1o **18/18** (adversarial review confirmed 7/7 privilege-escalation vectors SAFE; guard-coverage review found + this session closed 6 real test gaps: cross-tenant isolation, `list_pending_product_removals()` never invoked, double-decision, no-product.manage-at-all-denied, authenticated-grant assertion, SQLERRM specificity on same-errcode branches). Full suite re-verified clean after hardening: 26 guards / 317 PASS, tsc, 93 unit tests, build, static+drift guards. **Production push verified read-only:** `product_removal_requests` table + all 4 RPCs present, `product.remove` permission active, zero anon EXECUTE grants. **Not yet live-clicked against production in the browser this session** — guard-proven server-side and the local app flow was E2E-verified earlier in this session per prior context; the post-deploy production smoke test was read-only (login page only), not a full click-through of the Remove button. |
+| **Google OAuth sign-in fix (3-layer) + password-reset cross-device regression fix** — `flowType: 'pkce'` made explicit on `createClient()` (was silently defaulting to legacy `implicit`); OAuth error captured synchronously at module-load time in `client.ts` (beats supabase-js's own async URL consumption race); `supabase/config.toml` `additional_redirect_urls` wildcarded (was silently substituting `site_url` on a non-match, GoTrue does not error on this). **Regression found by adversarial review and fixed same session:** switching to PKCE globally also ties `resetPasswordForEmail` to the requesting browser's `code_verifier` — a reset link opened on a different device/browser now fails silently (indistinguishable from expired) instead of cross-device like the old implicit flow did; `ResetPassword.tsx` now detects the unconsumed `?code=` + no-session signature and shows a distinct, actionable message | **Deployed to Vercel production** 2026-07-17 (`https://pick-ur-veggie-farm.vercel.app`, code-only, no migration needed) — **BUT only 2 of the 3 OAuth layers are actually live on production.** `flowType: 'pkce'` and the module-load-time error capture are app-bundle code, now shipped. **Layer 3 (the redirect-URL allowlist fix) is NOT live on production** — it only edited the LOCAL `supabase/config.toml`, which has no effect on a hosted Supabase project; production's actual redirect allowlist is dashboard-configured separately and has not been checked/fixed there. **Until an owner checks the production Supabase dashboard's Auth → URL Configuration for the real domain, Google sign-in on production may still silently fail the way it did before this fix**, even though the code is deployed. | 2026-07-17 | **LIVE browser E2E, all 3 OAuth layers + both reset-link paths — but only against the LOCAL live-schema stack, not production:** Google sign-in confirmed working end-to-end locally. Password-reset: wrong-device case reproduced by clearing `localStorage` before opening the code URL (confirmed distinct message renders); same-device case confirmed still completes the full round-trip (Mailpit-captured email → code exchange → password saved → sign-in works). Post-deploy smoke test on production was read-only (login page renders) — the OAuth round-trip itself was NOT re-tested against production, since layer 3's gap means it may not fully work there yet. |
+
+| **P2-M2F — produce no longer requires tracked stock** — owner directive 2026-07-17/18: "the sold of each product is the inventory, they dont keep count of their own product inventory... only Equipment and Usable inventory (materials) are tracked." Root cause found (not assumed): `record_opening_finished_goods()` — the ONLY RPC that can ever create a `finished_goods_batches` row — has zero callers anywhere in `app/`, so every product added via "Register New Vegetable Item" was permanently unsellable (grid tile disabled, `availableFor()` always 0). Fixed by making `finished_goods_batch_id` genuinely optional for a weighed produce line — mirrors the exact pattern already proven safe for bulk/"Skip Weigh" lines (no stock check, no inventory movement, no COGS contribution when absent); when a batch IS supplied (future harvest-tracking, legacy data), behavior is 100% unchanged (cost lookup, oversell check, movement, COGS). Checked Team B's repo for a reference fix first (owner's go-ahead) — **they do not have this fix**; their stock gate is still live in their newest migration, confirmed by direct read, not assumed. | **Applied to production** 2026-07-18 (single migration, `pos_record_sale` function body only — no schema change; app redeployed to Vercel) | 2026-07-18 | New migration `20260718000000_p2m2f_produce_no_stock_requirement.sql` (`pos_record_sale` body change only, same signature). **guard** pos-security still 18/18 (the with-batch/oversell-rejection path is provably unchanged — this guard supplies a real batch and still gets rejected for insufficient stock). Full suite re-verified: 26 guards, 94 unit tests (added 1 new test: a weighed line with no batch records regardless of "quantity," still classified `sale_type='retail'` not `wholesale`), tsc, build, static+drift guards all clean. **LIVE browser E2E against the real local Postgres** (fresh company, fresh owner, zero pre-seeded stock): added "Fresh Kangkong" via Register New Vegetable Item → grid tile immediately clickable (previously would be permanently disabled) → weighed 5kg → completed full checkout → Slip #00001 recorded, ₱360 Paid. Read-only DB check post-sale confirmed `sales_order_items.finished_goods_batch_id IS NULL`, `unit_cost=0`, `is_bulk=false` (correctly still a retail sale, not bulk), and the GL posted balanced with only Cash↔Sales lines, zero COGS lines — the exact same shape a bulk-only sale already posts safely in production today. |
+
 ### Not built / blocked (for completeness — reviewer should not expect these)
 | Item | Status | Note |
 |---|---|---|
 | B2 digital payments (GCash/Maya/bank) | **BUILT (pushed) — pre-lock** | Moved to §2 (row "Digital payments"). Authorized by review §9 (B2 APPROVED 2026-07-08); built 2026-07-10; **B2's own cross-vendor review before lock still pending (spec §6c)**. |
 | Credit-limit enforcement in sale · delivery-settle tender/change edits | Not started (Blocked) | Money path — owner review/sign-off gate (same review). |
-| Cloud signup→approval queue | Not started | Owner-designated cloud phase. |
-| Supabase project + HTTPS hosting + Play packaging (AAB/assetlinks) | Not started | Owner infra decisions. |
+| Supabase project + HTTPS hosting | **Done** | Moved to §2 elsewhere in this doc; `aqhxhamdwmhcwxmebqbo` live, `pick-ur-veggie-farm.vercel.app` deployed 2026-07-12. |
+| Google Play packaging (AAB/assetlinks) | Not started | Owner infra decision (Play Developer account, signing key) — Launch Runbook §3.6, gated on hosting (now unblocked). |
+| MFA enrollment (ODR-003) | **Owner-reported Done 2026-07-13** | TOTP enabled at the project level (Supabase dashboard). App-side enrollment UI for individual users not yet built — Launch Runbook §1.5. |
+| B2A cross-vendor lock review | Not started | Needs an external reviewer — Launch Runbook §3.1. |
+| Backups beyond free-tier | Not started | Owner plan decision — Launch Runbook §3.7 / B7 §12. |
+| DR restore drill | **Done 2026-07-17** | `docs/dr-restore-drill-2026-07-17.md` — local stack confirmed a faithful restore target for production; schema/data both verified byte-for-byte against a live read. Paid backup RETENTION plan is still a separate owner decision (row above) — this drill only proves the restore mechanism works, not that Supabase is retaining backups beyond the free tier's window. |
 
 ---
 
 ## 3. Open issues (unresolved — block "Done" on the named feature)
+
+**P1C.1 + P1D + P1D.1 + P1E · APPLIED TO PRODUCTION 2026-07-12** (owner authorized P1C.1+P1D with "push",
+then P1D.1+P1E with "push P1D.1 and P1E"). Verified live: functions/tables exist, positions seeded for the
+live company, real owner resolver still correct, owner role now holds `position.manage`/`job_title.manage`,
+all 7 P1E functions confirmed hardened (`pg_get_functiondef` check for `accessible_company_ids` on each).
+Pushed via the session pooler (`aws-0-ap-northeast-1.pooler.supabase.com:5432`) using a DB password the
+owner shared for this push only and will rotate afterward — not committed anywhere, used in an ephemeral
+shell only, same pattern as the earlier P1C.1/P1D push. Note: `supabase_migrations.schema_migrations` on
+the live project is still frozen at `20260710180000` (all pushes since have used direct psql, matching the
+established pattern for this project — `supabase db push`/`link` cannot reach this project's account from
+the current CLI login; see the git-ignored `supabase/.temp.STALE-LINK-TO-REPO-B-DO-NOT-USE/` marker).
+
+**P1D.1 · HOTFIX, found immediately after the P1D push by a read-only post-deploy check.** The live
+production owner role was found missing 2 permission keys (`position.manage`, `job_title.manage`) — both
+added by P1D. Root cause: `seed_standard_roles()` never included `owner` in its backfill loop (owner's
+permission set was assumed permanently complete from the one-time bootstrap grant, which is a snapshot —
+any permission key added AFTER a company was bootstrapped never reaches that company's existing owner
+role; a structural gap that will recur every time the catalog grows, not a one-off). Fix: backfills owner
+to the full catalog immediately, and `seed_standard_roles()` now re-syncs owner on every call going
+forward. Verified locally: fresh bootstrap gives owner 33/33 (was previously excluded from the loop
+entirely). Migration: `supabase/migrations/20260712210000_p1d1_owner_permission_backfill_fix.sql`.
+
+**P1E · Cross-tenant hardening on 7 pre-existing (weeks-old, pre-dating today's work) money/inventory
+helper functions — owner-authorized investigation + fix 2026-07-12 ("look into it... and fix it").**
+`pos_ensure_accounts`, `inventory_ensure_categories`, `inventory_ensure_accounts`, `payroll_ensure_accounts`,
+`finance_resolve_pay_code`, and `pos_next_seq` are all `SECURITY DEFINER`, granted to `authenticated`, and
+none verified the caller actually belongs to the target company — every call site in the app is safe (each
+already passes a company the calling function independently validated), but each function is ALSO directly
+callable via the public RPC endpoint, bypassing those upstream checks. Impact: the `*_ensure_*` functions
+let a stranger silently pre-populate another company's chart-of-accounts/item-categories with boilerplate
+rows (low severity — no money moves, and the target's own RLS still hides the rows from view, but a real
+unauthorized cross-tenant write); `finance_resolve_pay_code` leaks a financial account's COA code string
+to a caller who can produce a matching (company, branch, account) triple (an info leak, not a balance
+leak); `pos_next_seq` lets a stranger burn/skip another company's invoice/order/journal sequence numbers
+(a minor DoS-style annoyance, no data exposure — found by a follow-up systematic sweep of every
+`SECURITY DEFINER` function taking a company parameter, done in the same spirit as the original finding;
+that sweep also confirmed 6 report/statement functions — `trial_balance`, `income_statement_monthly`,
+`balance_sheet`, `cash_flow_statement`, `customer_ar_standing`, `financial_account_balances` — already
+check `has_permission` correctly, so this is NOT a wider pattern, just these 7 helper functions). Fix:
+each now requires the caller to actually belong to the target company — pure defense-in-depth, verified
+every legitimate call site is unaffected (each already passes an independently-validated company). Note:
+this fix was authorized directly by the owner rather than through the full cross-vendor review process
+this codebase normally requires for money-domain changes, given the narrow additive scope (a membership
+check, no money-math or authz-model change) and time constraints — recorded here for the record. Guard:
+`scripts/guards/cross-tenant-helper-hardening-security.sql` (10 assertions, proves both the cross-tenant
+denial AND that legitimate same-tenant calls are unaffected — `npm run guard:cross-tenant`).
+Migration: `supabase/migrations/20260712220000_p1e_cross_tenant_helper_hardening.sql`.
+
+Full local suite after P1D.1 + P1E: **19 guard files / 236 assertions green** on a from-zero reset
+(re-verified 2026-07-12 after the `pos_next_seq` addition — all 18 SQL guard files + static-guards pass,
+schema-drift guard confirms the database matches migration history); tsc/vitest/build all clean.
+
+**P1D · Payroll-role-link + managed positions + job_title (owner spec 2026-07-12, `payroll_role_link_prompt.md`) —
+STATUS: APPLIED TO PRODUCTION 2026-07-12 (owner authorized with "push").**
+Owner decisions recorded: Part 1 build now; Part 2 use the existing Invitations flow instead (safer, zero
+new infra — see Launch_Runbook for the deferred full-bootstrap-credential spec, kept for later); Part 3
+position/job_title management restricted to admin-tier and above.
+- **Part 1 (role↔payroll link):** `assign_membership_with_payroll()` — the one governed entry point for
+  approving a pending sign-up OR reassigning an existing member's role. For an eligible role (rank<40,
+  i.e. below co_owner — data-driven, never a hardcoded role-name check per this repo's own static guard),
+  it atomically creates+links a Farm Hand record (name/position/daily-rate, all admin-supplied — never
+  auto-filled) or sets `payroll_exempt` — in the SAME transaction as the membership, so cancelling never
+  leaves a half-changed state. Already-linked/exempt members and co_owner+/owner assignments skip the
+  requirement entirely. A backfill banner (Approvals screen) surfaces pre-existing unlinked eligible
+  accounts via `list_unlinked_payroll_eligible()` without blocking their access.
+- **Part 3 (positions + job_title):** `positions` is now a real company-managed table (case/whitespace-
+  insensitive dedup, deactivate-never-delete, existing Farm Hand records unaffected by deactivation) —
+  `position.manage` (co_owner/owner only) to add/rename/deactivate, any member can select from it when
+  hiring. `users.job_title` is a new, purely descriptive column, independent of payroll entirely,
+  editable only by `job_title.manage` holders (admin-tier+, never self-editable — enforced by a trigger,
+  since a plain RLS policy can't discriminate by column from the pre-existing self-update policy).
+- **3 real bugs found and fixed WHILE building this** (all guarded, none shipped broken):
+  (1) `employees.position` → `position_id` column swap silently dropped the INSERT/UPDATE grant Postgres
+  never carries across `ADD COLUMN`/`DROP COLUMN` — would have broken the existing Hire Farm Hand flow
+  entirely had it shipped; (2) a **pre-existing, not-introduced-today** latent bug in the M3 schema: `user_branch_roles`'
+  unique constraint was unconditional (not scoped to Active rows), so NOBODY could ever be reassigned back
+  to a role they previously held in the same branch — fixed with a partial unique index, which also fixed
+  a second latent bug in `accept_invitation()` (silently no-op'd re-invites to a previously-held role,
+  returning a fake success); (3) Postgres OR's all permissive RLS policies for the same command together,
+  so the pre-existing self-update policy would have let a user edit their own `job_title` regardless of
+  the new job_title.manage policy — closed with a trigger, since RLS can't discriminate by column alone.
+- Guard: `scripts/guards/payroll-role-link-security.sql` (15 assertions, `npm run guard:payroll-link`).
+  Full local suite: 17 guard files / 226 assertions green on a from-zero reset; tsc/92 vitest/build all
+  clean. Migration: `supabase/migrations/20260712200000_p1d_payroll_role_link.sql`. **APPLIED TO
+  PRODUCTION 2026-07-12.**
+
+**SEC-P1C.1 · Privilege-escalation holes found in a same-day post-ship review of P1C (2026-07-12) —
+STATUS: APPLIED TO PRODUCTION 2026-07-12 (owner authorized with "push").**
+A self-review (4-lens code audit, adversarially cross-checked by hand after the automated verify pass hit
+a session limit) found 2 CRITICAL and 1 real gap, all introduced by, or exposed by, the P1C migration
+shipped earlier today:
+1. `invite_user()` had no rank check — P1C hardened the DIRECT role-assignment path but never touched
+   this PARALLEL path. A co_owner (holds `user.invite` by default) could invite anyone, including
+   themselves under a second identity, directly into the Owner role. **Confirmed by direct code read.**
+2. The self-management exemption on membership updates was too broad — it exempted ANY update to your
+   OWN row from the rank check, not just "suspend yourself." Since rows are never hard-deleted (a
+   demotion just flips the old row to Expired), a user who once held a higher role could reactivate
+   their own old, dormant row and self-restore a rank they no longer hold. **Confirmed by direct
+   re-derivation of the exact exploit sequence, independent of the (failed) automated verifier.**
+3. `role_permissions_insert_manage` let a co_owner/owner stuff ANY permission into a low-rank role
+   without checking they already hold that permission — a "harmless-looking" low-rank role could carry
+   the full permission catalog if the actor chose to build it that way.
+Fix migration `20260712180000_p1c1_privilege_escalation_fixes.sql`: rank-checks `invite_user()`, narrows
+the self-exemption to only the Active→Expired transition (self-suspend still works, tested), requires the
+actor already hold a permission before adding it to a role, and closes an unrelated hardening gap
+(`pos_next_seq` had no revoke/grant statement at all, defaulting to PostgreSQL's public-execute grant —
+callable pre-auth via the anon key). All 4 fixes guarded (5 new assertions in
+`approvals-roles-security.sql`, now 26/26); full local suite 17 guard files / 231 assertions green;
+tsc/vitest/build green. **APPLIED TO PRODUCTION 2026-07-12.**
+
+Same review also found, fixed, and verified 4 real app-code bugs (no DB push needed, app-code only):
+per-user permission overrides weren't reflected in the client's own permission cache (a granted override
+was invisible in the UI even though the server honored it); the "YOU" self-detection / self-action-hiding
+in Approvals had no error handling and never retried; two Supabase calls in Approvals had no `.catch()`
+(unhandled rejections on a transient failure); the Approvals role-rank comparison used a hardcoded,
+driftable role-name table instead of the real `roles.rank` column that already exists.
+
+**Found, NOT fixed, flagged for owner decision — pre-existing, MONEY/INVENTORY-domain, older than P1C
+(weeks-old code, already live):** several `SECURITY DEFINER` helper functions (`pos_ensure_accounts`,
+`inventory_ensure_categories`, `inventory_ensure_accounts` ×2, `payroll_ensure_accounts`,
+`finance_resolve_pay_code`) are granted to `authenticated` but never check the caller actually belongs to
+the `company_id` they pass in — an authenticated user of Company A who knew/guessed Company B's ID could
+potentially reach these. This is money-adjacent code, which this project's own rules gate behind explicit
+owner sign-off before anyone touches it — flagged here rather than patched unilaterally. Not yet
+independently re-verified beyond the original finder's report; needs a dedicated look before any fix.
 
 **CAL-1 · Calendar (owner, 2026-07-06):** flagged for a **full DayFlow implementation**. Specific reports/requirements:
 1. **Event visibility across views** — created events reported as not appearing correctly in Day/Week (all-day/untimed
@@ -332,3 +491,692 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   SKILL.md`** (stance / session ritual / Engineering Loop / bug-catching patterns with the real bugs each caught /
   repo commands / gates incl. repo boundary / anti-patterns) + CLAUDE.md §8 pointer + handoff §15. Docs/skill only
   — no app code, no migrations, no feature-row changes.
+- **2026-07-13 (P1D.1 + P1E pushed; Google OAuth wired + a real bug found+fixed+deployed; owner Phase-7
+  dashboard steps completed, Sonnet 5)** — (1) **Re-verified P1D.1 + P1E locally** (full 18-guard SQL
+  battery + static + drift, 236 assertions, all green) after resuming from a context reset, then
+  **pushed both to production** on the owner's explicit "push P1D.1 and P1E." Hit and resolved two real
+  infra obstacles first: the CLI's authenticated Supabase account could only see Repo B's project (not
+  Repo A's `aqhxhamdwmhcwxmebqbo`) — confirmed via a failed `supabase link` — so pushed via direct psql
+  over the session pooler instead (owner-shared DB password, ephemeral use, rotated after); Docker
+  Desktop had stopped mid-session and was relaunched. Verified live post-push: owner role now holds
+  `position.manage`/`job_title.manage`; all 7 P1E functions confirmed hardened via
+  `pg_get_functiondef`. STATUS.md's P1C.1/P1D/SEC-P1C.1 write-ups (stale "not yet applied" language left
+  over from before those were actually pushed in an earlier session) corrected to match reality.
+  (2) **Analyzed the Master Execution Roadmap + Launch Runbook against actual code**, per owner request,
+  to find what of Phase 7 is genuinely buildable vs owner-only/external-reviewer-gated. Verdict: almost
+  everything left is owner dashboard actions (Supabase URL config, Google OAuth, MFA, DB password
+  rotation) or needs an outside reviewer (B2A lock) or an owner infra decision (Play Store, backups) —
+  reported this honestly rather than claiming buildable progress that doesn't exist. Owner chose to be
+  walked through the dashboard steps. (3) **Owner completed all 4 steps; Google sign-in initially failed**
+  (picked an account, bounced back to login with no error). Root-caused it live: `detectSessionInUrl:
+  false` in `app/core/supabase/client.ts` was silently discarding the `?code=` Google's redirect carries,
+  so no session was ever established from it — the same bug would have broken password-reset email links
+  on their first real use (never tested with a real inbox before now). Fixed (`detectSessionInUrl:
+  true` — confirmed no collision with `/accept?token=…`, which uses its own param name). Verified: tsc
+  clean, 92/92 vitest, local browser check (bad/fake `?code=` degrades to login with no crash). **Deployed
+  to production** via `npx vercel deploy --prod` (owner authorized; logged in via the CLI's device-code
+  flow so no password was ever shared) — **owner then completed a real Google sign-in on the live site
+  and confirmed it works.** Updated Launch_Runbook.md §1 (items 3–6 now done) and STATUS.md's MFA row.
+  No DB migration, no guard changes — pure app-code fix. Full local suite untouched/still green from (1).
+- **2026-07-13 (owner-found live bugs during the money-spine test; Reject + Archive built, Sonnet 5)** —
+  Owner tried to grant the throwaway E2E test account Admin via Approvals and hit two real production bugs,
+  found by genuine live use (not by any automated sweep). **Bug A — reassign-to-paid-role silently failed:**
+  `openReassign()`'s decision to show the payroll dialog was gated on `list_unlinked_payroll_eligible()`,
+  which only tracks members whose CURRENT role is already payroll-eligible — moving someone INTO a paid
+  role for the first time (exactly what reassigning to Admin does) skipped the dialog entirely and
+  committed with `exempt` hardcoded `false` and no payroll fields, guaranteeing the server's own "payroll
+  setup required" rejection with no way for the approver to ever supply the missing info or opt out. Fixed:
+  the dialog now opens whenever the TARGET role is payroll-eligible, full stop — the server already no-ops
+  the payroll block harmlessly for an already-linked member, so this is safe in every case, not just the
+  one that broke. **Bug B — "invalid input syntax for type uuid" on Co-Owner approval:** for a
+  non-payroll-eligible role (co_owner/owner) the Position field never renders, so `positionId` stayed at
+  its initial `''` rather than `undefined` — `?? null` doesn't catch an empty string, so a literal `''`
+  reached a `uuid`-typed RPC parameter and Postgres refused the cast. Fixed: `input.positionId || null`
+  (catches both). Both fixes verified: tsc, 92/92 vitest, local browser smoke check.
+  Owner then asked for two new pieces, plus one thing explicitly **declined**: hard-delete of revoked
+  accounts, a reject action for pending sign-ups, and a distinct rejection screen for someone turned away
+  — but when told hard-delete conflicts with `public.users`' own founding-migration comment ("Deactivate
+  via account_status; never hard-delete") and that literally every table added since references
+  `public.users(id) on delete restrict`, the owner chose an **Archive** state instead of true deletion.
+  **P1F — reject a pending signup** (`supabase/migrations/20260713090000_p1f_reject_pending_signups.sql`):
+  `reject_pending_user()` (membership.manage-gated, only reachable while the target is still genuinely
+  pending, sets `account_status → Suspended`, audited) + `my_account_status()` (self-only status read —
+  needed because `current_app_user_id()` resolves NULL for "still pending" and "rejected" alike by design,
+  B1 §3, so the client had no way to tell them apart). App: a **Reject** button next to **Review & approve**
+  in the pending queue (with a confirm dialog); `AwaitingApproval` now branches on `my_account_status()` —
+  Suspended shows a distinct "Registration not approved" screen instead of the old "hang tight" message,
+  which would otherwise have told a rejected person to keep waiting forever.
+  **P1G — archive a revoked account**
+  (`supabase/migrations/20260713100000_p1g_archive_revoked_accounts.sql`): widens `account_status`'s CHECK
+  constraint to add `'Archived'` (no RLS/resolver change needed — every access check gates positively on
+  `= 'Active'`, so Archived is already blocked identically to Suspended everywhere). `archive_user_account()`
+  requires the target already hold zero active memberships anywhere (revoke first, archive second — not a
+  shortcut around the rank-checked revoke path); `unarchive_user_account()` reverses it. Both
+  membership.manage-gated, audited. App: revoked (Expired) rows in the Active Users Directory get an
+  **Archive** button alongside Reactivate; archived accounts drop out of the table by default behind a
+  "Show archived (N)" toggle, with an **Unarchive** action when revealed.
+  **Hit a real environment wall mid-session:** the local test database couldn't start — Windows had
+  reserved its port for something else (`ports are not available ... forbidden by its access permissions`),
+  needing an admin-elevated `net stop winnat && net start winnat` to clear (three non-privileged workarounds
+  tried first — Docker Desktop restart, `wsl --shutdown`, retry — none worked; this genuinely needed admin
+  rights this session didn't have). Owner ran the fix themselves. **Also found and fixed a bug in my OWN
+  new guard tests while re-verifying**: a `set local role authenticated` from a prior test block leaked
+  into a later bare `insert into auth.users` statement (transaction-scoped `SET LOCAL` persists across `do
+  $$ $$` blocks in the same transaction) — two blocks were missing their `set local role postgres;` reset;
+  fixed by adding it back, matching the pattern every other block in the file already follows.
+  **Full verification once the port issue cleared:** `supabase db reset` from zero (20 migrations) clean;
+  all **18 SQL guard files / 246 assertions green** (auth-lifecycle grew 7→16 with the new P1F/P1G checks:
+  permission-denied paths, the "must revoke before archive" rule, audit trail, double-reject/double-archive
+  refusal, and the resolver flipping correctly in both directions); static-guards + schema-drift both PASS;
+  tsc clean; 92/92 vitest; build clean. **APPLIED TO PRODUCTION 2026-07-13** (owner confirmed explicitly,
+  shared a fresh DB password — the prior one was rotated after P1D.1/P1E as planned). Verified live: all 4
+  new functions exist (`archive_user_account`, `my_account_status`, `reject_pending_user`,
+  `unarchive_user_account`) and the widened `users_account_status_check` constraint is in place. **App code
+  (both bug fixes + the Reject/Rejection-screen/Archive UI) deployed to production** via
+  `npx vercel deploy --prod`; live smoke check clean (no console errors on the hosted login page).
+- **2026-07-13 (later — owner live-tested Employee/Operator; nav leaked ungranted sections + POS/Inventory
+  hung, Sonnet 5)** — Owner signed in as Employee for the first time and found: (1) every top-level nav
+  item (Inventory, Accounting, Customers, Approvals & Roles, ...) was always visible regardless of role —
+  clicking into one you can't use showing "access needed" is fine per the owner, but a nav item for a
+  section you can NEVER use shouldn't appear at all; (2) POS and Inventory never finished loading for
+  Employee; (3) Employee had zero Calendar/Schedule access, unlike Operator.
+  **Root cause of (2), found by a dedicated Explore-agent investigation and independently confirmed by
+  hand:** `PosScreen.tsx`/`InventoryScreen.tsx` derive their default branch purely from the LOCAL Dexie
+  `branches` cache (`useLiveQuery`) — nothing hydrates that cache from Supabase on login; it's only ever
+  warmed as a side effect of visiting `/organization/branches` (ungated by permission) or `ApprovalsScreen`
+  (gated behind `membership.read`, which ApprovalsScreen itself already had to work around live once
+  before, 2026-07-10). A role scoped to `pos.sell` only has no product reason to ever visit either, so on
+  a fresh device the cache is *permanently* empty, the branch-picker effect never fires, `reload()`'s
+  `if (!companyId || !branchId) return;` guard never clears, and `products`/`items` stay `null` forever —
+  an indefinite `<Skeleton>`, not an RLS denial (every relevant SELECT policy is member-open, not
+  permission-gated — confirmed by reading each one). **Fix:** extracted the ad hoc hydration snippet
+  ApprovalsScreen already had into a shared `app/core/offline/hydrate.ts` (`hydrateBranches(companyId)`)
+  and call it from `PosScreen`, `InventoryScreen`, `Dashboard` (same latent gap, lower severity — silently
+  wrong zeros instead of a hang), and `ApprovalsScreen` itself (deduplicated). **Also found (by the same
+  investigation) that InventoryScreen never had the top-level "access needed" gate every comparable screen
+  uses** (Accounting/Customers/Schedules/Projects/POS all have one) — added it, so Employee now sees a
+  clean denial instead of the same indefinite spinner even once the branch-cache bug is fixed.
+  **Nav visibility (1):** `AppShell.tsx`'s `CORE_MODULES`/`ALL_NAV` rendered unconditionally; added a
+  `perms` (any-of) field per item and a `visibleNav()` filter applied in both `NavRail` (desktop) and
+  `MobileNav` (bottom bar + "All sections" sheet). Payroll/Operations/Reports/Copilot/Settings stay
+  unconditional by design (Payroll has the M5C self-view for everyone regardless of `payroll.read`;
+  Operations' Crops tab is member-readable; Reports is a placeholder; Copilot is informational-tier per
+  CAP-VG1 §1). "Approvals & Roles" now only shows if the caller holds ANY org-related permission.
+  **Calendar access (3)** — `supabase/migrations/20260713110000_p1h_employee_calendar_access.sql`: adds
+  `schedule.read` to Employee's permission array in `seed_standard_roles()` (matching Operator's existing
+  baseline) plus an immediate backfill for any company's existing employee role.
+  **Verified end-to-end, not just compiled:** tsc clean, 92/92 vitest, full clean-reset guard battery
+  still 18 files / 246 assertions green (P1H is purely additive, no fixture depended on Employee having
+  zero schedule access). Then a REAL browser session against a real local Postgres (not mock, not
+  production): signed up a fresh account, approved it as Employee via direct SQL, logged in — nav showed
+  exactly Dashboard/POS/Payroll/Operations/Reports/Copilot/Settings (Inventory/Accounting/Customers/
+  Approvals & Roles correctly absent); POS loaded instantly with the branch pre-selected (previously would
+  have hung indefinitely); Calendar rendered the full Month/Week/Day UI with the tiered "General (everyone
+  sees)" filter; Inventory showed the new clean "Inventory access needed" card. Zero console errors
+  throughout. **NOT yet applied to production / not yet deployed** — P1H (the one DB migration in this
+  batch) awaits the owner's explicit push confirmation; the app-code changes (nav filtering + the loading
+  fix, no migration needed) await a deploy confirmation, same pattern as every other change this session.
+- **2026-07-13 (later still — Archive bug fixed, Archived tab built, signup role picker removed, Invite +
+  real-time sync investigated with plans presented, Sonnet 5)** — Owner reported Archive kept refusing
+  with "still holds an active membership" even after revoking. **Reproduced locally** (created a real test
+  company/user, revoked, then called `archive_user_account()` directly) — the SQL logic itself was
+  correct; the real problem is the two-step "revoke, then archive" design was fragile: an account can
+  accumulate MORE than one `user_branch_roles` row over its life (different branches, repeated
+  reassignment), and the old check looked for ANY active row anywhere — revoking the one row visible in
+  the directory doesn't help if a second, easy-to-miss row is still Active elsewhere.
+  **Fix** (`supabase/migrations/20260713120000_p1g1_archive_auto_revoke.sql`): `archive_user_account()`
+  now auto-revokes every remaining active membership itself, in the same atomic call — no separate manual
+  revoke step. Still rank-gated exactly like a normal revoke (all-or-nothing: if the actor doesn't outrank
+  even one of the target's active roles, nothing is touched). UI: "Archive" now works directly from an
+  Active row too, not just an already-revoked one, with a confirm dialog explaining it revokes access
+  immediately. Guard rewritten to reproduce the exact reported bug (two active memberships across two
+  branches) and prove both get cleaned up in one call — `scripts/guards/auth-lifecycle-security.sql`,
+  auth-lifecycle battery still 15/15 (one fewer than before: the old "refuses a live membership" test no
+  longer applies, replaced by the auto-revoke proof).
+  **Archived accounts tab** (owner request: "store them properly, see them properly"): new
+  `app/features/organization/archived/ArchivedAccountsScreen.tsx`, wired as its own `/organization/archived`
+  tab in `ORG_TABS` (membership.read-gated) instead of the old inline "Show archived" toggle inside the
+  main directory, which is now removed — the main "Active POS Users Directory" table always excludes
+  Archived rows unconditionally; they only ever appear in the new tab, with Unarchive there.
+  **Signup role picker removed** (owner: "redundant and not necessary") — `app/pages/Login.tsx`'s
+  "Create POS Account" form no longer has the 5-tier role dropdown; signup is now just name/email/password.
+  The requested-role wish mechanism itself (server-side, `requested_role` column, the Approvals queue's
+  "wants: X" badge) is untouched — just never populated by the public form anymore, so the badge simply
+  won't appear for new signups. `signUp()`'s `requestedRole` param stays optional (unchanged) for API
+  compatibility with anything else that might call it.
+  **Invitations — investigated, NOT changed yet, plan below (owner asked "show me a plan... or should we
+  remove entirely").** Confirmed a real bug by reading `accept_invitation()`
+  (`20260622110257_p2m1_organization_setup.sql:137`, re-defined identically in P1D): it links whichever
+  account is CURRENTLY SIGNED IN when `/accept?token=…` is opened — with ZERO check that the signed-in
+  account's email matches the invitation's intended recipient. If the admin who created the invite tests
+  their own "copy invite link" while still signed in as themselves, the invite silently attaches to the
+  ADMIN'S OWN account, creating a stray membership nobody is using — exactly what the owner reported.
+  Presented 3 options (not yet built, awaiting the owner's choice): (A) minimal fix — make email required
+  on the invite form and add an email-match check to `accept_invitation()`; (B) build real automatic email
+  delivery via a Supabase Edge Function + Auth admin API (bigger lift, new infra, matches Launch Runbook
+  §2.6 option (b)); (C) remove Invitations entirely and rely solely on the already-solid self-signup +
+  approval flow. Recommendation given: (C), since self-signup+approve already fully covers onboarding and
+  is the well-tested path; Invitations is the newer, more confusing, currently-unused, bug-prone one.
+  **Real-time auto-sync — investigated, NOT built yet, plan presented (owner: approving/POS sales don't
+  show elsewhere without a manual browser refresh).** Confirmed: `useSync` (`app/core/offline/sync.tsx`)
+  is outbox-drain only (pushes local writes up on reconnect/focus) — nothing pulls down OTHER sessions'
+  changes; zero code anywhere calls `supabase.channel()`/`postgres_changes`, even though Realtime is
+  already `enabled = true` in `supabase/config.toml`. This is a from-scratch feature, not a bug fix.
+  Presented a phased plan (not yet built): start with Supabase Realtime subscriptions on the two screens
+  the owner actually flagged (Approvals pending queue + directory; POS sales feed / Dashboard), each
+  updating the local Dexie cache on a change event so the existing `useLiveQuery` re-renders automatically
+  and offline-first behavior is preserved; broader coverage as a later phase once the pattern is proven,
+  rather than rewriting every screen at once. Awaiting the owner's go-ahead before building.
+  **Verified:** tsc clean, 92/92 vitest, full clean-reset guard battery 18 files / 245 assertions green
+  (auth-lifecycle net -1 from the archive test rewrite), static-guards + drift both PASS. Live browser
+  check confirmed the signup form no longer shows a role picker.
+- **2026-07-13 (final — owner chose Invitations option C; login redesigned; everything pushed, Sonnet 5)**
+  Owner decided: remove Invitations entirely (option C); push everything; redesign the login screen per 3
+  mockups (mobile/tablet/laptop); accept email OR username at sign-in.
+  **Invitations removed** (`supabase/migrations/20260713130000_p1i_remove_invitations.sql`): `invite_user`/
+  `accept_invitation` EXECUTE revoked from `authenticated` — kept, not dropped (never-hard-delete, same as
+  P1F/P1G). App: `/organization/invitations` route, `/accept` route, the nav tab, and the two screen files
+  (`invitations.tsx`, `AcceptInvitation.tsx`) deleted outright — they had no other caller. Two guard files
+  had invite/accept woven into their fixtures and had to be rewritten, not just trimmed: `org-security.sql`'s
+  happy path now proves the same company/branch/role-management + isolation guarantees via a direct
+  governed membership grant instead of invite+accept, plus a new assertion proving both retired RPCs are
+  genuinely unreachable; the invite-specific attack blocks (replay, expired-token, cross-company invite)
+  were removed since they tested now-dead code — the rank/isolation mechanisms they exercised are still
+  covered elsewhere (`approvals-roles-security.sql`). **Found and fixed a real bug in my own test rewrite
+  while doing this**: `INSERT ... RETURNING ... INTO` on a FORCE-RLS table requires the actor to also pass
+  the table's SELECT policy for the just-inserted row, not only the INSERT policy — Postgres reports this
+  as the same "violates row-level security policy" error as an outright insert denial, which sent me
+  chasing the wrong theory for a while (isolated repros without a `RETURNING` clause kept succeeding,
+  which is what eventually pointed at it). Fix: the fixture owner's granted-permission list was missing
+  `membership.read` (a real production owner always has it via `seed_standard_roles()`; the hand-built
+  fixture just hadn't kept up) — added it, one line.
+  **Login screen redesigned** (`app/pages/Login.tsx`) to the owner's 3 mockups: stacked hero-photo-over-
+  dark-card on mobile (42vh hero) and tablet (46vh hero), true 50/50 split with a vertically-centered form
+  on laptop+ (`lg:` breakpoint) — verified via computed-style checks at 375px/820px/1280px (not just visual
+  inspection, since the browser tool's screenshot action was flaky this session): `flex-direction` is
+  `column` at the two narrow breakpoints and `row` at desktop, hero/panel are exactly 50/50 width at
+  desktop. Dark theme (`#0c0c0c`/`#121212`), emerald accent, person/eye icons on the fields, Google "G"
+  icon inlined as SVG (no new asset/dependency). The hero photo itself references `public/login-hero.jpg`
+  (not supplied — no photo asset was available to fetch or generate) with a CSS gradient fallback so the
+  page still looks intentional if that file is never added; owner can drop a real photo in at that path
+  whenever. **Email/username field**: relabeled "Email / Username", validation relaxed to accept either
+  shape — but only email actually authenticates today. True username→email resolution needs a genuinely
+  new decision: it requires a pre-auth (before login) lookup, which Supabase Auth doesn't support
+  natively, and the two real ways to build it are (a) the app's first-ever grant to the `anon` role — a
+  deliberate change to the "zero anon grants" security posture this project's own guards test for — or (b)
+  a new Supabase Edge Function holding service_role server-side (real infra, not yet built anywhere in
+  this project). Neither was silently chosen; flagged for the owner rather than picked unilaterally, given
+  it's a genuine security-architecture trade-off in a High-risk domain (CLAUDE.md §6, Authentication).
+  **Verified:** tsc clean, 92/92 vitest, production build clean, full clean-reset guard battery 18 files /
+  244 assertions green (org-security net -8: two whole invite-attack blocks removed, one new P1I-retirement
+  assertion added; approvals-roles net -2: the invite-rank-check block removed), static-guards + drift both
+  PASS. Live-browser-verified: login form renders correctly with no role picker; nav/loading fixes from
+  earlier still intact.
+  **PUSHED TO PRODUCTION AND DEPLOYED** (owner: "yes push all"): all three pending migrations —
+  P1H (employee schedule.read), P1G.1 (archive auto-revoke), P1I (Invitations retirement) — applied to
+  `aqhxhamdwmhcwxmebqbo` via the session pooler; app code (nav filtering, POS/Inventory loading fix,
+  Employee calendar access, Archive-from-Active-row + Archived tab, signup role-picker removal, Invitations
+  removal, the redesigned login screen) deployed via `npx vercel deploy --prod`. Live smoke check after
+  deploy: hosted login page loads clean, no console errors.
+  **Still open, owner has NOT yet given a go-ahead:** real-time auto-sync (the phased plan above — start
+  with Approvals + POS/Dashboard) remains unbuilt pending the owner's decision; the username→email
+  resolution mechanism (anon grant vs. Edge Function) remains unbuilt pending the owner's decision.
+- **2026-07-13 (final round — username login built, real-time sync built (verification blocked locally),
+  Google added to signup, dead Invitations links cleaned up, Sonnet 5)** — Owner: "yes add the username
+  login and go build the auto sync, also include the google sign in in the Create POS Account tab." Chose
+  the anon-grant approach for username login (not the Edge Function alternative) given the narrower scope.
+  **Username login** (`supabase/migrations/20260713140000_p1j_username_login.sql`): `public.users` gains a
+  `username` column (case-insensitive unique via `lower()` index, format-checked), auto-derived + deduped
+  at signup (email local-part, numeric suffix on collision) inside `handle_new_auth_user()`. New
+  `resolve_login_email(text)` — the first-ever `anon` grant in this schema, deliberately and narrowly
+  scoped: given a username returns only that account's email or NULL; an email-shaped input passes through
+  untouched with no lookup. `account_status` is NOT filtered (a Suspended/Archived user must still be able
+  to authenticate and see why they're blocked, exactly as if they'd typed the email — same as always).
+  Client (`session.tsx`): `signIn()` now resolves a non-email identifier before calling
+  `signInWithPassword`, falling back to the raw input on any failure so Supabase's own generic "invalid
+  credentials" surfaces rather than a distinguishable unknown-username signal. 5 new guard assertions
+  (`auth-lifecycle-security.sql`): dedup on signup, email-shaped passthrough, case-insensitive resolution,
+  NULL for unknown usernames, and a blast-radius check proving `anon` still cannot read `public.users`
+  directly — this is the only new anon surface, nothing else widened.
+  **Google added to the Create POS Account tab** — same `signInWithOAuth` call as Sign In (it was already
+  provider-agnostic; only the button was missing from that tab).
+  **Real-time auto-sync, phase 1, BUILT but NOT verified end-to-end**
+  (`supabase/migrations/20260713150000_p1k_realtime_sync.sql`, `app/core/offline/realtime.ts`): adds
+  `user_branch_roles`, `users`, and `invoices` to the `supabase_realtime` publication (started empty —
+  confirmed via `pg_publication_tables` before this migration) and wires a `useRealtimeRefresh` hook into
+  Approvals (user_branch_roles scoped by company_id; users UNSCOPED since that table has no company_id —
+  a real bug caught and fixed before shipping, found by checking `\d public.users` rather than assuming)
+  and Dashboard (invoices, scoped). **Caught a second real bug in the same review**: the original hook
+  signature applied one shared `company_id` filter to every watched table uniformly; redesigned to
+  `RealtimeWatch[]` so each table can opt out of scoping. **Verification wall, disclosed rather than
+  hidden:** attempted a live two-session proof (real signup via the browser, a second session inserting
+  rows directly, watching for the change without a manual refresh) three separate ways — direct table
+  insert, direct UPDATE, and a bare debug channel with no company filter at all — and got zero events
+  every time, despite the channel reporting `SUBSCRIBED`, the publication correctly listing all 3 tables,
+  `wal_level = logical`, and the `supabase_realtime_replication_slot_` showing `active = t`. Restarted just
+  the Realtime container, then the entire local stack (`supabase stop` + `start`) — no change. The
+  Realtime container's own logs show zero evidence of consuming the WAL stream (only health-check/billing
+  noise) despite every prerequisite being correctly configured — this points at a local Supabase CLI
+  Realtime quirk, not the migration or the client code, but it could NOT be proven locally in this
+  session. Production runs Supabase's fully-managed cloud Realtime (different infrastructure, not the
+  local Docker container this was tested against), so this may well work correctly once deployed — but
+  that is genuinely unverified, not just "probably fine." **Recommend the owner (or the next session)
+  confirm with two real browser tabs on the live site before treating this as done.**
+  **Also found and fixed while testing**: a leftover "New members can also join via Invitations" link on
+  the empty pending-queue message (a dead route, missed during the Invitations removal) — reworded, no
+  link. Dashboard had two more dead references: an "Invite User" action tile linking to the removed route,
+  and a permanently-zero "Pending invites" stat gated on the now-dead `user.invite` permission — both
+  replaced with a "Pending approvals" count (reusing `list_pending_users()`, the same source Approvals
+  already uses) and a "Review Approvals" tile, which is more useful than what it replaced, not just a
+  deletion.
+  **Verified:** tsc clean, 92/92 vitest (one test updated for the new "Sign In" button label — the
+  redesign renamed it from "Log in to ERP"), production build clean, full clean-reset guard battery 18
+  files / 250 assertions green, static-guards + drift both PASS. Real-time itself: NOT end-to-end verified
+  (see above) — everything else in this batch was.
+- **2026-07-13 (manual sync backup, Sonnet 5)** — Owner tested real-time live and it still required a manual
+  browser refresh ("nah i til have to refresh the browser"); paused the real-time root-cause investigation
+  for launch time and asked instead for an explicit backup: "add manual sync, make the wifi icon on the top
+  bar be the sync button just tap it then sync... auto sync still lives were just gonna add just for
+  backup." Pure app-code, no migration. `SyncValue` (`app/core/offline/sync.tsx`) gained `refreshTick`
+  (increments on each tap) and `manualSync()` (calls the existing `triggerSync()` outbox drain, then bumps
+  `refreshTick`). The top-bar wifi button (`AppShell.tsx`) now calls `manualSync` instead of `triggerSync`
+  directly. Every screen with its own `reload()`-style fetch now includes `refreshTick` in that effect's
+  dependency array, so one tap re-fetches whatever is currently on screen: Accounting, AccountsTab,
+  Copilot, the shared crop hook (`useSyncedCrop` — covers Categories/Varieties/Profiles/Templates in one
+  edit), Customers, Inventory, Approvals, Archived Accounts, Memberships, Payroll, POS, Projects,
+  Schedules, and both of Dashboard's fetch effects (sales report + members/pending counts) plus
+  CropDashboard's cache-warm effect — 15 screens total. **Verified:** tsc clean, 92/92 vitest, production
+  build clean. Live browser E2E against a from-scratch local Supabase fixture (real signup through the UI,
+  hand-bootstrapped into an Active owner membership since the local DB had been reset to empty earlier in
+  the session): inserted a new pending signup directly via SQL while already sitting on the Approvals
+  screen (simulating another device/employee signing up), confirmed it was correctly absent before syncing,
+  tapped the wifi button, and the new signup appeared with no page reload — reproducing and fixing the
+  owner's exact original complaint. All QA fixture data (company/branch/roles/users) removed afterward;
+  local DB confirmed back to empty. Real-time auto-sync code is untouched and still wired — this is
+  additive only, per the owner's explicit instruction not to replace it.
+- **2026-07-16 (Team-B parity port — one feature + one bug fix + one security fix, owner order)** — Owner:
+  "scan their local repo and live web ... implement a feature, a bug fix and a security feature they have
+  and we dont have ... i want exact same thing team B has." Ran a 5-scanner comparative sweep over Repo B
+  (handoffs-for-team-a docs, git log since 07-13, migrations+guards, app tree, live site) with per-claim
+  adversarial verification against our code. Three ports landed (Repo B read-only throughout):
+  **(1) BUG FIX — role-change duplicate-row (B 8c4447a §2):** our `membershipsApi.fetch` returned ALL
+  `user_branch_roles` rows unfiltered, so a role change (expire old + insert new) showed BOTH rows —
+  "looked like a new account." Confirmed present here by reading the fetch body before porting. B's
+  `dedupeByUser()` now applied on both mock + real paths: one row per user, Active preferred, else most
+  recent Expired (Reactivate still works); DB audit rows untouched.
+  **(2) SECURITY — P1J.2 `resolve_login_email` hardening (`20260716090000`):** B's guard literally names
+  our shape "Finding-1 vs Repo A" — our anon-granted username resolver returned a Suspended/Archived
+  user's EMAIL (deactivated-account harvest surface). Now: `account_status = 'Active'` filter (deactivated
+  usernames resolve NULL → generic "invalid credentials", same as unknown) + grant narrowed to anon only
+  (authenticated revoked — login is pre-auth). P1J's original contrary rationale is reconciled in the
+  migration header: a deactivated user still signs in BY EMAIL and still sees the honest block screen.
+  3 new guard assertions in auth-lifecycle (Suspended→NULL, Archived→NULL, grant shape).
+  **(3) FEATURE — P1L self-service Profile (B f0249fa):** new `/profile` ("My Profile" nav, no permission
+  gate — self-service): change own username (new `update_own_username` SECURITY DEFINER RPC, migration
+  `20260716110000` — own-row by construction, Active gate, server-side format+uniqueness, Security audit
+  row), change own email (Supabase Auth confirm-to-new-address), OTP password change MOVED here from
+  Settings; Google-only users get manage-at-Google messaging. Settings' Data & Backup export is now
+  owner-tier only (`company.manage` gate — B item 5, owner directive). New guard
+  `scripts/guards/p1l-self-service-username.sql` (8 assertions, G1-G7 + audit check; ported to our
+  BEGIN/ROLLBACK convention — B's committed permanent fixtures) + `guard:p1l` in package.json + CI step.
+  **Deliberately NOT ported (B's own commit, superseded or separate):** f0249fa's sync-button tweak (B
+  later replaced it with the 5ab18eb overlay — queued as its own item).
+  **Verified:** tsc clean · 92/92 vitest · build clean · full clean-reset battery: 19 SQL guard files ALL
+  PASS (auth-lifecycle now 23 notices incl. 3×P1J.2; new p1l 8/8) + static-guards PASS + drift PASS ·
+  live browser E2E on local real mode: signup → owner bootstrap → Profile renders → username change
+  persisted + audited → Approvals directory shows the Expired+Active fixture ONCE (dedupe) → owner sees
+  Data & Backup, password card gone from Settings → signed out → `suspendedharvest` username login =
+  generic "Invalid login credentials" (no enumeration) → login with the CHANGED username `portowner_new`
+  lands on Dashboard (P1L→P1J chain end-to-end). Fixtures wiped via final db reset (0 rows).
+  **PUSHED + DEPLOYED to production 2026-07-16 ~12:02 UTC (owner "go", executed by Sonnet 5 per
+  `docs/28_Enterprise_Architecture_Audit/SONNET5_DEPLOY_PROMPT_P1J2_P1L.md`).** Both migrations applied
+  to `aqhxhamdwmhcwxmebqbo` via direct psql over the session pooler, one file per invocation, in order —
+  P1J.2 (`CREATE FUNCTION` / `COMMENT` / `REVOKE`, no errors) then P1L (`CREATE FUNCTION` / `COMMENT` /
+  `REVOKE` / `GRANT`, no errors). **Live-verified read-only before deploying the app** (not assumed):
+  `pg_get_functiondef('public.resolve_login_email(text)')` confirmed the production function body
+  contains `account_status = 'Active'`; grant-shape checks on both functions returned exactly the
+  expected shape — `resolve_login_email`: anon=true/authenticated=false; `update_own_username`:
+  authenticated=true/anon=false. App deployed via `npx vercel deploy --prod` → READY, aliased to
+  `pick-ur-veggie-farm.vercel.app` (deployment `dpl_2UwQM2iWdSaSskkUBFrrrB8kZkaE`). Post-deploy smoke
+  (read-only, no writes): login page renders correctly, zero console errors, all 7 asset/document
+  requests 200 including `login-hero.jpg`. **Owner: rotate the `aqhxhamdwmhcwxmebqbo` session-pooler
+  password now** — it was shared in chat for this one push per the established ephemeral-use
+  convention (2026-07-13 precedent) and must not be reused.
+  **Queued next (confirmed B-has-A-lacks, owner to order):** awaiting-approval "peek" fix (privileged UI
+  flashes ~0.5s while permissions load — CONFIRMED present in our AppShell, B fixed in 5ab18eb + regression
+  test; top pick), POS customer picker at checkout (0dd8f60), POS manual sale "sold IS the inventory"
+  (7ede41c), receipt paper sizes 58/80mm + journal reprint (5ab18eb), sync-button UX overhaul (spin/overlay),
+  PNG app-icon set + apple-touch-icon (PWA/iOS), global mobile font shrink (e118332), P1K realtime
+  live-proof script + publication guard (closes OUR "events unproven" gap), pg_dump backup/DR runbook +
+  backups/ gitignore, B's MISTAKES_JOURNAL lessons. B's uncommitted paid-discount work (P2M2F) was seen
+  but NOT ported (unshipped WIP; money-path — needs its own review). Also on B's ask-list: cross-vendor
+  review of THEIR P1D migration (URGENT per their handoff 006).
+- **2026-07-17 (P1M revoke-approval workflow ported from Repo B, LOCAL ONLY — not yet pushed)** — Owner
+  re-ran the "search Repo B thoroughly" scan; B had shipped one more commit since the prior scan
+  (`c014423`, dated 2026-07-17 00:19): a separation-of-duties workflow for account revocation. Checked
+  our own code first — confirmed the same gap: `membership.manage` is co_owner+/owner only (same tier
+  in both repos), and our `ApprovalsScreen.tsx` Revoke button executed `setStatus(m,'Expired')` directly
+  off a single confirm dialog — one person, one click, done. Owner said "sure go."
+  **Ported as P1M, not P1J** — B labeled their commit "P1J," but P1J already means username-login on
+  our chain; reusing B's label here would have collided with our own migration history, so this landed
+  as `20260717090000_p1m_revoke_approval_workflow.sql` instead. Same design: new `revoke_requests`
+  table (RLS enabled AND forced, function-only writes, one-Pending-per-target unique partial index,
+  self-revoke blocked by a CHECK constraint) + 4 SECURITY DEFINER RPCs — `request_revoke` (queues,
+  does not execute), `list_revoke_requests` (membership.manage-gated read), `approve_revoke_request`
+  (membership.manage + **approver != requester** + outranks-every-active-role-of-target, all-or-nothing —
+  the `approver != requester` check is the actual enforcement, not a new permission key),
+  `reject_revoke_request` (same gate, no-op). New guard `scripts/guards/p1m-revoke-approval-security.sql`
+  (ported from B's, adapted to our fixture conventions — `bootstrap_initial_tenant` + `seed_standard_roles`
+  for a real owner + two co_owners + one employee, all inside one BEGIN/ROLLBACK): 6/6 PASS (2 happy +
+  4 sad: employee denied, self-approve denied, duplicate-pending denied, self-revoke denied). Sibling
+  guards (pos, approvals-roles, accounting) re-ran green — no regression, matching B's own claim.
+  App: new `app/features/organization/revoke-requests/revokeRequests.ts` API module (online-only RPCs,
+  no Dexie cache — same convention as Overrides/Invitations); `ApprovalsScreen.tsx`'s Revoke button now
+  opens a reason-required dialog that queues instead of executing, and a new "Pending Revoke Approvals"
+  card renders only when the queue is non-empty (mirrors "Pending Account Approvals"). One deliberate
+  divergence from B's diff: B's `request`/`approve`/`reject` don't guard `MOCK_MODE` at all, which would
+  throw against a fake localhost RPC in the demo build; ours explicitly throws a clear
+  "Demo mode has only one account" message instead, since MOCK_MODE's single demo user makes a genuine
+  two-person approval literally impossible to simulate honestly.
+  **Verified:** tsc clean, 92/92 vitest, build clean, full clean-reset battery — 20 SQL guard files
+  ALL PASS (19 prior + new p1m) + static-guards + drift both PASS. **Live browser E2E, the full
+  separation-of-duties path with three real signed-up accounts** (not fixtures alone): Owner Co1
+  (bootstrapped owner) clicked Revoke on employee e2e-emp → reason dialog → request queued → e2e-emp
+  stayed Active in the directory (access unaffected) → signed out → signed in as a SEPARATE real
+  account (Real Co2, granted co_owner via SQL) → saw the "Pending Revoke Approvals" box with Owner
+  Co1's name and reason → clicked "Approve revoke" → e2e-emp's status flipped to Expired, the box
+  disappeared (queue empty), and `audit_events` shows both `revoke.requested` and `revoke.approved`
+  rows, `revoke_requests.status = 'Approved'` with `decided_by` set. All fixtures wiped via a final
+  `supabase db reset`; local DB confirmed back to 0 rows.
+- **2026-07-17 (P1M pushed + deployed to production; self-caught anon-grant hardening, P1M.1)** — Owner
+  gave the DB password and "go." First push attempt used a wrong password (auth rejected, nothing
+  touched); owner supplied a corrected one and the push succeeded cleanly.
+  **Post-push live verification caught a real grant-hygiene bug in my own migration**, not assumed
+  clean: `has_function_privilege('anon', 'public.request_revoke(uuid,text)', 'execute')` returned
+  `true` on all 4 new RPCs. Root-caused via `pg_default_acl` before touching anything further: this
+  Supabase project has an `ALTER DEFAULT PRIVILEGES` rule that grants EXECUTE on every NEW function to
+  `anon` as a DIRECT per-role grant — `revoke all ... from public` (what P1M wrote) never touches a
+  direct grant, only a PUBLIC-pseudo-role grant. P1J.2/P1L got this right (`from public, anon`); P1M
+  missed the `, anon` and shipped anon-executable. Sanity-checked this wasn't project-wide breakage by
+  testing a known-good function (`update_own_username` — correctly anon=false) against a known-old one
+  (`archive_user_account`, P1G — **also anon=true**, a pre-existing gap predating this session, noted
+  but explicitly NOT touched — out of scope for tonight, flagged for a future dedicated pass).
+  **Fixed immediately, same session, before calling P1M done:** new migration
+  `20260717100000_p1m1_revoke_approval_anon_hardening.sql` (`revoke execute ... from anon` on all 4
+  RPCs) + a new grant-shape assertion appended to `p1m-revoke-approval-security.sql` so this exact
+  regression class can never land silently again. Practical exposure was LOW throughout (every RPC
+  calls `current_app_user_id()` first, which resolves NULL for a no-session anon caller and rejects
+  before touching data) — this was a grant-shape/defense-in-depth fix, not a live-data incident.
+  Re-verified locally (clean reset, full 20-guard battery + static + drift, all green, including the
+  new assertion) before pushing the fix to production and re-confirming live: all 4 functions now
+  correctly show anon=false/authenticated=true. **Both migrations (P1M + P1M.1) now live in
+  production**, app deployed via `vercel deploy --prod` → READY, aliased to `pick-ur-veggie-farm.vercel.app`
+  (deployment `dpl_D7fcRTNgNUnnNjkaMxdCixxHJ6CG`). Post-deploy smoke (read-only): login page renders
+  correctly, zero console errors, all requests 200. **Owner: rotate the `aqhxhamdwmhcwxmebqbo`
+  session-pooler password now** (same ephemeral-use convention).
+  **New, out-of-scope finding for a future session:** `archive_user_account` (P1G, weeks-old) is
+  anon-executable in production via the same default-ACL mechanism — worth a dedicated audit of every
+  governed RPC's grant shape, not just the ones touched recently.
+- **2026-07-17 (P1N push — deploy blocked by transient ECONNRESET, resolved) + Batch 1 of the owner's
+  full Team-B-parity backlog, LOCAL ONLY — not yet pushed)** — Owner directive: "build these features
+  we dont have, fix bugs, fix security leaks," relaying the full prompt history they gave Team B plus
+  Team B's own status report. Triaged the whole ask against both repos' current state (table in the
+  session record); most of it maps to B commits already reviewed, three items have no reference
+  implementation anywhere (void-approval, crop-pricing-approval, the merged permissions-panel
+  redesign — B's own "item C," which B itself declined to rush), and one (10% discount on paid POS
+  sales) is money-path-gated pending the owner's cross-vendor sign-off.
+  **P1N deploy:** the app build stuck on a persistent Vercel `ECONNRESET` (7 attempts, ~38s hang each
+  before reset) while the P1N database migration was already safely live. Confirmed via
+  `vercel whoami` + direct curl to `api.vercel.com` that this was not a broader connectivity/auth
+  failure and not a Vercel-side incident (status page: all green) — isolated to the large
+  deployment-upload POST specifically, most likely a local network path issue (VPN/AV/NAT). Resolved
+  itself on a later retry; deployed clean, READY.
+  **Batch 1 (display-only gates + one real permission-grant fix, all ported from Team B commits
+  5ab18eb/241badb, or self-discovered):**
+  1. **Awaiting-approval "0.5s peek" fixed** — `AppShell.tsx`: added `if (!MOCK_MODE && loading) return
+     <Loading/>` before the companyId check, so `<Outlet/>` never mounts during the resolving window.
+     B's own 239-line regression test wasn't ported (mirrors a B-specific mock-test pattern with no
+     counterpart in our repo, since our P1C architecture diverged — screen-gated vs. B's global wire);
+     verified instead via live browser E2E on every fresh navigation this session.
+  2. **Role-key regex bug fixed** — `organization.ts`: `codeSlug` was uppercase-only
+     (`[A-Z0-9]`) while its own error message only promised "A–Z, 0–9, dash"; a naturally-typed
+     lowercase key like "cashier" was silently rejected. Confirmed no server-side case constraint
+     exists (plain text column) before relaxing the regex. **Verified live**: created a role named
+     `cashier` (lowercase) as owner — persisted in the DB exactly as typed.
+  3. **Four role-visibility gates** (Dashboard org-stats+Quick-Actions, POS branch-picker+Export-Journal-CSV,
+     Reports nav, Schedules "General" chip) — all `has()`-gated to admin+, matching the owner's own
+     pasted screenshot verbatim (which named the whole Quick Actions block, "Weigh a Sale" included,
+     as "must not be visible" — operators keep full POS access via the main nav sidebar regardless).
+  4. **NEW finding, not from B — `project.read` gap**: while verifying B's "no UI change needed"
+     claim for the Project Checklist ("all roles read, admin+ manage"), found our `seed_standard_roles()`
+     grants employee/operator ZERO project keys (unlike B's schema). New migration
+     `20260717120000_p1h1_project_read_all_roles.sql` — evolves `seed_standard_roles()` (adds
+     `project.read` to employee+operator, matching P1H's precedent pattern) + a direct backfill
+     INSERT for existing companies (same shape as P1H's schedule.read backfill) + new guard
+     `p1h1-project-read-all-roles-security.sql` (4 assertions: employee/operator hold project.read,
+     neither holds project.manage) bootstrapped via the real `seed_standard_roles()` path, not
+     hand-built fixtures.
+  **Also found in passing**: Team B has started "item C" server-side — a new commit `1b3613a`
+  (`20260716140000_p1c2_module_access_overrides.sql`, a read-only `user_module_access()` resolver +
+  `permission_modules` view) they explicitly label "part 1 of 2," UI not yet landed. Noted for when
+  item C is eventually built here — does not change or supersede the `project.read` fix above (the
+  resolver reads FROM role_permissions/overrides; it doesn't touch the seed itself).
+  **Verified:** tsc clean, 92/92 vitest, build clean, full clean-reset battery — 22 SQL guard files
+  ALL PASS (21 prior + new p1h1) + static-guards + drift both PASS. **Live browser E2E** with two real
+  signed-up accounts (owner + operator, distinct sessions): owner dashboard shows all 4 org stat cards
+  + Quick Actions + Reports nav + POS branch picker + Export Journal; operator's dashboard shows NONE
+  of those (replaced by the honest "some widgets are hidden" hint), operator's nav has no Reports link,
+  operator's POS has no branch picker/no Export button, operator's Schedules shows only "All events"
+  (no redundant "General" chip), and operator CAN see the Project Checklist board (read) but has no
+  "New Project" create action (no manage) — every gate confirmed both ways, not just "gate exists."
+  All E2E fixtures wiped via a final `supabase db reset`; local DB confirmed back to 0 rows.
+  **NOT pushed to production** — one new migration (P1H.1) + a batch of app-code changes, awaiting the
+  owner's explicit push authorization. **Still queued from the full triage**: POS UX batch (manual
+  sale, customer picker, receipt sizes/print, sync animation, Log Expense merge), the two
+  original-design items (void-approval, crop-pricing-approval), the money-path-gated 10% discount, and
+  the permissions-panel redesign (item C) — sequencing as previously reported to the owner.
+
+- **2026-07-17 (Phase A: Reports placeholder, Crops & Plans tab deletion, sync-button animation, LOCAL
+  ONLY — not yet pushed) + Phase B: item C, the merged 3-state permissions panel, ported from Team B
+  commit `1b3613a` (server) and their in-progress client build (UI))** — Owner directive continuing the
+  same backlog: honest Reports placeholder, delete Crops & Plans entirely (owner's words evolved from
+  "archive" to "actually delete the crop & plan tab" mid-message — the later, more specific instruction
+  is authoritative), animate the sync button on tap ("doesn't animate, glitches on tap"), and "analyze
+  more about repo B, their 'approval & roles' section is more updated and secured, ours is a joke" —
+  which is what surfaced item C as B's actual most-recent work.
+  **Phase A:**
+  1. **Reports placeholder** — `Placeholder.tsx` rewritten with Reports-specific honest copy (names
+     what's coming: daily sales, best-selling vegetables, cash reconciliation, payroll totals, inventory
+     turnover; links to Dashboard/Accounting/POS) instead of a generic "coming soon."
+  2. **Crops & Plans tab deleted** — 8 files removed (`CategoriesScreen`/`CropDashboard`/`CropsLayout`/
+     `ProfilesScreen`/`TemplatesScreen`/`VarietiesScreen`/`api.ts`/`shared.tsx` under
+     `app/features/crops/`, plus `app/schemas/crops.ts`); `OperationsLayout.tsx` tab removed;
+     `router.tsx` route subtree + 6 lazy imports removed, legacy `/crops/*` redirect retargeted to
+     `/dashboard`. Offline Dexie `crop_*` tables/types/mock seeders deliberately RETAINED — purging them
+     would force an offline-migration risk on installed on-device Dexie DBs; the dead tables are
+     harmless. Confirmed zero remaining references via grep; tsc clean; bundle shrank as expected.
+  3. **Sync button animation** — `AppShell.tsx` TopBar: new `uiSyncing` local state (700ms minimum
+     spin, ignores re-tap mid-spin) decoupled from the underlying `syncing` state, plus a new
+     full-screen `.syncoverlay` (top-edge shimmer sweep + pulsing status pill) in `index.css` so the
+     whole screen visibly reacts to a tap, not just the icon. Verified live: mid-spin shows
+     `disabled=true` + `aria-busy=true` + the spin class + the overlay; clears fully after 700ms+.
+  **Confirmed already-live from prior sessions** (re-verified, not rebuilt): the role-change
+  duplicate-account bug (`dedupeByUser`, fixed 2026-07-16), the self-service Profile screen
+  (username/email/password, P1L), OTP password-change living in Profile (not Settings), and Data &
+  Backup export already gated out for admin-and-below (`company.manage`).
+  **Phase B — item C, the merged permissions panel:**
+  Server: `20260717130000_p1c2_module_access_overrides.sql` — adds `permissions.module text` (additive,
+  nullable) + backfills the 33 active keys under 8 UI modules (organization/inventory/pos/accounting/
+  payroll/scheduling/projects/customers) plus a `system` catch-all for `crop.manage` (idle since the
+  Crops tab deletion above); a `permission_modules` view (one row per module, picks a representative
+  `.read`/`.manage` key via `distinct on`); and `user_module_access(company_id, user_id, module)` — a
+  READ-ONLY SECURITY DEFINER resolver returning `none`/`view`/`manage`. Writes still go through the
+  existing proven `set_user_permission_override` RPC (one call per representative key) — the resolver
+  is purely additive, no new write path, so the money-path-adjacent M4 `has_permission` resolver is
+  untouched. **Deviation from a blind port**: our schema has `finance.account.read`/`.manage` (P2-B2A
+  digital payments) which B's 31-key catalog doesn't — bucketed into `accounting` rather than the vague
+  `system` catch-all, keeping the module count at the screenshot's 8 named modules (+ `system`, 9
+  total — the guard asserts `>= 8`, live count is 9). Self-caught lesson applied from P1M/P1M.1 earlier
+  this session (production's `ALTER DEFAULT PRIVILEGES` grants anon broadly on new relations/functions
+  in a way local dev does NOT replicate): explicit `revoke ... from public, anon` on both the function
+  AND the new view from the start, not discovered after the fact.
+  New guard `p1c2-module-access-security.sql` (7 assertions: view has >= 8 modules; employee holding
+  only `pos.sell` resolves `pos` to `view`; that same employee resolves `accounting` to `none`; a
+  co_owner with the full catalog resolves `accounting` to `manage`; an explicit deny override on
+  `accounting.manage` drops a co_owner from `manage` to `view`; an unknown module string resolves to
+  `none`; `anon` has neither EXECUTE on the resolver nor SELECT on the view) — all PASS after fixing
+  three instances of the same PL/pgSQL "ambiguous column reference" bug (a local variable named the
+  same as a temp-table column; same bug class self-caught and fixed in the p1m/p1h1 guards earlier this
+  session).
+  Client: `app/features/organization/overrides/moduleAccess.ts` (catalog/tier/apply API, mock catalog
+  verified byte-for-byte against a live query of the local DB's `permission_modules` view + full key
+  list) and `ModuleAccessDialog.tsx` (Radix Dialog, 8 module rows, 3-state segmented control per module,
+  a "keys" disclosure listing the underlying permission keys for transparency, dirty-state tracking,
+  "Save changes"). **Wired into `ApprovalsScreen.tsx`'s "Active POS Users Directory"** — the exact
+  screen the owner named ("reduce the buttons on the Active POS User Directory") — replacing the two
+  separate buttons ("Set Permissions" link to the Roles tab + the per-key binary "Overrides" dialog)
+  with ONE "Access" button. The old `overrides.tsx` (`OverridesDialog`/`overridesApi`) is now fully
+  unreferenced (confirmed via grep before deleting) and was removed rather than left as dead code.
+  **Verified:** tsc clean, 92/92 vitest, build clean, full clean-reset battery — 22 SQL guard files ALL
+  PASS + static-guards + drift both PASS. **Live browser E2E against the real local Postgres** (not
+  mock — two freshly signed-up accounts, an owner bootstrapped via `bootstrap_initial_tenant` and an
+  employee approved through the real Approvals UI): confirmed the Active POS Users Directory row shows
+  exactly one "Access" button; opening it against the live resolver showed the employee's real state
+  (`pos`/`projects`/`scheduling` = View-only from their seeded role's `pos.sell`/`project.read`/
+  `schedule.read`, all other modules = Not Visible); toggled `accounting` to View-only and saved;
+  confirmed in the DB the write produced `accounting.read = grant` + `accounting.manage = deny` via
+  `set_user_permission_override`, and that `user_module_access()` immediately resolved `accounting` to
+  `view` — a full, live round trip through the real UI, RPCs, and resolver, not just a compile check.
+  Zero console errors during the flow. All E2E fixtures (test company + both accounts) wiped via a
+  final `supabase db reset`.
+  **Pushed + deployed to production 2026-07-17** (owner: "push it now"). Both migrations applied via the
+  session pooler in order (P1H.1 then P1C2), single-transaction each, zero errors — the P1C2 backfill's
+  `UPDATE` row counts matched the local run exactly (10/4/5/4/2/3/2/2/1 = 33 keys). Read-only post-push
+  verification against `aqhxhamdwmhcwxmebqbo`: employee/operator hold `project.read` and not
+  `project.manage` across every seeded company; `permission_modules` has 9 distinct modules; grant shape
+  correct (`anon` has neither EXECUTE on the resolver nor SELECT on the view, `authenticated` has both);
+  and — a live functional check against the **real production owner**, not a fixture — calling
+  `user_module_access()` for the real owner/company resolved `manage` on all 9 modules, proving the
+  resolver works end-to-end against real data with zero writes performed. App deployed via
+  `vercel deploy --prod` (commit `31f6397`), READY, aliased to `pick-ur-veggie-farm.vercel.app`;
+  post-deploy smoke test (read-only): login page renders, zero console errors, all assets 200.
+  **Password used for this push has been shown in chat and must be rotated now** (ephemeral-use
+  convention — same as every prior production push this session).
+
+- **2026-07-17 (P1C3 — Section Access redesign + admin default narrowing; pushed + deployed to
+  production)** — Owner directive, looking at the just-shipped P1C2 "Module access" dialog: rename to
+  "Access", group by real nav **sections** (not the flat 8-module permission-catalog grouping),
+  3-level progressive disclosure (section Visible/Not-Visible → its tabs' Visible/Not-Visible → Read
+  or Edit & Manage). Plus two behavior changes: admin-and-below on payroll see only their own pay
+  record by default (full roster only via explicit grant); admin can approve pending sign-ups by
+  default but Revoke/Archive/Access/Reassign stay hidden unless granted, and admin only sees the
+  Approvals tab under Approvals & Roles by default. Scope agreed with owner: Home Dashboard/
+  VeggieGenius/Settings Hub/My Profile excluded from the tree (always-visible, unchanged); multi-tab
+  section visibility is DERIVED from its tabs (no new keys); route-guard hardening for the many
+  already-unguarded routes deferred to a follow-up.
+  **Two real bugs found and fixed as part of this same change, not treated as separate work:**
+  1. **The P1C2 "Not Visible" toggle has never actually worked** for anyone whose role already granted
+     baseline access (nearly everyone) — `moduleAccessApi.apply()` wrote `effect: null` (clear) for the
+     "none" target instead of `deny`, and the resolver never checked a deny override on the read key.
+     Fixed in the new resolver (`user_key_tier`, checks deny on both keys) and the new `access.ts`
+     `apply()` (writes `deny` on both keys for "none"). The old P1C2 objects are left defined but the
+     client no longer calls them — flagged to the owner as a heads-up, not fixed in place.
+  2. **A pre-existing, previously-invisible client-side permission bug**: `permissions.tsx`'s
+     `loadSnapshot()` queried `user_branch_roles`/`user_permission_overrides` with no `user_id` filter,
+     assuming RLS restricted results to "own rows only" — but both tables' RLS is two permissive
+     policies OR'd together (own row, OR any row in the company if you hold `membership.read`/
+     `membership.manage`). Anyone with broad read access (admin+) had their own snapshot silently
+     UNION every other visible member's role_permissions/overrides too — found live during this
+     session's own E2E when an admin's dashboard showed the owner's full catalog. Fixed with an
+     explicit `user_id` filter (via `current_app_user_id()`) on both queries. This was blocking, not
+     cosmetic — the entire premise of narrower-default roles depends on `has()` reflecting only the
+     calling user's own keys.
+  **Server** (`supabase/migrations/20260717140000_p1c3_nav_access_and_admin_narrowing.sql`): new
+  permission key `membership.approve`; new additive resolver `user_key_tier(company, user, read_key,
+  manage_key)` (parameterized on explicit key names, not a module-column lookup — needed because
+  `membership.manage` now serves as the manage key for THREE different tabs at once, which P1C2's
+  single-`module`-column design can't represent); `seed_standard_roles()` evolves (admin +membership.
+  approve, −payroll.read/−payroll.manage) with a scoped backfill — **the first migration in this
+  project to DELETE an existing `role_permissions` row rather than only add one**, deliberately (a
+  tier-wide default-policy change belongs in `role_permissions`, not a mass `user_permission_overrides`
+  seed — see the migration's own header for the full reasoning); three RPCs relaxed
+  (`list_pending_users`, `reject_pending_user`, `assign_membership_with_payroll` — the last one
+  branches on whether the target already has an active membership, so an approve-tier admin can
+  approve a FRESH signup but still cannot reassign an EXISTING member's role, which stays locked to
+  `membership.manage`); all three also got the explicit `revoke ... from public, anon` this session's
+  P1M incident already taught (confirmed via direct read they were missing it — a real, independently
+  live gap on all three, not hypothetical).
+  **Client:** `moduleAccess.ts`/`ModuleAccessDialog.tsx` → `access.ts`/`AccessDialog.tsx` (static
+  curated nav-shaped tree, no more DB-queried module catalog); `ApprovalsScreen.tsx` gets `canApprove`
+  (gates the Pending Account Approvals card + its data fetches; Revoke/Archive/Access/Reassign/Pending-
+  Revoke-Approvals stay on `canManage`, unchanged); `OperationsLayout.tsx` gains permission-gated tabs
+  (previously had ZERO permission awareness — a real gap, closed as part of this pass since it's the
+  same nav-shaped-tree work); `AppShell.tsx`'s `ORG_TABS` re-gated per-tab (Approvals→
+  `membership.approve`; Company/Branches/Roles→their own `.manage` keys, previously ungated entirely;
+  Members/Archived→`membership.manage`, was `membership.read`) + `ORG_LINK` updated to match; router
+  guard on `/organization/approvals` updated to `membership.approve`.
+  **New guard `p1c3-nav-access-security.sql`** (11 assertions covering: approve-only tier resolves
+  correctly; admin resolves `none` on Company/Branches/Roles/Members/Archived by default; admin loses
+  payroll.read/manage; `list_pending_users`/`assign_membership_with_payroll`/`reject_pending_user`
+  accept the lighter tier for a fresh approval but `assign_membership_with_payroll` still rejects a
+  reassignment attempt; `set_user_permission_override` stays locked to full manage; one
+  `membership.manage` override correctly flips THREE different tabs to manage together; an explicit
+  deny on a read-only key correctly overrides a role-derived grant [the Bug-1 regression test]; grant
+  shape) — required fixing the by-now-familiar ambiguous-column-reference bug (temp table `g`'s columns
+  colliding with local PL/pgSQL variable names) in two blocks before it passed clean. Also required
+  fixing two now-STALE assertions in the pre-existing `payroll-role-link-security.sql` guard, which
+  had encoded the OLD "admin always needs full membership.manage" behavior as correct — updated both
+  to assert the new, intentional behavior instead (admin CAN now approve a fresh signup via
+  `membership.approve`; admin can NO LONGER call `list_unlinked_payroll_eligible`, since that also
+  requires `membership.manage`/`payroll.manage` and admin now holds neither by default).
+  **Verified:** tsc clean, 92/92 vitest, build clean, full clean-reset battery — 24 SQL guard files ALL
+  PASS (23 prior + new p1c3, plus the 2 corrected payroll-role-link assertions) + static + drift both
+  PASS. **Live browser E2E against the real local Postgres** (owner + fresh admin-tier account,
+  approved through the real UI, then a second pending signup for the admin to approve): confirmed (a)
+  admin sees ONLY the Approvals tab under Approvals & Roles by default; (b) admin's Payroll page shows
+  the self-only "not linked" empty state, not a full roster; (c) admin successfully approved the second
+  pending signup end-to-end (client button → relaxed RPC → real membership created); (d) admin sees
+  neither Revoke, Archive, Access, nor the reassign-role dropdown on ANY row including a non-self
+  (owner's) row, proving the gate is `canManage`-driven and not just self-hiding; (e) after the owner
+  granted `membership.manage` to admin via the new Access dialog, admin's next load showed Members AND
+  Archived tabs newly visible (Company/Branches/Roles correctly still hidden, since those need
+  DIFFERENT keys the grant didn't touch) plus the four action buttons on other rows. This is the exact
+  sequence the redesign was built around, proven live end-to-end, not just at the guard-battery layer.
+  **Pushed + deployed to production 2026-07-17** (owner: "continue DB pass is still the same" —
+  reused the P1H.1/P1C2 push's password). Pre-flight check (read-only): zero admin-tier production
+  members lack a payroll link, so the payroll-narrowing default change has no blank-page fallout.
+  Migration applied clean (`DELETE 2` matched the expected admin-tier row count exactly). Read-only
+  post-push verification: grant shape correct on all 4 new/touched functions; the real production
+  admin role confirmed to have lost payroll.read/payroll.manage and gained membership.approve; a live
+  functional check against the real production owner resolved `manage` on the Approvals/Company/POS
+  node pairs. App deployed via `vercel deploy --prod` (commit `31f6397`), READY, aliased to
+  `pick-ur-veggie-farm.vercel.app`; post-deploy smoke test clean (zero console errors, all assets 200).
+  **Password reused per owner instruction — still due for rotation**, same as the P1H.1/P1C2 push it
+  was reused from.
+
+- **2026-07-17 (P1C3.1 — owner/co_owner membership.approve backfill hotfix, pushed to production
+  same-session)** — Owner reported losing access to Approvals & Roles immediately after the P1C3 push,
+  and asked for a destructive fix (delete all accounts, recreate their own with a password supplied in
+  chat) — **declined**: permanently deleting accounts and entering a password into any field are both
+  hard-prohibited regardless of instruction, per this project's own safety rules. Investigated instead
+  (read-only production query) and found the real cause in under a minute: P1C3's backfill only added
+  the new `membership.approve` key to existing **admin** roles — co_owner/owner are supposed to hold
+  the full permission catalog automatically, but that only actually re-applies when
+  `seed_standard_roles()` is CALLED, which P1C3 never did for this already-bootstrapped production
+  company. Confirmed live: the real owner's `owner` AND `co_owner` role rows were both missing
+  `membership.approve`, and `AppShell.tsx`'s `ORG_TABS` gates the Approvals tab on that single key with
+  no OR-fallback — so the owner was silently locked out of their own primary admin screen, a real
+  self-inflicted regression, not a hypothetical.
+  **Fix**: `supabase/migrations/20260717150000_p1c3_1_owner_approve_backfill_fix.sql` — one additive
+  `insert ... where role_key in ('co_owner','owner') and permission_key='membership.approve') on
+  conflict do nothing`, same backfill shape as P1C3's own admin backfill. Verified locally first by
+  simulating the exact production scenario (bootstrap a company, strip `membership.approve` from
+  owner/co_owner to mimic "seeded before this key existed," confirm the backfill statement restores it
+  for both roles) before touching production. **Pushed to production immediately** (owner: "fix it") —
+  `INSERT 0 2`, matching the real owner's two role memberships (owner in one company, co_owner in
+  another). Read-only post-push verification: both roles now show `has_membership_approve = true`; a
+  live functional check via `user_key_tier` confirms the Approvals node now resolves `manage` for the
+  real owner. No app deploy needed — pure data backfill, the already-deployed P1C3 client code was
+  correct all along. Advised the owner that a stale locally-cached permission snapshot (offline
+  support) may still require a sign-out/sign-in or hard refresh on their end even though the server
+  side is now fixed.
