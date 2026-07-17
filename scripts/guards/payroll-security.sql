@@ -39,18 +39,22 @@ insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) v
   ('10000000-0000-0000-0000-00000000000a','11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000a'),
   ('10000000-0000-0000-0000-00000000000b','22222222-2222-2222-2222-222222222222','b1111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000b'),
   ('10000000-0000-0000-0000-00000000000c','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','20000000-0000-0000-0000-00000000000c');
+-- P1D: positions are a managed reference now, not free text — one fixture position for company A.
+insert into public.positions (id, company_id, label, created_by) values
+  ('90000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Harvester','10000000-0000-0000-0000-00000000000a');
+
 -- one employee in company A (rate 500), one inactive
-insert into public.employees (id, company_id, employee_code, name, position, daily_rate, status) values
-  ('e1000000-0000-0000-0000-0000000000e1','11111111-1111-1111-1111-111111111111','EMP-001','Juan Dela Cruz','Harvester',500.00,'Active'),
-  ('e2000000-0000-0000-0000-0000000000e2','11111111-1111-1111-1111-111111111111','EMP-002','Resigned Rey','Packer',450.00,'Inactive');
+insert into public.employees (id, company_id, employee_code, name, position_id, daily_rate, status) values
+  ('e1000000-0000-0000-0000-0000000000e1','11111111-1111-1111-1111-111111111111','EMP-001','Juan Dela Cruz','90000000-0000-0000-0000-000000000001',500.00,'Active'),
+  ('e2000000-0000-0000-0000-0000000000e2','11111111-1111-1111-1111-111111111111','EMP-002','Resigned Rey','90000000-0000-0000-0000-000000000001',450.00,'Inactive');
 
 -- ── hire via RLS: owner A (payroll.manage) can insert; worker cannot ──
 do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
-  insert into public.employees (company_id, employee_code, name, position, daily_rate) values ('11111111-1111-1111-1111-111111111111','EMP-003','Maria Santos','Farm Operator',600.00);
+  insert into public.employees (company_id, employee_code, name, position_id, daily_rate) values ('11111111-1111-1111-1111-111111111111','EMP-003','Maria Santos','90000000-0000-0000-0000-000000000001',600.00);
   raise notice 'PASS payroll: owner A hired a worker (payroll.manage RLS insert)';
 end $$;
 do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
-  insert into public.employees (company_id, employee_code, name, position, daily_rate) values ('11111111-1111-1111-1111-111111111111','EMP-HACK','Hacker','x',1);
+  insert into public.employees (company_id, employee_code, name, position_id, daily_rate) values ('11111111-1111-1111-1111-111111111111','EMP-HACK','Hacker','90000000-0000-0000-0000-000000000001',1);
   raise exception 'DEFECT payroll: worker without payroll.manage hired a worker';
 exception when insufficient_privilege then raise notice 'PASS payroll: hire denied without payroll.manage'; end $$;
 

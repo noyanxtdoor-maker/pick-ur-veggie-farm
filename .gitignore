@@ -14,3 +14,9 @@ graphify-out/
 # Browser-probe scratch artifacts (session-local, not source)
 .tmp_capture/
 .vercel
+
+# DR restore-drill dumps — real production schema/data snapshots. NEVER commit (contains user rows).
+backups/
+
+# Supabase CLI local transient state (project link cache) — machine-local, not source.
+supabase/.temp*

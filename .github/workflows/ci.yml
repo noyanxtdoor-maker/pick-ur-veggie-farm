@@ -123,6 +123,39 @@ jobs:
       - name: Auth lifecycle security tests (signup trigger · pending-is-blind · approval queue gate · suspension · idempotency)
         run: npm run guard:auth
 
+      - name: Approvals & Roles P1C security tests (rank ladder · rank-enforced revoke/appoint · role governance · per-user overrides)
+        run: npm run guard:approvals
+
+      - name: Payroll-role-link P1D security tests (atomic payroll linking · managed positions · job_title gating)
+        run: npm run guard:payroll-link
+
+      - name: Cross-tenant helper hardening P1E security tests (account/category-seed helpers reject non-members)
+        run: npm run guard:cross-tenant
+
+      - name: P1L self-service-username security tests (own-row RPC, format/uniqueness/suspended/grant shape)
+        run: npm run guard:p1l
+
+      - name: P1M revoke-approval-workflow security tests (separation of duties, self-revoke/self-approve denied)
+        run: npm run guard:p1m
+
+      - name: P1N post-approval username onboarding security tests (one-time gate, format/uniqueness, grant shape)
+        run: npm run guard:p1n
+
+      - name: P1H.1 project.read-for-all-roles security tests (employee/operator read, admin+ only manage)
+        run: npm run guard:p1h1
+
+      - name: P1C2 module-access-overrides security tests (view module count, resolver view/manage/none, deny-override, grant shape)
+        run: npm run guard:p1c2
+
+      - name: P1C3 nav-access-and-admin-narrowing security tests (nav-shaped resolver, admin default narrowing, RPC approve/manage split, read-key-deny regression, grant shape)
+        run: npm run guard:p1c3
+
+      - name: P1C4 role default-access editor security tests (live effect on current members, rank protection, owner role unreachable, grant shape)
+        run: npm run guard:p1c4
+
+      - name: P1O POS product-removal approval security tests (instant manage removal, queued request+approve/reject, override composition, self-approve denied, grant shape)
+        run: npm run guard:p1o
+
       - name: Copilot degrade guard (CAP-VG1 v1 = zero Postgres surface — no tables/permissions/policies/functions)
         run: npm run guard:copilot
 
