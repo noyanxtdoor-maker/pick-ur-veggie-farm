@@ -1,5 +1,9 @@
-// Roles (M1C §8.5). List + detail. Create role + edit description/status + ADD permissions (role.manage).
-// G1: permissions are IMMUTABLE — there is no remove. The UI says so and offers the deprecate-and-recreate path.
+// Roles (M1C §8.5). List + detail. Create role + edit description/status. Default permissions were
+// historically ADD-ONLY (G1: "permissions are IMMUTABLE — there is no remove"); P1C4 (2026-07-17,
+// owner: "make it editable and so i can change its default access, the system is same the one we made
+// today") reverses that for the nav-shaped tree — see RoleAccessDialog below and roleAccess.ts for the
+// full reasoning. The raw permission_key list stays visible read-only here for exact-key transparency;
+// edits now go through the Access dialog, not a flat add-only dropdown.
 import {useEffect, useState} from 'react';
 import {Controller, useForm} from 'react-hook-form';
 import {useLiveQuery} from 'dexie-react-hooks';
@@ -10,12 +14,14 @@ import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
 import {MOCK_MODE, mockRead} from '../../../core/mock/mock';
-import type {Permission, Role} from '../../../types/db';
+import type {Role} from '../../../types/db';
 import {roleCreateSchema, roleEditSchema, type RoleCreateInput, type RoleEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
 import {Field, ReadOnlyField, TextInput, zodResolver} from '../../../components/forms';
-import {SelectField, ConfirmDialog} from '../../../components/overlay';
+import {SelectField} from '../../../components/overlay';
 import {EmptyState, Skeleton, StatusBadge, useToast} from '../../../components/feedback';
+import {AccessDialog} from '../overrides/AccessDialog';
+import {roleAccessApi} from './roleAccess';
 
 interface RolePerm {permission_id: string; key: string; description: string}
 
@@ -25,12 +31,6 @@ const rolesApi = {
     const {data, error} = await supabase.from('roles').select('*').eq('company_id', companyId).order('role_key');
     if (error) throw new Error(error.message);
     return (data ?? []) as Role[];
-  },
-  async catalog(): Promise<Permission[]> {
-    if (MOCK_MODE) return offlineDB.permissions.toArray();
-    const {data, error} = await supabase.from('permissions').select('*').eq('status', 'Active').order('permission_key');
-    if (error) throw new Error(error.message);
-    return (data ?? []) as Permission[];
   },
   async rolePerms(roleId: string): Promise<RolePerm[]> {
     if (MOCK_MODE) return []; // role_permissions are not cached locally in demo mode
@@ -47,9 +47,6 @@ const rolesApi = {
   },
   update(role: Role, input: RoleEditInput) {
     return enqueue({companyId: role.company_id, kind: 'role.update', request: {type: 'update', table: 'roles', match: {id: role.id, baseUpdatedAt: role.updated_at}, payload: input}});
-  },
-  addPermission(role: Role, permissionId: string) {
-    return enqueue({companyId: role.company_id, kind: 'role.addPermission', request: {type: 'insert', table: 'role_permissions', payload: {company_id: role.company_id, role_id: role.id, permission_id: permissionId}}});
   },
 };
 
@@ -123,17 +120,10 @@ function RoleDetail({role, canManage, onChanged}: {role: Role; canManage: boolea
   const {notify} = useToast();
   const {register, handleSubmit, control, formState: {errors, isSubmitting}} = useForm<RoleEditInput>({resolver: zodResolver(roleEditSchema), defaultValues: {description: role.description, status: role.status}});
   const [perms, setPerms] = useState<RolePerm[] | null>(null);
-  const [catalog, setCatalog] = useState<Permission[]>([]);
-  const [toAdd, setToAdd] = useState<string | undefined>(undefined);
-  const [confirmAdd, setConfirmAdd] = useState<Permission | null>(null);
+  const [accessOpen, setAccessOpen] = useState(false);
 
-  useEffect(() => {
-    rolesApi.rolePerms(role.id).then(setPerms).catch(() => setPerms([]));
-    rolesApi.catalog().then(setCatalog).catch(() => setCatalog([]));
-  }, [role.id]);
-
-  const owned = new Set((perms ?? []).map((p) => p.key));
-  const addable = catalog.filter((c) => !owned.has(c.permission_key));
+  const reloadPerms = () => {rolesApi.rolePerms(role.id).then(setPerms).catch(() => setPerms([]));};
+  useEffect(reloadPerms, [role.id]);
 
   return (
     <Card>
@@ -162,32 +152,30 @@ function RoleDetail({role, canManage, onChanged}: {role: Role; canManage: boolea
             ))}
           </ul>
         )}
-        {/* G1 — immutable mapping: add only, never remove. */}
-        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-base text-amber-900">
-          Permissions cannot be removed from an existing role. Create a new role if a different permission set is needed.
-        </p>
-        {canManage && addable.length > 0 ? (
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <SelectField value={toAdd} onChange={setToAdd} placeholder="Add a permission…" options={addable.map((c) => ({value: c.id, label: `${c.permission_key} — ${c.description}`}))} />
-            </div>
-            <Button variant="secondary" disabled={!toAdd} onClick={() => {const p = catalog.find((c) => c.id === toAdd); if (p) setConfirmAdd(p);}}>Add</Button>
-          </div>
+        {/* P1C4 (2026-07-17): default access is now editable both ways (add AND remove) — the old
+            add-only dropdown + "cannot be removed" copy is retired. Removing a key here takes
+            IMMEDIATE effect on every member currently holding this role, not just future ones. */}
+        {canManage ? (
+          <>
+            <p className="mb-3 text-[11px] text-farm-muted">
+              Changes here affect every member holding this role right away — this is the role's shared default, not a per-person exception.
+            </p>
+            <Button variant="secondary" onClick={() => setAccessOpen(true)}>Edit default access</Button>
+          </>
         ) : null}
       </div>
 
-      <ConfirmDialog
-        open={confirmAdd !== null}
-        title="Add permission to role?"
-        description={confirmAdd ? `Grant "${confirmAdd.permission_key}" to ${role.role_key}. This cannot be undone (permissions are not removable).` : ''}
-        confirmLabel="Add permission"
-        onCancel={() => setConfirmAdd(null)}
-        onConfirm={async () => {
-          if (confirmAdd) {await rolesApi.addPermission(role, confirmAdd.id); notify('Permission add queued'); setToAdd(undefined);}
-          setConfirmAdd(null);
-          onChanged();
-        }}
-      />
+      {canManage ? (
+        <AccessDialog
+          title={`Default access — ${role.role_key}`}
+          subtitle="Each section gets a tier. This sets what EVERY member holding this role gets by default — individual exceptions are still set per-person from Approvals & Roles."
+          open={accessOpen}
+          onClose={() => {setAccessOpen(false); reloadPerms(); onChanged();}}
+          getTier={(leaf) => roleAccessApi.tier(role.company_id, role.id, leaf)}
+          applyTier={(leaf, target) => roleAccessApi.apply(role.company_id, role.id, leaf, target)}
+          savedMessage={(n) => n > 0 ? `Updated ${n} section${n === 1 ? '' : 's'} of ${role.role_key}'s default access` : 'No changes to save'}
+        />
+      ) : null}
     </Card>
   );
 }

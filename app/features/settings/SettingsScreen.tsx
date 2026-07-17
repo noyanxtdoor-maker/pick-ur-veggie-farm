@@ -5,8 +5,9 @@
 // multi-tenant server world those are governed server operations, not a client button. No migration, no new
 // permission, no RLS surface: a device configuring its own look and labels.
 import {useState} from 'react';
-import {Palette, Check, Store, Cloud, Download, KeyRound, LogOut, MonitorCog, Sparkles} from 'lucide-react';
+import {Palette, Check, Store, Cloud, Download, LogOut, MonitorCog, Sparkles} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
+import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
 import {THEMES, useTheme, usePref, type ThemeId} from '../../core/prefs/prefs';
@@ -19,65 +20,8 @@ const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> 
   green: {name: 'Green Pastures', desc: 'Bright pasture green, minty daylight', swatch: '#1e7a3f'},
 };
 
-// P1 security card: change password guarded by an emailed one-time code (ODR-003 re-auth for sensitive
-// actions). Flow: "Send code" → supabase emails a 6-digit OTP → user enters code + new password →
-// updateUser carries the OTP as its nonce. Google-only users are told to manage the password at Google.
-function SecurityCard() {
-  const {user, requestPasswordOtp, updatePasswordWithOtp} = useSession();
-  const [step, setStep] = useState<'idle' | 'otp'>('idle');
-  const [otp, setOtp] = useState('');
-  const [pw, setPw] = useState('');
-  const [pw2, setPw2] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const isGoogleOnly = (user?.app_metadata?.providers as string[] | undefined)?.every((p) => p === 'google') ?? false;
-
-  async function sendCode() {
-    setBusy(true); setErr(null); setMsg(null);
-    const r = await requestPasswordOtp();
-    if (r.error) setErr(r.error);
-    else {setStep('otp'); setMsg(`We emailed a one-time code to ${user?.email ?? 'your address'}. Enter it below with your new password.`);}
-    setBusy(false);
-  }
-  async function save() {
-    if (pw.length < 12) return setErr('New password needs at least 12 characters — a short sentence works well.');
-    if (pw !== pw2) return setErr('Passwords do not match.');
-    setBusy(true); setErr(null);
-    const r = await updatePasswordWithOtp(pw, otp.trim());
-    if (r.error) setErr(r.error);
-    else {setStep('idle'); setOtp(''); setPw(''); setPw2(''); setMsg('Password changed. Use it from your next sign-in.');}
-    setBusy(false);
-  }
-
-  return (
-    <Card>
-      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><KeyRound className="h-5 w-5" aria-hidden /> Security — change password</h3>
-      {isGoogleOnly ? (
-        <p className="text-xs text-farm-muted">You sign in with Google, so there is no app password here — manage your password in your Google account.</p>
-      ) : (
-        <>
-          <p className="mb-3 text-xs text-farm-muted">For your protection, changing the password needs a one-time code we email to <strong className="font-mono text-farm-ink">{user?.email ?? 'you'}</strong>.</p>
-          {msg ? <p className="mb-2 rounded-lg bg-farm-accent-soft px-3 py-2 text-xs font-semibold text-farm-green" role="status">{msg}</p> : null}
-          {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
-          {step === 'idle' ? (
-            <Button variant="secondary" onClick={() => void sendCode()} disabled={busy}>{busy ? 'Sending…' : 'Email me a one-time code'}</Button>
-          ) : (
-            <div className="space-y-2.5">
-              <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="6-digit code from the email" aria-label="One-time code" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-sm tracking-widest" />
-              <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password" placeholder="New password (12+ characters)" aria-label="New password" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
-              <input value={pw2} onChange={(e) => setPw2(e.target.value)} type="password" autoComplete="new-password" placeholder="Repeat new password" aria-label="Repeat new password" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => {setStep('idle'); setErr(null); setMsg(null);}} disabled={busy}>Cancel</Button>
-                <Button className="flex-1" onClick={() => void save()} disabled={busy || otp.length < 6 || !pw}>{busy ? 'Saving…' : 'Change password'}</Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </Card>
-  );
-}
+// The OTP-guarded password change (SecurityCard) MOVED to the Profile screen (P1L, ported from
+// Team B f0249fa) alongside the new self-service username/email cards — Settings stays device-only.
 
 // CAP-VG1 step 1 — the Copilot's LM Studio connection (D2 model choice is deliberately a preference,
 // spec §7). Client state only; turning it off leaves the whole ERP untouched (spec §1 failure mode).
@@ -114,7 +58,11 @@ function CopilotCard() {
 
 export default function SettingsScreen() {
   const {user, signOut} = useSession();
+  const {has} = usePermissions();
   const {notify} = useToast();
+  // P1L (ported from Team B, owner directive): the Data & Backup export is owner-tier only —
+  // admin-and-below never see the card (not rendered, not merely disabled).
+  const canBackup = has('company.manage');
   const [theme, setTheme] = useTheme();
   const [farmName, setFarmName] = usePref('farm_display_name');
   const [terminalId, setTerminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
@@ -196,19 +144,17 @@ export default function SettingsScreen() {
             <p className="mt-3 text-[10px] text-farm-muted">Changes save as you type. Leave the display name blank to fall back to the company name.</p>
           </Card>
 
-          {/* Data & backup — backlog */}
-          <Card>
-            <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Cloud className="h-5 w-5" aria-hidden /> Data &amp; Backup</h3>
-            <p className="mb-3 text-xs text-farm-muted">
-              Your data lives in the company cloud and syncs automatically. You can also download a JSON copy of this
-              device's records for your own safekeeping. (Governed cloud backup + restore is a planned follow-up.)
-            </p>
-            <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
-          </Card>
-
-          {/* Security — OTP-guarded password change (P1, ODR-003 sensitive-action re-auth).
-              Google-login users have no app password; they change it at their Google account. */}
-          <SecurityCard />
+          {/* Data & backup — owner-tier only (P1L port: company.manage gate, owner directive) */}
+          {canBackup ? (
+            <Card>
+              <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Cloud className="h-5 w-5" aria-hidden /> Data &amp; Backup</h3>
+              <p className="mb-3 text-xs text-farm-muted">
+                Your data lives in the company cloud and syncs automatically. You can also download a JSON copy of this
+                device's records for your own safekeeping. (Governed cloud backup + restore is a planned follow-up.)
+              </p>
+              <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
+            </Card>
+          ) : null}
 
           {/* VeggieGenius Copilot (CAP-VG1 step 1) — local LM Studio connection; pure client prefs, no DB. */}
           <CopilotCard />
@@ -217,7 +163,7 @@ export default function SettingsScreen() {
           <Card>
             <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-danger"><LogOut className="h-5 w-5" aria-hidden /> Session</h3>
             <p className="mb-3 text-xs text-farm-muted">
-              Signed in as <strong className="font-mono text-farm-ink">{user?.email ?? 'operator'}</strong>. Sign-out is also in the top bar.
+              Signed in as <strong className="font-mono text-farm-ink">{user?.email ?? 'operator'}</strong>.
             </p>
             <Button variant="secondary" onClick={() => void signOut()}><LogOut size={16} aria-hidden /> Sign out</Button>
           </Card>

@@ -30,6 +30,10 @@ interface SessionValue {
   // updatePassword then carries it as the nonce.
   requestPasswordOtp: () => Promise<{error: string | null}>;
   updatePasswordWithOtp: (newPassword: string, otp: string) => Promise<{error: string | null}>;
+  // P1L self-service username edit (governed RPC update_own_username, server-enforced format + uniqueness).
+  updateOwnUsername: (newUsername: string) => Promise<{error: string | null}>;
+  // Email change (Supabase Auth updateUser — triggers email-confirmation to the NEW address before it lands).
+  updateOwnEmail: (newEmail: string) => Promise<{error: string | null}>;
   signInWithGoogle: () => Promise<{error: string | null}>;
   signOut: () => Promise<void>;
 }
@@ -83,7 +87,15 @@ export function SessionProvider({children}: {children: ReactNode}) {
           setStatus('authenticated');
           return {error: null};
         }
-        const {error} = await supabase.auth.signInWithPassword({email, password});
+        // P1J: username login — resolve to the real email first (pre-auth, anon-reachable RPC). Falls
+        // back to the raw input if resolution errors or finds nothing, so Supabase's own generic
+        // "invalid credentials" surfaces rather than a distinguishable "unknown username" signal.
+        let resolvedEmail = email;
+        if (!email.includes('@')) {
+          const {data} = await Promise.resolve(supabase.rpc('resolve_login_email', {p_identifier: email})).catch(() => ({data: null}));
+          resolvedEmail = (data as string | null) ?? email;
+        }
+        const {error} = await supabase.auth.signInWithPassword({email: resolvedEmail, password});
         return {error: error ? error.message : null};
       },
       signUp: async (email, password, displayName, requestedRole) => {
@@ -119,6 +131,23 @@ export function SessionProvider({children}: {children: ReactNode}) {
       updatePasswordWithOtp: async (newPassword, otp) => {
         if (MOCK_MODE) return {error: 'Demo mode has no passwords.'};
         const {error} = await supabase.auth.updateUser({password: newPassword, nonce: otp});
+        return {error: error ? error.message : null};
+      },
+      updateOwnUsername: async (newUsername) => {
+        if (MOCK_MODE) {
+          // Mock has no users Dexie store (demo data is seeded elsewhere); persist a meta override
+          // so the Profile screen reads it back. Sufficient for the UI demo path.
+          const authId = session?.user?.id;
+          if (!authId) return {error: 'Not signed in.'};
+          await offlineDB.meta.put({key: `mock-username-${authId}`, value: newUsername});
+          return {error: null};
+        }
+        const {error} = await supabase.rpc('update_own_username', {p_username: newUsername});
+        return {error: error ? error.message : null};
+      },
+      updateOwnEmail: async (newEmail) => {
+        if (MOCK_MODE) return {error: 'Demo mode — email changes are not available in the demo.'};
+        const {error} = await supabase.auth.updateUser({email: newEmail});
         return {error: error ? error.message : null};
       },
       signInWithGoogle: async () => {

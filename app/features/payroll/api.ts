@@ -8,7 +8,7 @@ import {enqueue} from '../../core/offline/queue';
 import {uuidv7} from '../../core/offline/uuidv7';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {round2} from '../pos/money';
-import type {CashAdvance, Employee, WagePayment} from '../../types/db';
+import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
 
 const online = () => typeof navigator === 'undefined' || navigator.onLine;
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -22,11 +22,39 @@ async function mockAdvanceBalance(companyId: string, employeeId: string): Promis
 
 export interface HireInput {
   name: string;
-  position: string;
+  positionId: string;
   dailyRate: number;
 }
 
 export const payrollApi = {
+  async fetchPositions(companyId: string): Promise<Position[]> {
+    if (MOCK_MODE) return offlineDB.positions.where('company_id').equals(companyId).toArray();
+    const {data, error} = await supabase.from('positions').select('*').eq('company_id', companyId).order('label');
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Position[];
+  },
+
+  async addPosition(companyId: string, label: string, createdBy: string): Promise<void> {
+    if (!label.trim()) throw new Error('Position name is required.');
+    if (MOCK_MODE) {
+      const now = new Date().toISOString();
+      await offlineDB.positions.put({id: uuidv7(), company_id: companyId, label: label.trim(), active: true, created_by: createdBy, created_at: now, updated_at: now});
+      return;
+    }
+    // created_by is server-derived (never client-supplied — see positions_normalize_and_check trigger).
+    const {error} = await supabase.from('positions').insert({company_id: companyId, label: label.trim()});
+    if (error) throw new Error(error.message);
+  },
+
+  async setPositionActive(position: Position, active: boolean): Promise<void> {
+    if (MOCK_MODE) {
+      await offlineDB.positions.put({...position, active, updated_at: new Date().toISOString()});
+      return;
+    }
+    const {error} = await supabase.from('positions').update({active}).eq('id', position.id);
+    if (error) throw new Error(error.message);
+  },
+
   async fetchEmployees(companyId: string): Promise<Employee[]> {
     if (MOCK_MODE) {
       const rows = await offlineDB.employees.where('company_id').equals(companyId).toArray();
@@ -48,9 +76,10 @@ export const payrollApi = {
 
   async hire(companyId: string, input: HireInput): Promise<void> {
     if (!input.name.trim()) throw new Error('Worker name is required.');
+    if (!input.positionId) throw new Error('Position is required.');
     if (!(input.dailyRate > 0)) throw new Error('Daily rate must be greater than ₱0.');
     const code = `EMP-${uuidv7().slice(-6).toUpperCase()}`;
-    const payload = {company_id: companyId, employee_code: code, name: input.name.trim(), position: input.position, daily_rate: round2(input.dailyRate), date_hired: todayISO()};
+    const payload = {company_id: companyId, employee_code: code, name: input.name.trim(), position_id: input.positionId, daily_rate: round2(input.dailyRate), date_hired: todayISO()};
     if (MOCK_MODE) {
       const now = new Date().toISOString();
       await offlineDB.employees.put({id: uuidv7(), ...payload, status: 'Active', user_id: null, created_at: now, updated_at: now});

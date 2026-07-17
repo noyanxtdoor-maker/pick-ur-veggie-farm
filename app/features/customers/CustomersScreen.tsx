@@ -6,6 +6,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Archive, CreditCard, FileText, Pencil, Plus, UserPlus, Users2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
@@ -18,6 +19,7 @@ const STATUS_TONE: Record<string, string> = {Paid: 'text-farm-green', Unpaid: 't
 
 export default function CustomersScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('customer.read');
   const canManage = has('customer.manage');
@@ -39,7 +41,7 @@ export default function CustomersScreen() {
     customersApi.fetchCustomers(companyId).then(setCustomers).catch(() => setCustomers([]));
     customersApi.fetchUnassignedCredit(companyId, branchId).then(setUnassigned).catch(() => setUnassigned([]));
   }, [companyId, canRead, branchId]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]);
 
   const wrap = (fn: () => Promise<void>, ok?: string) => async () => {
     setBusy(true);

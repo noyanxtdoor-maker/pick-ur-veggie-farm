@@ -6,8 +6,10 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {AlertTriangle, ClipboardList, FileText, Hammer, Minus, Package, Plus, ReceiptText, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
+import {AlertTriangle, ClipboardList, FileText, Hammer, History, Minus, Package, Plus, ReceiptText, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {hydrateBranches} from '../../core/offline/hydrate';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
@@ -15,30 +17,35 @@ import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
 import {inventoryApi, type PurchaseInput} from './api';
 import {purchaseSummary, filterByPeriod} from './purchaseSummary';
-import type {EquipmentAsset, EquipmentLog, InventoryItem, ItemCategory, PurchaseReceiving} from '../../types/db';
+import {membershipsApi} from '../organization/memberships/memberships';
+import type {EquipmentAsset, EquipmentLog, InventoryItem, InventoryMovement, ItemCategory, PurchaseReceiving} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const ONLINE_SOURCES = ['Lazada', 'Shopee', 'TikTok'];
 
 export default function InventoryScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canPurchase = has('inventory.purchase');
   const canAdjust = has('inventory.adjust');
   const canEquip = has('equipment.manage');
 
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);
   }, [branches, branchId]);
 
-  const [tab, setTab] = useState<'consumables' | 'equipment' | 'purchases'>('consumables');
+  const [tab, setTab] = useState<'consumables' | 'equipment' | 'purchases' | 'usage'>('consumables');
   const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [items, setItems] = useState<InventoryItem[] | null>(null);
   const [receivings, setReceivings] = useState<PurchaseReceiving[]>([]);
   const [equipment, setEquipment] = useState<EquipmentAsset[]>([]);
   const [logs, setLogs] = useState<EquipmentLog[]>([]);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [actorNames, setActorNames] = useState<Map<string, string>>(new Map());
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(() => {
@@ -48,8 +55,10 @@ export default function InventoryScreen() {
     inventoryApi.fetchReceivings(companyId, branchId).then(setReceivings).catch(() => setReceivings([]));
     inventoryApi.fetchEquipment(companyId, branchId).then(setEquipment).catch(() => setEquipment([]));
     inventoryApi.fetchEquipmentLogs(companyId).then(setLogs).catch(() => setLogs([]));
+    inventoryApi.fetchMovements(companyId, branchId).then(setMovements).catch(() => setMovements([]));
+    membershipsApi.fetch(companyId).then((rows) => setActorNames(new Map(rows.map((m) => [m.user_id, m.userName])))).catch(() => setActorNames(new Map()));
   }, [companyId, branchId]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap) re-fetches this screen
 
   // ── purchase modal ──
   const [buyOpen, setBuyOpen] = useState(false);
@@ -86,6 +95,7 @@ export default function InventoryScreen() {
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const itemById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
+  const usageRows = useMemo(() => movements.filter((m) => m.movement_type === 'AdjustmentDecrease'), [movements]);
 
   // ── Purchase Summary report (period-filtered aggregation over receivings) ──
   const [sumFrom, setSumFrom] = useState('');
@@ -206,6 +216,15 @@ export default function InventoryScreen() {
     return l ? new Date(l.performed_date).toLocaleDateString('en-PH') : 'Never';
   };
 
+  if (!canPurchase && !canAdjust && !canEquip) {
+    return (
+      <div>
+        <PageHeader title="Farm Inventory Control" />
+        <Card><EmptyState title="Inventory access needed" hint="Your role does not include any inventory permission. Ask a manager to grant it." /></Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -254,7 +273,54 @@ export default function InventoryScreen() {
           className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'purchases' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
           <ReceiptText className="h-4 w-4" aria-hidden /> Purchase Summary
         </button>
+        <button role="tab" aria-selected={tab === 'usage'} onClick={() => setTab('usage')}
+          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'usage' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+          <History className="h-4 w-4" aria-hidden /> Usage History
+        </button>
       </div>
+
+      {tab === 'usage' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-farm-green"><History className="h-5 w-5" aria-hidden /> Stock Usage History</h3>
+            <p className="mb-4 text-xs text-farm-muted">Every time stock leaves the shelf — logged usage or an audit correction — shows here: what, when, and who.</p>
+            {usageRows.length === 0 ? (
+              <EmptyState title="No usage recorded yet" hint="Use 'Log Stock Usage' or 'Manual Stock Adjustment' to record materials leaving inventory." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-farm-accent-soft text-left text-xs font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Date</th><th className="pb-2">Material</th><th className="pb-2 text-right">Quantity</th>
+                      <th className="pb-2">Reason</th><th className="pb-2">Used By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft">
+                    {usageRows.map((m) => {
+                      const item = m.item_id ? itemById.get(m.item_id) : undefined;
+                      const isUsage = (m.reason ?? '').startsWith('Used:');
+                      return (
+                        <tr key={m.id}>
+                          <td className="py-2.5 font-mono text-xs">{new Date(m.created_at).toLocaleString('en-PH')}</td>
+                          <td className="py-2.5 font-bold text-farm-ink">{item?.name ?? 'Unknown material'}</td>
+                          <td className="tabular py-2.5 text-right text-farm-danger">−{m.quantity} {item?.base_unit ?? ''}</td>
+                          <td className="py-2.5">
+                            <span className={cn('mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase', isUsage ? 'bg-farm-accent-soft text-farm-green' : 'bg-amber-100 text-amber-800')}>
+                              {isUsage ? 'Usage' : 'Correction'}
+                            </span>
+                            {isUsage ? (m.reason ?? '').slice('Used:'.length).trim() : m.reason}
+                          </td>
+                          <td className="py-2.5 font-semibold text-farm-muted">{m.actor_user_id ? (actorNames.get(m.actor_user_id) ?? '(unknown)') : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
 
       {tab === 'purchases' ? (
         <div className="animate-fade-in space-y-6">

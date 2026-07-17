@@ -6,6 +6,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {CheckCircle2, Circle, FolderGit2, Plus, Trash2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
@@ -22,6 +23,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function ProjectsScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('project.read');
   const canManage = has('project.manage');
@@ -40,7 +42,7 @@ export default function ProjectsScreen() {
     if (!companyId || !branchId || !canRead) return;
     projectsApi.fetchProjects(companyId, branchId).then(setProjects).catch(() => setProjects([]));
   }, [companyId, branchId, canRead]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   // create modal
   const [open, setOpen] = useState(false);

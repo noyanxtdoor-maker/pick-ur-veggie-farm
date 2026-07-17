@@ -22,6 +22,10 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<Input>({resolver: zodResolver(schema)});
+  // PKCE (2026-07-17 Google-OAuth-bug fix) ties the recovery code to the browser that requested it —
+  // opening the emailed link on a different device/browser leaves `?code=` unconsumed in the URL with no
+  // session ever materializing, which looks identical to a dead link unless we check for it explicitly.
+  const wrongDevice = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('code');
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
@@ -40,8 +44,9 @@ export default function ResetPassword() {
           <>
             {status !== 'authenticated' ? (
               <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                This page works via the link in your reset email. If you landed here without one (or the link
-                expired), request a fresh link from the sign-in page.
+                {wrongDevice
+                  ? 'This reset link only works in the same browser/device you requested it from. Open the email and tap the link there, or request a fresh one from the sign-in page on this device.'
+                  : 'This page works via the link in your reset email. If you landed here without one (or the link expired), request a fresh link from the sign-in page.'}
               </p>
             ) : null}
             <form className="space-y-4" onSubmit={handleSubmit(async (v) => {

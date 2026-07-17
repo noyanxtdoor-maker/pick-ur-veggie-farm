@@ -10,6 +10,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import {Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, Landmark, PieChart, Plus, TrendingUp, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, StatCard, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
@@ -39,6 +40,7 @@ const OUT_CATEGORIES: CashEntryCategory[] = ['Loan Payment', "Owner's Drawings"]
 
 export default function AccountingScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('accounting.read');
   const canManage = has('accounting.manage');
@@ -73,7 +75,7 @@ export default function AccountingScreen() {
     accountingApi.trialBalance(companyId, branchFilter).then(setTrialBalance).catch((e) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
     if (branchId) accountingApi.fetchCashEntries(companyId, branchId).then(setCashEntries).catch(() => setCashEntries([]));
   }, [companyId, canRead, year, branchFilter, branchId]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap) re-fetches this screen
 
   // ── cash entry log modal ──
   const [logOpen, setLogOpen] = useState(false);

@@ -36,6 +36,7 @@ export interface Role {
   role_key: string; // immutable after create
   description: string;
   status: RoleStatus;
+  rank: number; // P1C: 0-100 authority tier (0=custom/unranked, 10=employee..50=owner). Governed data, never derived from role_key.
   created_at: string;
   updated_at: string;
 }
@@ -71,7 +72,25 @@ export interface AppUser {
   id: string;
   auth_user_id: string;
   display_name: string;
+  username: string | null; // P1J: auto-generated login alias, never an authorization input
   account_status: AccountStatus;
+  job_title: string | null; // P1D: purely descriptive, editable by job_title.manage holders only, no payroll link
+  payroll_exempt: boolean; // P1D: true once an admin marks this account as not requiring a payroll link
+  created_at: string;
+  updated_at: string;
+}
+
+// P1C §2.4: server-enforced per-user permission override. Written only via the set_user_permission_override
+// RPC (rank-checked, audited); never written directly by the client.
+export type OverrideEffect = 'grant' | 'deny';
+
+export interface UserPermissionOverride {
+  id: string;
+  company_id: string;
+  user_id: string;
+  permission_id: string;
+  effect: OverrideEffect;
+  created_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -103,6 +122,7 @@ export type PermissionKey =
   | 'membership.manage'
   | 'crop.manage'
   | 'product.manage'
+  | 'product.remove' // P1O: request-only removal tier (employee/operator default) — needs product.manage approval
   | 'inventory.opening'
   | 'inventory.adjust'
   | 'pos.sell'
@@ -123,7 +143,10 @@ export type PermissionKey =
   | 'customer.read'
   | 'customer.manage'
   | 'finance.account.read' // P2-B2A: view financial accounts + derived balances
-  | 'finance.account.manage'; // P2-B2A: create/edit accounts + transfer between them
+  | 'finance.account.manage' // P2-B2A: create/edit accounts + transfer between them
+  | 'position.manage' // P1D: add/rename/deactivate the Farm Hand position picklist (co_owner/owner by default)
+  | 'job_title.manage' // P1D: set another company member's descriptive job title (admin+ by default)
+  | 'membership.approve'; // P1C3: approve/reject pending sign-ups only — the lighter tier below membership.manage (admin by default)
 
 // ── Digital payments (P2-B2A / backlog B2, 20.24 + 22.10) ──
 // Thin registry keyed to a chart_of_accounts Asset code. NO stored balance anywhere —
@@ -198,6 +221,17 @@ export interface Product {
   status: 'Active' | 'Archived';
   created_at: string;
   updated_at: string;
+}
+
+// P1O: pending product-removal queue row, shaped by list_pending_product_removals() (server-joined names).
+export interface ProductRemovalRequest {
+  id: string;
+  product_id: string;
+  product_name: string;
+  requested_by: string;
+  requester_name: string;
+  reason: string;
+  created_at: string;
 }
 
 export interface FinishedGood {
@@ -300,6 +334,22 @@ export interface PurchaseReceiving {
   created_at: string;
 }
 
+// Append-only ledger row (P2-M2A/M3A, 20.09) — server-derived balances read from this; movements are
+// never edited/deleted. actor_user_id resolves to a display name client-side via membershipsApi.
+export interface InventoryMovement {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  item_id: string | null;
+  movement_type: 'PurchaseReceiving' | 'AdjustmentIncrease' | 'AdjustmentDecrease' | string;
+  quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  reason: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+}
+
 export interface EquipmentAsset {
   id: string;
   company_id: string;
@@ -389,12 +439,22 @@ export interface BalanceSheet {
 }
 
 // ── Payroll (P2-M5A/M5B) — daily-wage staff, cash advances, wage disbursements. ──
+export interface Position {
+  id: string;
+  company_id: string;
+  label: string;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Employee {
   id: string;
   company_id: string;
   employee_code: string; // immutable after create
   name: string;
-  position: string;
+  position_id: string | null; // P1D: managed reference into positions — null only for pre-P1D legacy rows with no seed match
   daily_rate: number;
   date_hired: string; // date
   status: 'Active' | 'Inactive';

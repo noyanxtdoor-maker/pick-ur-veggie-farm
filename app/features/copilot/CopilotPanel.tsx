@@ -5,6 +5,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {Bot, RefreshCcw, Send, Sparkles, Trash2} from 'lucide-react';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
@@ -14,6 +15,7 @@ import type {CopilotMessage} from '../../types/db';
 
 export default function CopilotPanel() {
   const {companyId} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const [brief, setBrief] = useState<MorningBrief | null>(null);
   const [msgs, setMsgs] = useState<CopilotMessage[]>([]);
@@ -27,7 +29,7 @@ export default function CopilotPanel() {
     void copilotApi.history().then(setMsgs);
     void copilotApi.health().then(setModelUp);
   }, [companyId]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]);
   useEffect(() => {endRef.current?.scrollIntoView({behavior: 'smooth'});}, [msgs.length, busy]);
 
   async function send() {

@@ -5,24 +5,27 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {HandCoins, Link2, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
+import {useSession} from '../../core/auth/session';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
 import {payrollApi} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
-import type {CashAdvance, Employee, WagePayment} from '../../types/db';
-
-const POSITIONS = ['Harvester', 'Farm Operator', 'Warehouse Packer', 'Delivery Driver'];
+import {MOCK_MODE, DEMO} from '../../core/mock/mock';
+import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
 
 export default function PayrollScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('payroll.read');
   const canManage = has('payroll.manage');
+  const canManagePositions = has('position.manage');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
@@ -33,25 +36,53 @@ export default function PayrollScreen() {
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [advances, setAdvances] = useState<CashAdvance[]>([]);
   const [wages, setWages] = useState<WagePayment[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [busy, setBusy] = useState(false);
+  const {user} = useSession();
+
+  // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
+  // how they check an employee's history instead of clicking into their own nonexistent pay record).
+  const [tab, setTab] = useState<'roster' | 'history'>('roster');
+  const [histEmpId, setHistEmpId] = useState('');
+  const [histWages, setHistWages] = useState<WagePayment[]>([]);
+  const [histAdvances, setHistAdvances] = useState<CashAdvance[]>([]);
 
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
     payrollApi.fetchEmployees(companyId).then(setEmployees).catch(() => setEmployees([]));
+    payrollApi.fetchPositions(companyId).then(setPositions).catch(() => setPositions([]));
     if (branchId) {
       payrollApi.fetchAdvances(companyId, branchId).then(setAdvances).catch(() => setAdvances([]));
       payrollApi.fetchWages(companyId, branchId).then(setWages).catch(() => setWages([]));
     }
-  }, [companyId, canRead, branchId]);
-  useEffect(reload, [reload]);
+    if (histEmpId) {
+      payrollApi.fetchEmployeeWages(companyId, histEmpId).then(setHistWages).catch(() => setHistWages([]));
+      payrollApi.fetchEmployeeAdvances(companyId, histEmpId).then(setHistAdvances).catch(() => setHistAdvances([]));
+    }
+  }, [companyId, canRead, branchId, histEmpId]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const empName = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e.name])), [employees]);
+  const positionLabel = useMemo(() => new Map(positions.map((p) => [p.id, p.label])), [positions]);
+  const activePositions = useMemo(() => positions.filter((p) => p.active), [positions]);
+
+  useEffect(() => {
+    if (!histEmpId && employees && employees.length > 0) setHistEmpId(employees[0]!.id);
+  }, [employees, histEmpId]);
+  const histEmp = useMemo(() => (employees ?? []).find((e) => e.id === histEmpId) ?? null, [employees, histEmpId]);
 
   // ── hire ──
   const [hireOpen, setHireOpen] = useState(false);
   const [hName, setHName] = useState('');
-  const [hPos, setHPos] = useState('Harvester');
+  const [hPos, setHPos] = useState('');
   const [hRate, setHRate] = useState('550');
+  useEffect(() => {
+    if (!hPos && activePositions.length > 0) setHPos(activePositions[0]!.id);
+  }, [activePositions, hPos]);
+
+  // ── position management (position.manage — co_owner/owner by default) ──
+  const [posManageOpen, setPosManageOpen] = useState(false);
+  const [newPosLabel, setNewPosLabel] = useState('');
 
   // ── advance ──
   const [advEmp, setAdvEmp] = useState<Employee | null>(null);
@@ -92,11 +123,31 @@ export default function PayrollScreen() {
     if (!companyId) return;
     setBusy(true);
     try {
-      await payrollApi.hire(companyId, {name: hName, position: hPos, dailyRate: parseFloat(hRate)});
+      await payrollApi.hire(companyId, {name: hName, positionId: hPos, dailyRate: parseFloat(hRate)});
       notify(`${hName.trim()} hired`);
       setHireOpen(false); setHName(''); setHRate('550');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Hire failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function submitAddPosition() {
+    if (!companyId) return;
+    setBusy(true);
+    try {
+      await payrollApi.addPosition(companyId, newPosLabel, MOCK_MODE ? DEMO.userId : (user?.id ?? ''));
+      notify(`"${newPosLabel.trim()}" added`);
+      setNewPosLabel('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not add position', 'error'); } finally { setBusy(false); }
+  }
+
+  async function togglePosition(p: Position) {
+    setBusy(true);
+    try {
+      await payrollApi.setPositionActive(p, !p.active);
+      notify(p.active ? `"${p.label}" deactivated — hidden from new hires` : `"${p.label}" reactivated`);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Update failed', 'error'); } finally { setBusy(false); }
   }
 
   async function submitAdvance() {
@@ -133,13 +184,54 @@ export default function PayrollScreen() {
         title="Farm Staff Payroll &amp; Advances"
         subtitle="Manage hired workers, dispatch paysheets, and track advances with a live, never-stored balance."
         action={
-          <div className="flex items-center gap-2">
-            <div className="w-44"><SelectField value={branchId} onChange={setBranchId} placeholder="Paying branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} /></div>
-            {canManage ? <Button onClick={() => {setHName(''); setHPos('Harvester'); setHRate('550'); setHireOpen(true);}}><UserPlus size={18} aria-hidden /> Hire Worker</Button> : null}
-          </div>
+          tab === 'roster' ? (
+            <div className="flex items-center gap-2">
+              <div className="w-44"><SelectField value={branchId} onChange={setBranchId} placeholder="Paying branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} /></div>
+              {canManagePositions ? <Button variant="secondary" onClick={() => setPosManageOpen(true)}><ListChecks size={18} aria-hidden /> Positions</Button> : null}
+              {canManage ? <Button onClick={() => {setHName(''); setHPos(activePositions[0]?.id ?? ''); setHRate('550'); setHireOpen(true);}}><UserPlus size={18} aria-hidden /> Hire Worker</Button> : null}
+            </div>
+          ) : undefined
         }
       />
 
+      <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
+        {([['roster', 'Roster & Disbursements', Users2], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
+          <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+            className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+            <Icon className="h-4 w-4" aria-hidden /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'history' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <div className="w-64"><SelectField value={histEmpId} onChange={setHistEmpId} placeholder="Pick a worker" options={(employees ?? []).map((e) => ({value: e.id, label: e.name}))} /></div>
+          </Card>
+          {histEmp ? (
+            <>
+              <Card className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg font-black text-farm-green">{histEmp.name} <span className="font-mono text-xs text-farm-muted">{histEmp.employee_code}</span></p>
+                  <p className="text-sm font-semibold text-farm-muted">{histEmp.position_id ? (positionLabel.get(histEmp.position_id) ?? '—') : '—'} · hired {histEmp.date_hired}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase text-farm-muted">Daily rate</p>
+                  <p className="tabular text-xl font-black text-farm-green">{formatPeso(histEmp.daily_rate)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase text-farm-muted">Advance to repay</p>
+                  <p className={cn('tabular text-xl font-black', histEmp.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(histEmp.advance_balance)}</p>
+                </div>
+              </Card>
+              <EmployeeHistoryTables wages={histWages} advances={histAdvances} />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tab === 'roster' ? (
+      <>
       <Card>
         <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-farm-green"><Users2 className="h-5 w-5" aria-hidden /> Active Farm Hands Roster</h3>
         {employees === null ? (
@@ -159,7 +251,7 @@ export default function PayrollScreen() {
                 {employees.map((e) => (
                   <tr key={e.id} className={cn('hover:bg-farm-bg/30', e.status !== 'Active' && 'opacity-50')}>
                     <td className="py-3"><span className="font-bold text-farm-green">{e.name}</span> <span className="font-mono text-[10px] text-farm-muted">{e.employee_code}</span></td>
-                    <td className="py-3 font-semibold text-farm-muted">{e.position}</td>
+                    <td className="py-3 font-semibold text-farm-muted">{e.position_id ? (positionLabel.get(e.position_id) ?? '—') : '—'}</td>
                     <td className="tabular py-3 text-right font-semibold">{formatPeso(e.daily_rate)}/day</td>
                     <td className="py-3 text-right">
                       {e.advance_balance > 0
@@ -215,6 +307,8 @@ export default function PayrollScreen() {
           </div>
         </Card>
       ) : null}
+      </>
+      ) : null}
 
       {/* Hire modal */}
       <Dialog.Root open={hireOpen} onOpenChange={setHireOpen}>
@@ -234,7 +328,7 @@ export default function PayrollScreen() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Position</label>
-                  <SelectField value={hPos} onChange={setHPos} options={POSITIONS.map((p) => ({value: p, label: p}))} />
+                  <SelectField value={hPos} onChange={setHPos} placeholder="Pick a position" options={activePositions.map((p) => ({value: p.id, label: p.label}))} />
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="h-rate">Daily Rate (₱)</label>
@@ -244,7 +338,35 @@ export default function PayrollScreen() {
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
               <Button variant="secondary" onClick={() => setHireOpen(false)} disabled={busy}>Cancel</Button>
-              <Button className="flex-1" onClick={() => void submitHire()} disabled={busy || !hName.trim() || !(parseFloat(hRate) > 0)}>{busy ? 'Adding…' : 'Add Worker'}</Button>
+              <Button className="flex-1" onClick={() => void submitHire()} disabled={busy || !hName.trim() || !hPos || !(parseFloat(hRate) > 0)}>{busy ? 'Adding…' : 'Add Worker'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Position management (position.manage — co_owner/owner by default; admin can only select, not manage) */}
+      <Dialog.Root open={posManageOpen} onOpenChange={setPosManageOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="text-xl font-bold text-farm-green">Manage Positions</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-4 text-xs text-farm-muted">Deactivating a position hides it from new hires — existing Farm Hands already using it are unaffected.</p>
+            <ul className="mb-4 max-h-64 divide-y divide-farm-accent-soft overflow-y-auto">
+              {positions.map((p) => (
+                <li key={p.id} className={cn('flex items-center justify-between py-2 text-sm', !p.active && 'opacity-50')}>
+                  <span className="font-semibold">{p.label}</span>
+                  <button onClick={() => void togglePosition(p)} disabled={busy} className={cn('rounded-lg border px-2.5 py-1 text-xs font-bold', p.active ? 'border-red-200 bg-red-50 text-farm-danger hover:bg-red-100' : 'border-farm-accent bg-farm-bg text-farm-green hover:bg-farm-accent-soft')}>
+                    {p.active ? 'Deactivate' : 'Reactivate'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2 border-t border-farm-accent-soft pt-4">
+              <input value={newPosLabel} onChange={(e) => setNewPosLabel(e.target.value)} placeholder="New position name" className="min-h-12 flex-1 rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              <Button onClick={() => void submitAddPosition()} disabled={busy || !newPosLabel.trim()}>Add</Button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>
@@ -349,6 +471,7 @@ function MyPayroll({companyId}: {companyId?: string}) {
   const [me, setMe] = useState<Employee | null | undefined>(undefined); // undefined=loading, null=not linked
   const [advances, setAdvances] = useState<CashAdvance[]>([]);
   const [wages, setWages] = useState<WagePayment[]>([]);
+  const [myPositionLabel, setMyPositionLabel] = useState<string>('—');
 
   useEffect(() => {
     if (!companyId) return;
@@ -358,6 +481,10 @@ function MyPayroll({companyId}: {companyId?: string}) {
       if (mine) {
         setAdvances(await payrollApi.fetchEmployeeAdvances(companyId, mine.id).catch(() => []));
         setWages(await payrollApi.fetchEmployeeWages(companyId, mine.id).catch(() => []));
+        if (mine.position_id) {
+          const positions = await payrollApi.fetchPositions(companyId).catch(() => []);
+          setMyPositionLabel(positions.find((p) => p.id === mine.position_id)?.label ?? '—');
+        }
       }
     }).catch(() => setMe(null));
   }, [companyId]);
@@ -374,7 +501,7 @@ function MyPayroll({companyId}: {companyId?: string}) {
           <Card className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-lg font-black text-farm-green">{me.name} <span className="font-mono text-xs text-farm-muted">{me.employee_code}</span></p>
-              <p className="text-sm font-semibold text-farm-muted">{me.position} · hired {me.date_hired}</p>
+              <p className="text-sm font-semibold text-farm-muted">{myPositionLabel} · hired {me.date_hired}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-bold uppercase text-farm-muted">Daily rate</p>
@@ -385,33 +512,44 @@ function MyPayroll({companyId}: {companyId?: string}) {
               <p className={cn('tabular text-xl font-black', me.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(me.advance_balance)}</p>
             </div>
           </Card>
-          <Card>
-            <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><Wallet className="h-4 w-4" aria-hidden /> My Wage History</h3>
-            {wages.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No wages recorded yet.</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead><tr className="border-b border-farm-accent-soft text-left text-xs font-bold text-farm-muted"><th className="pb-2">Period</th><th className="pb-2 text-right">Days</th><th className="pb-2 text-right">Gross</th><th className="pb-2 text-right">Advance deducted</th><th className="pb-2 text-right">Net received</th></tr></thead>
-                  <tbody className="divide-y divide-farm-accent-soft">
-                    {wages.map((w) => (
-                      <tr key={w.id}><td className="py-2 font-semibold">{w.pay_period}</td><td className="tabular py-2 text-right">{w.days_worked}</td><td className="tabular py-2 text-right">{formatPeso(w.gross)}</td><td className="tabular py-2 text-right text-farm-danger">−{formatPeso(w.ca_deducted)}</td><td className="tabular py-2 text-right font-black text-farm-green">{formatPeso(w.net)}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-          <Card>
-            <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><HandCoins className="h-4 w-4" aria-hidden /> My Cash Advances</h3>
-            {advances.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No cash advances taken.</p> : (
-              <ul className="divide-y divide-farm-accent-soft text-sm">
-                {advances.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between py-2"><span className="text-farm-muted">{new Date(a.created_at).toLocaleDateString('en-PH')} {a.note ? `— ${a.note}` : ''}</span><span className="tabular font-bold">{formatPeso(a.amount)}</span></li>
-                ))}
-              </ul>
-            )}
-          </Card>
+          <EmployeeHistoryTables wages={wages} advances={advances} wageTitle="My Wage History" advanceTitle="My Cash Advances" />
         </>
       )}
     </div>
+  );
+}
+
+// Wage + cash-advance history tables — shared by MyPayroll (self view) and the Wage History tab
+// (co-owner+ looking up any employee: co-owner/owner aren't waged themselves, so this is how they
+// check what an admin-and-below worker has been paid, per owner directive 2026-07-17).
+function EmployeeHistoryTables({wages, advances, wageTitle = 'Wage History', advanceTitle = 'Cash Advances'}: {wages: WagePayment[]; advances: CashAdvance[]; wageTitle?: string; advanceTitle?: string}) {
+  return (
+    <>
+      <Card>
+        <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><Wallet className="h-4 w-4" aria-hidden /> {wageTitle}</h3>
+        {wages.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No wages recorded yet.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead><tr className="border-b border-farm-accent-soft text-left text-xs font-bold text-farm-muted"><th className="pb-2">Period</th><th className="pb-2 text-right">Days</th><th className="pb-2 text-right">Gross</th><th className="pb-2 text-right">Advance deducted</th><th className="pb-2 text-right">Net received</th></tr></thead>
+              <tbody className="divide-y divide-farm-accent-soft">
+                {wages.map((w) => (
+                  <tr key={w.id}><td className="py-2 font-semibold">{w.pay_period}</td><td className="tabular py-2 text-right">{w.days_worked}</td><td className="tabular py-2 text-right">{formatPeso(w.gross)}</td><td className="tabular py-2 text-right text-farm-danger">−{formatPeso(w.ca_deducted)}</td><td className="tabular py-2 text-right font-black text-farm-green">{formatPeso(w.net)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <Card>
+        <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-farm-green"><HandCoins className="h-4 w-4" aria-hidden /> {advanceTitle}</h3>
+        {advances.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No cash advances taken.</p> : (
+          <ul className="divide-y divide-farm-accent-soft text-sm">
+            {advances.map((a) => (
+              <li key={a.id} className="flex items-center justify-between py-2"><span className="text-farm-muted">{new Date(a.created_at).toLocaleDateString('en-PH')} {a.note ? `— ${a.note}` : ''}</span><span className="tabular font-bold">{formatPeso(a.amount)}</span></li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </>
   );
 }

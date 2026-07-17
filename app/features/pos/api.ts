@@ -8,7 +8,7 @@ import {uuidv7} from '../../core/offline/uuidv7';
 import {MOCK_MODE, mockRead, mockUsers} from '../../core/mock/mock';
 import {round2} from './money';
 import {REPORT_WINDOW_DAYS, type ReportLine, type SalesReport} from './report';
-import type {FinishedGood, PosCashSession, PosInvoice, PosInvoiceLine, Product} from '../../types/db';
+import type {FinishedGood, PosCashSession, PosInvoice, PosInvoiceLine, Product, ProductRemovalRequest} from '../../types/db';
 
 export interface SaleLineInput {
   product_id: string;
@@ -305,17 +305,30 @@ export const posApi = {
     }
     await enqueue({companyId: row.company_id, kind: 'product.update', request: {type: 'update', table: 'products', match: {id: row.id, baseUpdatedAt: row.updated_at}, payload: {retail_per_kg: retailPerKg}}});
   },
-  async archiveProduct(row: Product): Promise<void> {
-    if (MOCK_MODE) {
-      await offlineDB.products.put({...row, status: 'Archived', updated_at: new Date().toISOString()});
-      return;
-    }
-    if (online()) {
-      const {error} = await supabase.from('products').update({status: 'Archived'}).eq('id', row.id);
-      if (error) throw new Error(error.message);
-      return;
-    }
-    await enqueue({companyId: row.company_id, kind: 'product.archive', request: {type: 'update', table: 'products', match: {id: row.id, baseUpdatedAt: row.updated_at}, payload: {status: 'Archived'}}});
+  // P1O (owner directive 2026-07-17): "Remove" replaces "Archive" in the UI. product.manage holders
+  // remove instantly; product.remove-only holders (employee/operator by default) queue a request that
+  // needs a product.manage holder's approval. Online-only (governed RPC; no offline queue — same reasoning
+  // as the revoke-approval workflow: an approval decision must be made against live, current state).
+  async requestProductRemoval(productId: string, reason: string): Promise<void> {
+    if (MOCK_MODE) throw new Error('Demo mode has only one account — there is no separate product manager to approve a removal request.');
+    const {error} = await supabase.rpc('request_product_removal', {p_product_id: productId, p_reason: reason});
+    if (error) throw new Error(error.message);
+  },
+  async fetchPendingRemovals(): Promise<ProductRemovalRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_pending_product_removals');
+    if (error) throw new Error(error.message);
+    return (data ?? []) as ProductRemovalRequest[];
+  },
+  async approveProductRemoval(requestId: string): Promise<void> {
+    if (MOCK_MODE) throw new Error('Demo mode has no pending removal requests.');
+    const {error} = await supabase.rpc('approve_product_removal', {p_request_id: requestId});
+    if (error) throw new Error(error.message);
+  },
+  async rejectProductRemoval(requestId: string, reason: string): Promise<void> {
+    if (MOCK_MODE) throw new Error('Demo mode has no pending removal requests.');
+    const {error} = await supabase.rpc('reject_product_removal', {p_request_id: requestId, p_reason: reason});
+    if (error) throw new Error(error.message);
   },
 
   // Cash session (22.09): current Open session for a branch, open, close (returns variance).

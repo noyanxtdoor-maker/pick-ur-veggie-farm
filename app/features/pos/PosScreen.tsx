@@ -7,6 +7,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {AlertCircle, Banknote, CloudOff, Download, Lock, Printer, Scale, Settings2, ShoppingCart, Sprout, Tag, Trash2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {hydrateBranches} from '../../core/offline/hydrate';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSync} from '../../core/offline/sync';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -16,7 +17,7 @@ import {Numpad} from './Numpad';
 import {posApi, type SaleLineInput, type SaleResult} from './api';
 import {paymentsApi} from '../finance/api';
 import {farmPerKg, formatPeso, lineTotal, round2} from './money';
-import type {FinancialAccount, FinishedGood, PosInvoice, Product} from '../../types/db';
+import type {FinancialAccount, FinishedGood, PosInvoice, Product, ProductRemovalRequest} from '../../types/db';
 
 type RightPane = 'slip' | 'checkout' | 'receipt' | 'settle';
 type SaleKind = 'paid' | 'preorder';
@@ -26,13 +27,17 @@ const lineAmount = (l: SaleLineInput) => (l.weight_kg === null ? l.unit_price : 
 
 export default function PosScreen() {
   const {companyId, has} = usePermissions();
-  const {online, triggerSync} = useSync();
+  const {online, triggerSync, refreshTick} = useSync();
   const {notify} = useToast();
   const canSell = has('pos.sell');
   const canSettle = has('pos.settle');
   const canVoid = has('pos.void');
   const canManageProducts = has('product.manage');
+  // P1O: employee/operator (product.remove only, default) can request a removal but not add/edit-price;
+  // product.manage always supersedes (instant removal, no approval needed).
+  const canRequestRemove = has('product.remove') || canManageProducts;
 
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -45,13 +50,15 @@ export default function PosScreen() {
   // finance.account.read — the drawer is always available as the default).
   const [payAccounts, setPayAccounts] = useState<FinancialAccount[]>([]);
   const [payAccountId, setPayAccountId] = useState(''); // '' = cash drawer
+  const [pendingRemovals, setPendingRemovals] = useState<ProductRemovalRequest[]>([]);
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
     posApi.fetchStock(companyId, branchId).then(setStock).catch(() => setStock([]));
     paymentsApi.fetchPickerAccounts(companyId, branchId).then(setPayAccounts).catch(() => setPayAccounts([]));
-  }, [companyId, branchId]);
-  useEffect(reload, [reload]);
+    if (canManageProducts) posApi.fetchPendingRemovals().then(setPendingRemovals).catch(() => setPendingRemovals([]));
+  }, [companyId, branchId, canManageProducts]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const [selected, setSelected] = useState<Product | null>(null);
   const [weight, setWeight] = useState('');
@@ -86,6 +93,10 @@ export default function PosScreen() {
   const [pmPrice, setPmPrice] = useState('');
   const [pmEditingId, setPmEditingId] = useState<string | null>(null);
   const [pmEditPrice, setPmEditPrice] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<Product | null>(null);
+  const [removeReason, setRemoveReason] = useState('');
+  const [rejectTarget, setRejectTarget] = useState<ProductRemovalRequest | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const invoices = useLiveQuery(
     async () => (companyId ? offlineDB.posInvoices.where('company_id').equals(companyId).reverse().sortBy('created_at') : []),
     [companyId],
@@ -105,10 +116,11 @@ export default function PosScreen() {
     if (!selected) return;
     const w = parseFloat(weight);
     if (isNaN(w) || w <= 0) return notify('Enter a weight greater than 0 kg.', 'error');
+    // P2-M2F (owner directive 2026-07-17/18): produce isn't stock-counted — only Equipment/Materials are.
+    // A matching batch is used for cost/stock tracking WHEN one happens to exist; its absence never blocks a sale.
     const batch = stock.find((f) => f.product_id === selected.id && f.available - (claimed.get(f.id) ?? 0) >= w);
-    if (!batch) return notify(`Not enough ${selected.name} stock for ${w} kg.`, 'error');
     // charged price = FARM price (prototype DISCOUNT=0.10); retail snapshotted for the saved line; server recomputes
-    setBasket([...basket, {product_id: selected.id, finished_goods_batch_id: batch.id, name: selected.name, weight_kg: w, unit_price: farmPerKg(selected.retail_per_kg), retail_per_kg: selected.retail_per_kg}]);
+    setBasket([...basket, {product_id: selected.id, finished_goods_batch_id: batch?.id ?? null, name: selected.name, weight_kg: w, unit_price: farmPerKg(selected.retail_per_kg), retail_per_kg: selected.retail_per_kg}]);
     setSelected(null);
     setWeight('');
     setBulkOpen(false); setBulkPrice('');
@@ -186,6 +198,39 @@ export default function PosScreen() {
     }
   }
 
+  // P1O: product.manage removes instantly; product.remove-only queues for approval. Same RPC either way —
+  // the server decides which happens, the client just reports what it was told.
+  async function submitRemove() {
+    if (busy || !removeTarget) return;
+    setBusy(true);
+    try {
+      await posApi.requestProductRemoval(removeTarget.id, removeReason);
+      notify(canManageProducts ? `${removeTarget.name} removed` : `Removal request for ${removeTarget.name} sent for approval`);
+      setRemoveTarget(null); setRemoveReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Removal failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function approveRemoval(r: ProductRemovalRequest) {
+    setBusy(true);
+    try {
+      await posApi.approveProductRemoval(r.id);
+      notify(`${r.product_name} removed`);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Approval failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function submitReject() {
+    if (busy || !rejectTarget) return;
+    setBusy(true);
+    try {
+      await posApi.rejectProductRemoval(rejectTarget.id, rejectReason);
+      notify(`Removal request for ${rejectTarget.product_name} rejected`);
+      setRejectTarget(null); setRejectReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Rejection failed', 'error'); } finally { setBusy(false); }
+  }
+
   if (!canSell) {
     return (
       <div>
@@ -201,9 +246,15 @@ export default function PosScreen() {
         title="Weigh POS Terminal"
         subtitle="High contrast, glove-friendly weighing terminal for daily crop sales"
         action={
-          <div className="w-56">
-            <SelectField value={branchId} onChange={(v) => {setBranchId(v); setBasket([]);}} placeholder="Branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} />
-          </div>
+          // Ported from Team B, owner 2026-07-16: branch picker is admin+ only (membership.read).
+          // Operator/below only belong to ONE branch (RLS already limits offlineDB.branches to
+          // their membership) and the default-branchId effect above pins them to branches[0].id —
+          // the picker was redundant noise for them.
+          has('membership.read') ? (
+            <div className="w-56">
+              <SelectField value={branchId} onChange={(v) => {setBranchId(v); setBasket([]);}} placeholder="Branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} />
+            </div>
+          ) : null
         }
       />
 
@@ -221,9 +272,12 @@ export default function PosScreen() {
             <div className="mb-4 flex items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><ShoppingCart className="h-5 w-5" aria-hidden /> Vegetable Cashier Grid</h3>
               <span className="flex items-center gap-2">
-                {canManageProducts ? (
+                {canManageProducts || canRequestRemove ? (
                   <button onClick={() => {setPricingOpen(true); setPmName(''); setPmPrice(''); setPmEditingId(null);}} className="flex min-h-9 items-center gap-1 rounded-lg border border-farm-accent bg-farm-bg px-3 text-xs font-extrabold text-farm-green transition hover:bg-farm-accent-soft">
                     <Settings2 className="h-4 w-4" aria-hidden /> Crop Pricing Menu
+                    {canManageProducts && pendingRemovals.length > 0 ? (
+                      <span className="ml-1 rounded-full bg-farm-danger px-1.5 py-0.5 text-[10px] font-black text-white">{pendingRemovals.length}</span>
+                    ) : null}
                   </button>
                 ) : null}
                 <span className="rounded-full bg-farm-accent-soft px-3 py-1 text-xs font-bold text-farm-green">{online ? 'POS Mode: Live' : 'POS Mode: Active Offline'}</span>
@@ -236,18 +290,18 @@ export default function PosScreen() {
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                 {products.map((p, idx) => {
+                  // P2-M2F: no disabled/out-of-stock gate — produce isn't stock-counted (owner directive
+                  // 2026-07-17/18). A "kg tracked" badge only appears when a batch happens to exist (e.g. a
+                  // future harvest-tracking flow); its absence is normal, not a shortage.
                   const avail = availableFor(p.id);
-                  const out = avail <= 0;
                   return (
                     <button
                       key={p.id}
                       onClick={() => {setSelected(p); setWeight('');}}
-                      disabled={out}
                       className={cn(
                         'group relative flex h-40 flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition select-none',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500',
                         selected?.id === p.id ? 'border-farm-green bg-farm-accent-soft shadow-sm ring-2 ring-farm-green' : 'border-farm-accent-soft bg-farm-card hover:border-farm-green hover:bg-farm-bg/50',
-                        out && 'cursor-not-allowed opacity-40',
                       )}
                     >
                       <span className="absolute right-2 top-2 rounded bg-farm-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-black text-farm-green">#{101 + idx}</span>
@@ -258,7 +312,7 @@ export default function PosScreen() {
                         <span className="block truncate text-sm font-extrabold leading-tight text-farm-ink">{p.name}</span>
                         <span className="mt-1 block text-xs font-black text-farm-green">{formatPeso(farmPerKg(p.retail_per_kg))}/kg</span>
                         <span className="block text-[10px] text-farm-muted line-through">Reg: {formatPeso(p.retail_per_kg)}</span>
-                        <span className={cn('block text-[10px] font-semibold', out ? 'text-farm-danger' : 'text-farm-muted')}>{out ? 'Out of stock' : `${round2(avail)} kg left`}</span>
+                        {avail > 0 ? <span className="block text-[10px] font-semibold text-farm-muted">{round2(avail)} kg tracked</span> : null}
                       </span>
                     </button>
                   );
@@ -547,23 +601,27 @@ export default function PosScreen() {
             <h3 className="text-lg font-bold text-farm-green">Historical Sales Journal</h3>
             <p className="text-xs text-farm-muted">Failsafe registry tracking retail weigh-outs and pending wholesale pre-orders.</p>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              const rows = invoices ?? [];
-              if (rows.length === 0) return notify('No listings to export.', 'error');
-              const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-              const csv = ['Date,Slip,Type,PostedBy,Total,RetailTotal,Saved,Status,Note',
-                ...rows.map((t) => [t.created_at, `#${t.invoice_number ?? ''}`, t.sale_type ?? 'retail', t.posted_by ?? '', t.total, t.retail_total ?? t.total, t.saved ?? 0, t.status, esc(t.note ?? '')].join(','))].join('\n');
-              const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
-              const a = document.createElement('a');
-              a.href = url; a.download = 'pickurveggie_sales_journal.csv';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download size={18} aria-hidden /> Export Journal (CSV)
-          </Button>
+          {/* Ported from Team B, owner 2026-07-16: export touches financial totals (Total,
+              RetailTotal, Saved, Status) — admin+ only (accounting.read). */}
+          {has('accounting.read') && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const rows = invoices ?? [];
+                if (rows.length === 0) return notify('No listings to export.', 'error');
+                const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+                const csv = ['Date,Slip,Type,PostedBy,Total,RetailTotal,Saved,Status,Note',
+                  ...rows.map((t) => [t.created_at, `#${t.invoice_number ?? ''}`, t.sale_type ?? 'retail', t.posted_by ?? '', t.total, t.retail_total ?? t.total, t.saved ?? 0, t.status, esc(t.note ?? '')].join(','))].join('\n');
+                const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+                const a = document.createElement('a');
+                a.href = url; a.download = 'pickurveggie_sales_journal.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download size={18} aria-hidden /> Export Journal (CSV)
+            </Button>
+          )}
         </div>
         <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-farm-accent-soft bg-farm-bg/50 p-4 md:grid-cols-4">
           <div>
@@ -643,7 +701,8 @@ export default function PosScreen() {
         </div>
       </Card>
 
-      {/* Crop Pricing Menu (prototype Catalog Manager; product.manage). Prototype Delete = Archive (no hard delete). */}
+      {/* Crop Pricing Menu (prototype Catalog Manager). Add/edit-price stay product.manage-only; Remove is
+          also reachable with product.remove (queues for approval instead of removing instantly). No hard delete. */}
       <Dialog.Root open={pricingOpen} onOpenChange={setPricingOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
@@ -652,7 +711,28 @@ export default function PosScreen() {
               <Dialog.Title className="text-xl font-black text-farm-green">🥬 POS Vegetable Catalog Administrator</Dialog.Title>
               <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
             </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {canManageProducts && pendingRemovals.length > 0 ? (
+              <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <h4 className="mb-2 text-xs font-black uppercase tracking-wider text-amber-800">Pending Product Removals ({pendingRemovals.length})</h4>
+                <ul className="space-y-2">
+                  {pendingRemovals.map((r) => (
+                    <li key={r.id} className="rounded-lg border border-amber-200 bg-white p-2.5 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-farm-ink">{r.product_name}</span>
+                        <span className="text-[11px] text-farm-muted">requested by {r.requester_name}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs italic text-farm-muted">&quot;{r.reason}&quot;</p>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button disabled={busy} onClick={() => setRejectTarget(r)} className="rounded-lg border border-farm-accent px-2.5 py-1 text-xs font-bold text-farm-muted hover:bg-farm-bg">Reject</button>
+                        <button disabled={busy} onClick={() => void approveRemoval(r)} className="rounded-lg bg-farm-danger px-2.5 py-1 text-xs font-bold text-white hover:opacity-90">Approve removal</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className={cn('grid grid-cols-1 gap-6', canManageProducts && 'md:grid-cols-2')}>
+              {canManageProducts ? (
               <div className="space-y-3 md:border-r md:border-farm-accent-soft md:pr-4">
                 <h4 className="text-xs font-black uppercase tracking-wider text-farm-green">Register New Vegetable Item</h4>
                 <div>
@@ -681,6 +761,7 @@ export default function PosScreen() {
                   Save to Cashier Grid
                 </Button>
               </div>
+              ) : null}
               <div className="space-y-3">
                 <h4 className="text-xs font-black uppercase tracking-wider text-farm-green">Edit Normal Retail Prices</h4>
                 <div className="max-h-72 space-y-2.5 overflow-y-auto pr-1">
@@ -712,21 +793,12 @@ export default function PosScreen() {
                         </div>
                       ) : (
                         <div className="mt-1.5 flex justify-end gap-3 text-[11px] font-bold">
-                          <button onClick={() => {setPmEditingId(p.id); setPmEditPrice(String(p.retail_per_kg));}} className="text-farm-green hover:underline">Edit Price</button>
-                          <button
-                            disabled={busy}
-                            onClick={async () => {
-                              setBusy(true);
-                              try {
-                                await posApi.archiveProduct(p);
-                                notify(`${p.name} archived (kept in history)`);
-                                reload();
-                              } catch (e) { notify(e instanceof Error ? e.message : 'Archive failed', 'error'); } finally { setBusy(false); }
-                            }}
-                            className="text-farm-danger hover:underline"
-                          >
-                            Archive
-                          </button>
+                          {canManageProducts ? <button onClick={() => {setPmEditingId(p.id); setPmEditPrice(String(p.retail_per_kg));}} className="text-farm-green hover:underline">Edit Price</button> : null}
+                          {canRequestRemove ? (
+                            <button disabled={busy} onClick={() => {setRemoveTarget(p); setRemoveReason('');}} className="text-farm-danger hover:underline">
+                              Remove
+                            </button>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -737,6 +809,64 @@ export default function PosScreen() {
             </div>
             <div className="mt-5 border-t border-farm-accent-soft pt-4 text-right">
               <Button variant="secondary" onClick={() => setPricingOpen(false)}>Done &amp; Apply</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Remove confirmation — product.manage removes instantly; product.remove-only queues for approval */}
+      <Dialog.Root open={removeTarget !== null} onOpenChange={(o) => {if (!o) setRemoveTarget(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="mb-2 text-lg font-bold text-farm-danger">
+              {removeTarget ? `Remove ${removeTarget.name}?` : ''}
+            </Dialog.Title>
+            <Dialog.Description className="mb-4 text-sm text-farm-muted">
+              {canManageProducts
+                ? 'This hides it from the cashier grid — sales history is kept, and you can restore it later. This removes it immediately, no approval needed.'
+                : 'This queues a removal request. A product manager must approve it before the item disappears from the cashier grid.'}
+            </Dialog.Description>
+            <textarea
+              value={removeReason}
+              onChange={(e) => setRemoveReason(e.target.value)}
+              placeholder="Reason for removal (required) — e.g. out of season, discontinued"
+              rows={3}
+              className="min-h-20 w-full resize-none rounded-lg border border-farm-accent-soft bg-farm-bg px-3 py-2 text-sm"
+              aria-label="Reason for removal"
+            />
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setRemoveTarget(null)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" variant="danger" onClick={() => void submitRemove()} disabled={busy || removeReason.trim().length < 3}>
+                {busy ? 'Working…' : canManageProducts ? 'Remove now' : 'Request removal'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Reject a pending removal request — product.manage only */}
+      <Dialog.Root open={rejectTarget !== null} onOpenChange={(o) => {if (!o) setRejectTarget(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="mb-2 text-lg font-bold text-farm-ink">
+              {rejectTarget ? `Reject removal of ${rejectTarget.product_name}?` : ''}
+            </Dialog.Title>
+            <Dialog.Description className="mb-4 text-sm text-farm-muted">
+              The product stays on the cashier grid. {rejectTarget?.requester_name} will see this was declined.
+            </Dialog.Description>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason (optional) — e.g. still selling well, keep it"
+              rows={3}
+              className="min-h-20 w-full resize-none rounded-lg border border-farm-accent-soft bg-farm-bg px-3 py-2 text-sm"
+              aria-label="Reason for rejection"
+            />
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setRejectTarget(null)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitReject()} disabled={busy}>{busy ? 'Working…' : 'Reject request'}</Button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>

@@ -9,10 +9,14 @@ import {Activity, ArrowRight, Building2, Mailbox, Plus, ShoppingCart, TrendingUp
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {supabase} from '../core/supabase/client';
 import {offlineDB} from '../core/offline/db';
+import {hydrateBranches} from '../core/offline/hydrate';
+import {useRealtimeRefresh} from '../core/offline/realtime';
+import {useSync} from '../core/offline/sync';
 import {usePermissions} from '../core/permissions/permissions';
 import {MOCK_MODE} from '../core/mock/mock';
 import {posApi} from '../features/pos/api';
 import {inventoryApi} from '../features/inventory/api';
+import {authApi} from '../features/auth/api';
 import {summarizeSales, type PeriodDays, type SalesReport} from '../features/pos/report';
 import {ActionTile, Card, cn, PageHeader, StatCard} from '../components/ui';
 import {ErrorState, StatusBadge} from '../components/feedback';
@@ -26,6 +30,7 @@ const PERIODS: Array<{days: PeriodDays; label: string}> = [
 
 export default function Dashboard() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const navigate = useNavigate();
   const [members, setMembers] = useState<number | null>(null);
   const [pending, setPending] = useState<number | null>(null);
@@ -33,6 +38,7 @@ export default function Dashboard() {
   const [reportError, setReportError] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodDays>(7);
 
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
   const branchCount = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).count() : 0), [companyId], 0);
 
@@ -52,7 +58,8 @@ export default function Dashboard() {
   };
   useEffect(() => {
     if (companyId) loadReport(companyId);
-  }, [companyId]);
+  }, [companyId, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
+  useRealtimeRefresh([{table: 'invoices'}], companyId, () => {if (companyId) loadReport(companyId);}); // P1K: a sale made on another device shows up here without a manual refresh
 
   const summary = useMemo(() => (report ? summarizeSales(report.sales, new Date(), period) : null), [report, period]);
   const scopeHint = report?.source === 'canonical' ? 'your branches' : 'this device';
@@ -66,18 +73,15 @@ export default function Dashboard() {
     if (!companyId) return;
     if (MOCK_MODE) {
       offlineDB.memberships.where('company_id').equals(companyId).count().then(setMembers);
-      offlineDB.invitations.where('company_id').equals(companyId).filter((i) => i.status === 'Pending').count().then(setPending);
+      authApi.listPendingUsers().then((rows) => setPending(rows.length));
       return;
     }
     if (has('membership.read')) {
       supabase.from('user_branch_roles').select('*', {count: 'exact', head: true}).eq('company_id', companyId)
         .then(({count}) => setMembers(count ?? 0)).then(undefined, () => setMembers(null));
+      authApi.listPendingUsers().then((rows) => setPending(rows.length)).catch(() => setPending(null));
     }
-    if (has('user.invite')) {
-      supabase.from('invitations').select('*', {count: 'exact', head: true}).eq('company_id', companyId).eq('status', 'Pending')
-        .then(({count}) => setPending(count ?? 0)).then(undefined, () => setPending(null));
-    }
-  }, [companyId, has]);
+  }, [companyId, has, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   return (
     <div>
@@ -250,23 +254,32 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Organization widgets (M1C §8.2) */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Company" value={company ? <StatusBadge status={company.status} /> : '—'} hint={company?.company_code} />
-        <StatCard label="Branches" value={branchCount ?? 0} hint={company?.base_currency_code} />
-        <StatCard label="Members" value={has('membership.read') ? (members ?? '—') : '—'} hint={has('membership.read') ? undefined : 'No access'} />
-        <StatCard label="Pending invites" value={has('user.invite') ? (pending ?? '—') : '—'} hint={has('user.invite') ? undefined : 'No access'} />
-      </div>
+      {/* Organization widgets (M1C §8.2) — admin+ only (ported from Team B, owner 2026-07-16: the
+          owner's own pasted screenshot named this entire block, Quick actions included, as "must
+          not be visible to operator and below"). membership.read is the cleanest admin+ proxy —
+          per the P1C 5-tier seed, employee/operator do not hold it, admin+ does. Operators keep
+          full POS access via the main nav sidebar regardless; this only removes the dashboard
+          shortcut duplicate. */}
+      {has('membership.read') ? (
+        <>
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Company" value={company ? <StatusBadge status={company.status} /> : '—'} hint={company?.company_code} />
+            <StatCard label="Branches" value={branchCount ?? 0} hint={company?.base_currency_code} />
+            <StatCard label="Members" value={members ?? '—'} />
+            <StatCard label="Pending approvals" value={pending ?? '—'} />
+          </div>
 
-      <Card>
-        <h2 className="mb-3 text-xl font-bold text-farm-green">Quick actions</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ActionTile label="Weigh a Sale" icon={<ShoppingCart size={28} aria-hidden />} disabled={!has('pos.sell')} onClick={() => navigate('/pos')} />
-          <ActionTile label="Open Company" icon={<Building2 size={28} aria-hidden />} onClick={() => navigate('/organization/company')} />
-          <ActionTile label="Create Branch" icon={<Plus size={28} aria-hidden />} disabled={!has('branch.manage')} onClick={() => navigate('/organization/branches')} />
-          <ActionTile label="Invite User" icon={<UserPlus size={28} aria-hidden />} disabled={!has('user.invite')} onClick={() => navigate('/organization/invitations')} />
-        </div>
-      </Card>
+          <Card>
+            <h2 className="mb-3 text-xl font-bold text-farm-green">Quick actions</h2>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <ActionTile label="Weigh a Sale" icon={<ShoppingCart size={28} aria-hidden />} disabled={!has('pos.sell')} onClick={() => navigate('/pos')} />
+              <ActionTile label="Open Company" icon={<Building2 size={28} aria-hidden />} onClick={() => navigate('/organization/company')} />
+              <ActionTile label="Create Branch" icon={<Plus size={28} aria-hidden />} disabled={!has('branch.manage')} onClick={() => navigate('/organization/branches')} />
+              <ActionTile label="Review Approvals" icon={<UserPlus size={28} aria-hidden />} disabled={!has('membership.read')} onClick={() => navigate('/organization/approvals')} />
+            </div>
+          </Card>
+        </>
+      ) : null}
 
       {!has('membership.read') && !has('user.invite') ? (
         <p className="mt-6 flex items-center gap-2 text-base text-farm-muted"><Mailbox size={18} aria-hidden /> Some widgets are hidden because your role doesn't grant access.</p>

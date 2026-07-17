@@ -49,4 +49,20 @@ export const authApi = {
     const {error} = await supabase.auth.resetPasswordForEmail(email, {redirectTo: `${window.location.origin}/auth/reset`});
     if (error) throw new Error(error.message);
   },
+
+  // P1F: turn away a pending signup — account_status -> Suspended (never a hard-delete; see the migration).
+  async rejectPendingUser(userId: string): Promise<void> {
+    if (MOCK_MODE) { await offlineDB.meta.put({key: 'mock-pending-approved', value: true}); return; } // demo: just clears the one seeded pending row
+    const {error} = await supabase.rpc('reject_pending_user', {p_user_id: userId});
+    if (error) throw new Error(error.message);
+  },
+
+  // P1F: self-only status read so AwaitingApproval can tell "still pending" apart from "rejected" — both
+  // resolve to a NULL companyId, but only Suspended is a rejection.
+  async myAccountStatus(): Promise<'Active' | 'Suspended' | null> {
+    if (MOCK_MODE) return 'Active';
+    const {data, error} = await supabase.rpc('my_account_status');
+    if (error) return null;
+    return (data as 'Active' | 'Suspended' | null) ?? null;
+  },
 };

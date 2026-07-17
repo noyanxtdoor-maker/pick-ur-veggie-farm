@@ -4,6 +4,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {ArrowRightLeft, Landmark, Plus, Smartphone, Wallet, X} from 'lucide-react';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, cn} from '../../components/ui';
 import {EmptyState, useToast} from '../../components/feedback';
@@ -24,6 +25,7 @@ const suggestCode = (name: string, type: FinancialAccount['account_type']) => {
 
 export function AccountsTab({branchId}: {branchId: string | null}) {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('finance.account.read');
   const canManage = has('finance.account.manage');
@@ -34,7 +36,7 @@ export function AccountsTab({branchId}: {branchId: string | null}) {
     if (!companyId || !canRead) return;
     paymentsApi.fetchAccounts(companyId, branchId ?? undefined).then(setAccounts).catch(() => setAccounts([]));
   }, [companyId, branchId, canRead]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]);
 
   // create / edit modal
   const [open, setOpen] = useState(false);

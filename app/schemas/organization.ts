@@ -2,10 +2,15 @@
 // Reused by React Hook Form (client) and as the typed write contract to the api layer.
 import {z} from 'zod';
 
+// Role/branch keys are conventionally uppercase (see the roles.tsx "WORKER" placeholder), but
+// nothing server-side enforces case — the DB column is plain text, no CHECK constraint. The regex
+// was uppercase-only while the error message only promised "A–Z, 0–9, dash", so a naturally-typed
+// lowercase key (e.g. "cashier") was rejected without the user ever knowing why (owner report,
+// ported fix from Team B 2026-07-16). Accept both cases; nothing downstream cares.
 const codeSlug = z
   .string()
   .trim()
-  .regex(/^[A-Z0-9][A-Z0-9-]{1,30}$/, 'Use 2–31 chars: A–Z, 0–9, dash; start alphanumeric.');
+  .regex(/^[A-Za-z0-9][A-Za-z0-9-]{1,30}$/, 'Use 2–31 chars: A–Z, 0–9, dash; start alphanumeric.');
 
 const name120 = z.string().trim().min(1, 'Required').max(120, 'Max 120 characters');
 
@@ -37,14 +42,6 @@ export const roleEditSchema = z.object({
   status: z.enum(['Active', 'Deprecated']),
 });
 export type RoleEditInput = z.infer<typeof roleEditSchema>;
-
-export const inviteSchema = z.object({
-  branch_id: z.string().uuid('Select a branch'),
-  role_id: z.string().uuid('Select a role'),
-  email: z.string().trim().email('Invalid email').optional().or(z.literal('')),
-  valid_days: z.coerce.number().int().min(1, 'Min 1 day').max(30, 'Max 30 days'),
-});
-export type InviteInput = z.infer<typeof inviteSchema>;
 
 export const membershipAssignSchema = z.object({
   user_id: z.string().uuid('Select a user'),

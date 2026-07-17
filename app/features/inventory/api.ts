@@ -8,7 +8,7 @@ import {enqueue} from '../../core/offline/queue';
 import {uuidv7} from '../../core/offline/uuidv7';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {round2} from '../pos/money';
-import type {EquipmentAsset, EquipmentLog, InventoryItem, ItemCategory, PurchaseReceiving} from '../../types/db';
+import type {EquipmentAsset, EquipmentLog, InventoryItem, InventoryMovement, ItemCategory, PurchaseReceiving} from '../../types/db';
 
 const online = () => typeof navigator === 'undefined' || navigator.onLine;
 
@@ -168,6 +168,16 @@ export const inventoryApi = {
     }
     await enqueue({companyId, kind: 'inventory.adjust', request: {type: 'rpc', rpc: 'inventory_adjust_material', payload}});
     return null;
+  },
+
+  // Usage/adjustment history (owner directive 2026-07-17: what was used, when, by whom). The mock only
+  // tracks a derived balance (materialStock), not the append-only ledger, so this is real-mode only.
+  async fetchMovements(companyId: string, branchId: string): Promise<InventoryMovement[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.from('inventory_movements').select('*')
+      .eq('company_id', companyId).eq('branch_id', branchId).order('created_at', {ascending: false}).limit(300);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as InventoryMovement[]).map((m) => ({...m, quantity: Number(m.quantity), unit_cost: Number(m.unit_cost), total_cost: Number(m.total_cost)}));
   },
 
   // Bulk-apply the mock's single "low-stock limit" to every item (per-item reorder_level stays the canonical field).

@@ -1,7 +1,7 @@
 // Application shell in the AI Studio prototype's design language (owner decision 2026-06-28: the prototype is the
 // visual authority). White sidebar with PV logo + section labels + profile block; header with BRANCH LIVE chip,
 // session pill, red sign-out; farm-bg main stage. Tablet-first, ≥56px targets preserved.
-import {Suspense, useEffect, useState} from 'react';
+import {Suspense, useCallback, useEffect, useRef, useState} from 'react';
 import {NavLink, Outlet} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {
@@ -21,11 +21,12 @@ import {
   Sparkles,
   Sun,
   UserCheck,
-  Wifi,
+  UserCircle,
 } from 'lucide-react';
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSession} from '../../core/auth/session';
+import {authApi} from '../../features/auth/api';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {useDarkToggle, usePref} from '../../core/prefs/prefs';
 import {offlineDB} from '../../core/offline/db';
@@ -35,31 +36,50 @@ import {cn} from '../ui';
 
 // Operations (owner 2026-07-04) folds Schedules & Plans, Crops & Plans, and Project Checklists into one
 // entry with Accounting-style tabs — the nav stays short enough for tablets and the future mobile bar.
+// `perms`: any ONE of these grants visibility (undefined/empty = always visible to any signed-in member).
+// Payroll/Operations/Reports/Copilot/Settings stay unconditional: Payroll always has the M5C "My Payroll"
+// self-view even without payroll.read; Operations' Crops tab is member-readable regardless of role;
+// Reports is a placeholder; Copilot is informational-tier per CAP-VG1 §1; Settings is personal.
 const CORE_MODULES = [
-  {to: '/dashboard', label: 'Home Dashboard', icon: Activity},
-  {to: '/pos', label: 'Weigh Point-Of-Sale', icon: ShoppingCart},
-  {to: '/inventory', label: 'Stock Inventories', icon: Package},
-  {to: '/accounting', label: 'Automated Accounting', icon: Landmark},
-  {to: '/customers', label: 'Customers & Credit', icon: Contact},
-  {to: '/payroll', label: 'Salaries & Payroll', icon: Users2},
-  {to: '/operations', label: 'Operations', icon: ClipboardList},
-  {to: '/reports', label: 'Reports', icon: BarChart3},
-  {to: '/copilot', label: 'VeggieGenius', icon: Sparkles}, // CAP-VG1: advisory copilot (read-only, C7 §11)
-  {to: '/settings', label: 'Settings Hub', icon: Settings},
-] as const;
+  {to: '/dashboard', label: 'Home Dashboard', icon: Activity, perms: undefined},
+  {to: '/pos', label: 'Weigh Point-Of-Sale', icon: ShoppingCart, perms: ['pos.sell']},
+  {to: '/inventory', label: 'Stock Inventories', icon: Package, perms: ['inventory.purchase', 'inventory.adjust', 'equipment.manage']},
+  {to: '/accounting', label: 'Automated Accounting', icon: Landmark, perms: ['accounting.read']},
+  {to: '/customers', label: 'Customers & Credit', icon: Contact, perms: ['customer.read']},
+  {to: '/payroll', label: 'Salaries & Payroll', icon: Users2, perms: undefined},
+  {to: '/operations', label: 'Operations', icon: ClipboardList, perms: undefined},
+  {to: '/reports', label: 'Reports', icon: BarChart3, perms: ['accounting.read']}, // ported from Team B, owner 2026-07-16: admin+ only
+  {to: '/copilot', label: 'VeggieGenius', icon: Sparkles, perms: undefined}, // CAP-VG1: advisory copilot (read-only, C7 §11)
+  {to: '/settings', label: 'Settings Hub', icon: Settings, perms: undefined},
+  {to: '/profile', label: 'My Profile', icon: UserCircle, perms: undefined}, // P1L (ported from Team B): self-service username/email/password
+] as const satisfies ReadonlyArray<{to: string; label: string; icon: typeof Activity; perms: readonly PermissionKey[] | undefined}>;
+
+// P1C3: perms match "at least one org tab is actually reachable" — see ORG_TABS below. Dropped bare
+// membership.read (was letting someone with only that key see a link to zero reachable tabs, since no
+// org tab is gated on membership.read anymore); added membership.approve (the Approvals tab's new gate).
+const ORG_LINK = {
+  to: '/organization', label: 'Approvals & Roles', icon: UserCheck,
+  perms: ['membership.approve', 'membership.manage', 'company.manage', 'branch.manage', 'role.manage'],
+} as const satisfies {to: string; label: string; icon: typeof UserCheck; perms: readonly PermissionKey[]};
+
+function visibleNav<T extends {perms?: readonly PermissionKey[]}>(items: readonly T[], has: (k: PermissionKey) => boolean): T[] {
+  return items.filter((m) => !m.perms || m.perms.length === 0 || m.perms.some(has));
+}
 
 // Mobile bottom bar (owner 2026-07-04): 4 user-customizable shortcut slots + a fixed "More" sheet for
 // everything else. Preference is per-device (usePref), validated against the real module list.
-const ALL_NAV = [...CORE_MODULES, {to: '/organization', label: 'Approvals & Roles', icon: UserCheck}] as const;
+const ALL_NAV = [...CORE_MODULES, ORG_LINK] as const;
 const MOBILE_NAV_DEFAULT = '/dashboard,/pos,/inventory,/operations';
 
 function MobileNav() {
+  const {has} = usePermissions();
   const [slotsPref, setSlotsPref] = usePref('mobile_nav', MOBILE_NAV_DEFAULT);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
-  const validPaths = ALL_NAV.map((m) => m.to as string);
+  const nav = visibleNav(ALL_NAV, has);
+  const validPaths = nav.map((m) => m.to as string);
   const slots = slotsPref.split(',').filter((p) => validPaths.includes(p)).slice(0, 4);
-  const slotItems = slots.map((p) => ALL_NAV.find((m) => m.to === p)!);
+  const slotItems = slots.map((p) => nav.find((m) => m.to === p)!);
 
   const toggleSlot = (to: string) => {
     if (slots.includes(to)) setSlotsPref(slots.filter((s) => s !== to).join(','));
@@ -108,7 +128,7 @@ function MobileNav() {
             </div>
             {customizing ? <p className="mb-3 text-[11px] text-farm-muted">Tap a section to pin or unpin it from your bottom bar. Your choice is saved on this device.</p> : null}
             <div className="grid grid-cols-3 gap-2">
-              {ALL_NAV.map((m) => {
+              {nav.map((m) => {
                 const Icon = m.icon;
                 const pinned = slots.includes(m.to);
                 if (customizing) {
@@ -157,7 +177,10 @@ function navClass(isActive: boolean): string {
 
 function NavRail() {
   const {user} = useSession();
+  const {has} = usePermissions();
   const name = (user?.email ?? 'operator').split('@')[0] ?? 'operator';
+  const modules = visibleNav(CORE_MODULES, has);
+  const showOrgLink = ORG_LINK.perms.some(has);
   return (
     <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-farm-card p-5 md:flex">
       <div className="space-y-5">
@@ -170,7 +193,7 @@ function NavRail() {
         </div>
         <nav className="space-y-1.5" aria-label="Main">
           <span className="block border-b border-farm-bg px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-farm-muted">Core Operational Features</span>
-          {CORE_MODULES.map((m) => {
+          {modules.map((m) => {
             const Icon = m.icon;
             return (
               <NavLink key={m.to} to={m.to} className={({isActive}) => navClass(isActive)}>
@@ -178,10 +201,14 @@ function NavRail() {
               </NavLink>
             );
           })}
-          <span className="block border-b border-farm-bg px-3 pb-1 pt-4 text-[10px] font-black uppercase tracking-wider text-farm-muted">User Administration</span>
-          <NavLink to="/organization" className={({isActive}) => navClass(isActive)}>
-            <UserCheck className="h-4 w-4 shrink-0" aria-hidden /> Approvals &amp; Roles
-          </NavLink>
+          {showOrgLink ? (
+            <>
+              <span className="block border-b border-farm-bg px-3 pb-1 pt-4 text-[10px] font-black uppercase tracking-wider text-farm-muted">User Administration</span>
+              <NavLink to="/organization" className={({isActive}) => navClass(isActive)}>
+                <UserCheck className="h-4 w-4 shrink-0" aria-hidden /> Approvals &amp; Roles
+              </NavLink>
+            </>
+          ) : null}
         </nav>
       </div>
       <div className="space-y-3 border-t border-farm-accent-soft pt-4">
@@ -205,12 +232,29 @@ function NavRail() {
 }
 
 function TopBar() {
-  const {online, pending, syncing, triggerSync} = useSync();
+  const {online, pending, syncing, manualSync} = useSync();
   const {companyId} = usePermissions();
   const [farmName] = usePref('farm_display_name');
   const [terminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
   const [isDark, toggleDark] = useDarkToggle();
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
+
+  // Local UI-only sync flag (ported from Team B, owner 2026-07-16): the owner reported the Sync
+  // button "doesn't animate, glitches on tap." Root cause: useSync()'s `syncing` flag toggles with
+  // the raw outbox-drain timing (which can finish in <50ms), so a tap could flip state mid-render —
+  // the "glitch." The fix decouples the VISUAL spin from the outbox flag: a local `uiSyncing`
+  // state, always ≥700ms, drives the icon + the full-screen overlay.
+  const [uiSyncing, setUiSyncing] = useState(false);
+  const syncTimeout = useRef<number | null>(null);
+  const handleSyncClick = useCallback(() => {
+    if (uiSyncing) return; // ignore taps during spin (prevents restart-glitch)
+    setUiSyncing(true);
+    manualSync();
+    if (syncTimeout.current) window.clearTimeout(syncTimeout.current);
+    syncTimeout.current = window.setTimeout(() => setUiSyncing(false), 700);
+  }, [uiSyncing, manualSync]);
+  useEffect(() => () => { if (syncTimeout.current) window.clearTimeout(syncTimeout.current); }, []);
+  const showSync = uiSyncing || syncing;
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-farm-accent-soft bg-farm-card px-4 py-3 md:px-6">
@@ -233,12 +277,15 @@ function TopBar() {
           {isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
         </button>
         <button
-          onClick={triggerSync}
-          className={cn('inline-flex min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold', online ? 'text-farm-green' : 'text-farm-warn')}
-          title={online ? 'Online — tap to sync' : 'Offline'}
+          onClick={handleSyncClick}
+          disabled={uiSyncing}
+          className={cn('inline-flex min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold transition', online ? 'text-farm-green hover:bg-farm-accent-soft' : 'text-farm-warn', uiSyncing && 'cursor-progress opacity-80')}
+          title={showSync ? 'Syncing…' : online ? 'Tap to sync — refreshes this screen and sends any queued changes' : 'Offline'}
+          aria-label={online ? 'Sync now' : 'Offline'}
+          aria-busy={showSync || undefined}
         >
-          {online ? <Wifi size={18} aria-hidden /> : <CloudOff size={18} aria-hidden />}
-          {syncing ? <RefreshCw size={16} className="animate-spin" aria-hidden /> : null}
+          {online ? <RefreshCw size={18} className={showSync ? 'animate-spin' : ''} aria-hidden /> : <CloudOff size={18} aria-hidden />}
+          {showSync ? <span className="text-xs">Syncing…</span> : null}
           {pending > 0 ? <span className="rounded-full bg-amber-200 px-2 text-amber-900">{pending}</span> : null}
         </button>
         <div className="hidden min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-ink md:inline-flex">
@@ -247,24 +294,62 @@ function TopBar() {
         </div>
         {/* Sign-out removed from the top bar (owner 2026-07-11) — log out from Settings → Session only. */}
       </div>
+      {/* Full-screen sync overlay (ported from Team B, owner directive 2026-07-16): "we want a
+          perfect animation for sync the whole screen" — a subtle top-edge shimmer + faint backdrop
+          sweep that paints whenever uiSyncing is true (min 700ms). pointer-events-none so users can
+          still tap while it animates. */}
+      {uiSyncing ? (
+        <div
+          aria-live="polite"
+          aria-busy="true"
+          className="syncoverlay pointer-events-none fixed inset-0 z-40 overflow-hidden"
+          role="status"
+        >
+          <span className="syncoverlay__shimmer" />
+          <span className="syncoverlay__label">Syncing…</span>
+        </div>
+      ) : null}
     </header>
   );
 }
 
 // P1A: an authenticated identity with no company membership is "awaiting approval" (C2 §3 — RLS shows
 // them nothing anyway; this screen says WHY instead of rendering an empty shell). Real mode only.
+// P1F: a companyId of null covers two very different situations — still pending, or rejected
+// (account_status Suspended, see the P1F migration) — current_app_user_id() resolves NULL for both by
+// design (B1 §3), so my_account_status() is the one self-only signal that can tell them apart.
 function AwaitingApproval() {
   const {signOut, user} = useSession();
   const {refresh} = usePermissions();
-  // P1C: auto-detect approval — poll the permission snapshot every 15s and on window-focus. The moment an
-  // admin assigns a membership, companyId becomes non-null and AppShell drops this screen automatically
-  // (no manual reload). Cheap: one user_branch_roles read per tick, only while unapproved.
+  const [status, setStatus] = useState<'Active' | 'Suspended' | null>(null);
   useEffect(() => {
+    void authApi.myAccountStatus().then(setStatus);
+  }, []);
+  // Only poll/auto-detect while genuinely still pending — a rejected account will never self-heal, so
+  // polling would just be wasted reads (and could flicker the wrong screen if a stale 'Active' lingered).
+  useEffect(() => {
+    if (status === 'Suspended') return;
     const t = setInterval(() => void refresh(), 15000);
     const onFocus = () => void refresh();
     window.addEventListener('focus', onFocus);
     return () => {clearInterval(t); window.removeEventListener('focus', onFocus);};
-  }, [refresh]);
+  }, [refresh, status]);
+
+  if (status === 'Suspended') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
+        <div className="w-full max-w-md rounded-2xl bg-farm-card p-8 text-center shadow-xl">
+          <h1 className="mb-2 text-xl font-extrabold text-farm-danger">Registration not approved</h1>
+          <p className="mb-1 text-sm text-farm-muted">Your account ({user?.email ?? 'signed in'}) was reviewed and was not approved for access.</p>
+          <p className="mb-6 text-sm text-farm-muted">If you believe this is a mistake, contact the farm's management directly.</p>
+          <div className="flex justify-center">
+            <button onClick={() => void signOut()} className="rounded-xl border border-farm-accent px-4 py-2 text-sm font-bold text-farm-green">Sign out</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-farm-bg p-6">
       <div className="w-full max-w-md rounded-2xl bg-farm-card p-8 text-center shadow-xl">
@@ -283,6 +368,14 @@ function AwaitingApproval() {
 export function AppShell() {
   const {online, pending} = useSync();
   const {companyId, loading} = usePermissions();
+  // Real-mode gate (ported from Team B, owner directive 2026-07-16): no company membership means
+  // AwaitingApproval, AND we must NOT flash the dashboard for ~0.5s before that decision resolves.
+  // `loading` flips false a moment after a cached snapshot is read from Dexie, and <Outlet/> could
+  // paint during that gap before AwaitingApproval below ever ran — a real visible peek of the
+  // privileged dashboard for an un-approved user. Fix: while loading=true, render <Loading/> (the
+  // gate is undecided); only once loading=false do we decide AwaitingApproval vs the real shell.
+  // The dashboard <Outlet/> never mounts until companyId is non-null — zero peek.
+  if (!MOCK_MODE && loading) return <Loading />;
   if (!MOCK_MODE && !loading && !companyId) return <AwaitingApproval />;
   return (
     <div className="flex h-screen bg-farm-bg text-farm-ink">
@@ -304,13 +397,17 @@ export function AppShell() {
   );
 }
 
+// P1C3: each tab now gated on the SAME key that governs its capability, not a shared blanket
+// membership.read — this is what makes "admin only sees Approvals by default" real (admin holds
+// membership.approve but none of company.manage/branch.manage/role.manage/membership.manage).
+// Members/Archived deliberately use membership.manage, not membership.read, for the same reason.
 const ORG_TABS: Array<{to: string; label: string; perm?: PermissionKey}> = [
-  {to: '/organization/approvals', label: 'Approvals', perm: 'membership.read'}, // B.4 owner-screenshot flow
-  {to: '/organization/company', label: 'Company'},
-  {to: '/organization/branches', label: 'Branches'},
-  {to: '/organization/roles', label: 'Roles'},
-  {to: '/organization/invitations', label: 'Invitations', perm: 'user.invite'},
-  {to: '/organization/members', label: 'Members', perm: 'membership.read'},
+  {to: '/organization/approvals', label: 'Approvals', perm: 'membership.approve'}, // B.4 owner-screenshot flow
+  {to: '/organization/company', label: 'Company', perm: 'company.manage'},
+  {to: '/organization/branches', label: 'Branches', perm: 'branch.manage'},
+  {to: '/organization/roles', label: 'Roles', perm: 'role.manage'},
+  {to: '/organization/members', label: 'Members', perm: 'membership.manage'},
+  {to: '/organization/archived', label: 'Archived', perm: 'membership.manage'},
 ];
 
 export function OrganizationLayout() {

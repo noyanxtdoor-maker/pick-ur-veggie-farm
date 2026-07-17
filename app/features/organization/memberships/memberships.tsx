@@ -10,6 +10,7 @@ import {enqueue} from '../../../core/offline/queue';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
 import {MOCK_MODE, mockUsers} from '../../../core/mock/mock';
+import {uuidv7} from '../../../core/offline/uuidv7';
 import type {Membership} from '../../../types/db';
 import {membershipAssignSchema, membershipEditSchema, type MembershipAssignInput, type MembershipEditInput} from '../../../schemas/organization';
 import {Button, Card, PageHeader, cn} from '../../../components/ui';
@@ -21,6 +22,32 @@ export interface MemberRow extends Membership {
   userName: string;
   branchName: string;
   roleKey: string;
+  jobTitle: string | null; // P1D §Part3: purely descriptive, edited via membershipsApi.setJobTitle
+  accountStatus: 'Active' | 'Suspended' | 'Archived'; // P1G: account-level, distinct from assignment_status
+}
+
+// Directory dedupe (ported from Team B 8c4447a, owner 2026-07-16 parity order — fixes the "role change
+// creates a new account" bug): role_id is immutable by design → a role change expires the old assignment
+// + inserts a new one (audit history preserved, reversal-by-addition). That left the directory showing
+// BOTH the Expired old row AND the Active new row for the same user → looked like a new account.
+// Fix the display, not the write: one row per user — Active membership preferred, else the most
+// recent Expired (so the "Reactivate" action on the Approvals screen still has a row to flip).
+// The full audit trail stays in the DB untouched.
+function dedupeByUser<T extends MemberRow>(rows: T[]): T[] {
+  const byUser = new Map<string, T>();
+  for (const r of rows) {
+    const prev = byUser.get(r.user_id);
+    if (!prev) { byUser.set(r.user_id, r); continue; }
+    // Active beats Expired; within the same status, newer wins (updated_at desc, fallback created_at).
+    const rActive = r.assignment_status === 'Active';
+    const pActive = prev.assignment_status === 'Active';
+    if (rActive && !pActive) { byUser.set(r.user_id, r); continue; }
+    if (pActive && !rActive) continue;
+    const rTime = String(r.updated_at ?? r.created_at ?? '');
+    const pTime = String(prev.updated_at ?? prev.created_at ?? '');
+    if (rTime > pTime) byUser.set(r.user_id, r);
+  }
+  return [...byUser.values()];
 }
 
 export const membershipsApi = {
@@ -35,20 +62,29 @@ export const membershipsApi = {
       const bm = new Map(brs.map((b) => [b.id, b.name]));
       const rm = new Map(rls.map((r) => [r.id, r.role_key]));
       const um = new Map(users.map((u) => [u.id, u.display_name]));
-      return mems.map((m) => ({...m, userName: um.get(m.user_id) ?? '(demo user)', branchName: bm.get(m.branch_id) ?? m.branch_id, roleKey: rm.get(m.role_id) ?? m.role_id}));
+      return dedupeByUser(mems.map((m) => ({...m, userName: um.get(m.user_id) ?? '(demo user)', branchName: bm.get(m.branch_id) ?? m.branch_id, roleKey: rm.get(m.role_id) ?? m.role_id, jobTitle: null, accountStatus: 'Active' as const})));
     }
     const {data, error} = await supabase
       .from('user_branch_roles')
-      .select('*, users(display_name), branches(name), roles(role_key)')
+      .select('*, users(display_name, job_title, account_status), branches(name), roles(role_key)')
       .eq('company_id', companyId);
     if (error) throw new Error(error.message);
-    type Row = Membership & {users: {display_name: string} | null; branches: {name: string} | null; roles: {role_key: string} | null};
-    return ((data ?? []) as Row[]).map((r) => ({
+    type Row = Membership & {users: {display_name: string; job_title: string | null; account_status: 'Active' | 'Suspended' | 'Archived'} | null; branches: {name: string} | null; roles: {role_key: string} | null};
+    return dedupeByUser(((data ?? []) as Row[]).map((r) => ({
       ...r,
       userName: r.users?.display_name ?? '(unknown)',
       branchName: r.branches?.name ?? r.branch_id,
       roleKey: r.roles?.role_key ?? r.role_id,
-    }));
+      jobTitle: r.users?.job_title ?? null,
+      accountStatus: r.users?.account_status ?? 'Active',
+    })));
+  },
+  // P1D §Part3: purely descriptive — job_title.manage required server-side (admin-tier and above by
+  // default). No payroll/reporting logic keyed to it.
+  async setJobTitle(userId: string, jobTitle: string): Promise<void> {
+    if (MOCK_MODE) return; // mock users are curated demo fixtures — not editable here
+    const {error} = await supabase.from('users').update({job_title: jobTitle.trim() || null}).eq('id', userId);
+    if (error) throw new Error(error.message);
   },
   async users(): Promise<Array<{id: string; display_name: string}>> {
     if (MOCK_MODE) return mockUsers();
@@ -62,11 +98,63 @@ export const membershipsApi = {
   update(m: Membership, input: MembershipEditInput) {
     return enqueue({companyId: m.company_id, kind: 'membership.update', request: {type: 'update', table: 'user_branch_roles', match: {id: m.id, baseUpdatedAt: m.updated_at}, payload: input}});
   },
+
+  // P1D §Part1: the one governed entry point for approving a pending sign-up OR reassigning an existing
+  // member — atomically links (or exempts) payroll for an eligible role. ONLINE ONLY (like invite_user —
+  // not idempotent-safe for outbox retry: a retried call after a partial network failure could double-
+  // create the Farm Hand record).
+  async assignWithPayroll(companyId: string, input: {
+    userId: string; branchId: string; roleId: string;
+    employeeName?: string; positionId?: string; dailyRate?: number; exempt?: boolean;
+  }): Promise<void> {
+    if (MOCK_MODE) {
+      const now = new Date().toISOString();
+      const existing = await offlineDB.memberships.where('company_id').equals(companyId).filter((r) => r.user_id === input.userId && r.assignment_status === 'Active').first();
+      if (existing) await offlineDB.memberships.put({...existing, assignment_status: 'Expired', updated_at: now});
+      await offlineDB.memberships.put({id: uuidv7(), user_id: input.userId, company_id: companyId, branch_id: input.branchId, role_id: input.roleId, assignment_status: 'Active', expires_at: null, created_at: now, updated_at: now});
+      if (input.employeeName && input.positionId && input.dailyRate) {
+        await offlineDB.employees.put({id: uuidv7(), company_id: companyId, employee_code: `EMP-${uuidv7().slice(-6).toUpperCase()}`, name: input.employeeName, position_id: input.positionId, daily_rate: input.dailyRate, date_hired: now.slice(0, 10), status: 'Active', user_id: input.userId, created_at: now, updated_at: now});
+      } else if (input.exempt) {
+        await offlineDB.meta.put({key: `payroll-exempt-${input.userId}`, value: true}); // mock has no users.payroll_exempt column; tracked separately for demo purposes
+      }
+      return;
+    }
+    const {error} = await supabase.rpc('assign_membership_with_payroll', {
+      p_company_id: companyId, p_target_user_id: input.userId, p_branch_id: input.branchId, p_role_id: input.roleId,
+      // `|| null`, not `?? null`: for a non-payroll-eligible role (co_owner/owner) the Position field never
+      // renders, so positionId stays '' (its initial state) rather than undefined — `''` is a defined value
+      // so `??` lets it through, and Postgres then fails casting an empty string to `uuid` (found live
+      // 2026-07-13: "invalid input syntax for type uuid"). `||` also catches the empty-string case.
+      p_employee_name: input.employeeName ?? null, p_position_id: input.positionId || null, p_daily_rate: input.dailyRate ?? null,
+      p_exempt: input.exempt ?? false,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async unlinkedPayrollEligible(companyId: string): Promise<Array<{user_id: string; display_name: string; role_key: string}>> {
+    if (MOCK_MODE) return []; // mock demo data is small/curated — the backfill banner isn't exercised in mock
+    const {data, error} = await supabase.rpc('list_unlinked_payroll_eligible', {p_company_id: companyId});
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Array<{user_id: string; display_name: string; role_key: string}>;
+  },
+
+  // P1G: retire a fully-revoked account (never a hard-delete — see the migration). Requires the target
+  // already hold zero active memberships anywhere (revoke first, archive second).
+  async archiveUser(userId: string): Promise<void> {
+    if (MOCK_MODE) return; // mock has no account_status lifecycle to exercise here
+    const {error} = await supabase.rpc('archive_user_account', {p_user_id: userId});
+    if (error) throw new Error(error.message);
+  },
+  async unarchiveUser(userId: string): Promise<void> {
+    if (MOCK_MODE) return;
+    const {error} = await supabase.rpc('unarchive_user_account', {p_user_id: userId});
+    if (error) throw new Error(error.message);
+  },
 };
 
 export default function MembersScreen() {
   const {companyId, has} = usePermissions();
-  const {triggerSync} = useSync();
+  const {triggerSync, refreshTick} = useSync();
   const [rows, setRows] = useState<MemberRow[] | null>(null);
   const [selected, setSelected] = useState<string | 'new' | null>(null);
   const canManage = has('membership.manage');
@@ -75,7 +163,7 @@ export default function MembersScreen() {
   const roles = useLiveQuery(async () => (companyId ? offlineDB.roles.where('company_id').equals(companyId).toArray() : []), [companyId]);
 
   const reload = () => {if (companyId) membershipsApi.fetch(companyId).then(setRows).catch(() => setRows([]));};
-  useEffect(reload, [companyId]);
+  useEffect(reload, [companyId, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const current = selected && selected !== 'new' ? rows?.find((r) => r.id === selected) : undefined;
 
@@ -87,7 +175,7 @@ export default function MembersScreen() {
           {rows === null ? (
             <Skeleton />
           ) : rows.length === 0 ? (
-            <EmptyState title="No members yet" hint="Assign a role to a user, or invite someone new from the Invitations tab." />
+            <EmptyState title="No members yet" hint="Assign a role to a user, or wait for them to sign up and approve them in Approvals." />
           ) : (
             <ul className="divide-y divide-farm-accent-soft">
               {rows.map((m) => (

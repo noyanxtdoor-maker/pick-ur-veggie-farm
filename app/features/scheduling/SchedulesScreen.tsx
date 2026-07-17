@@ -8,6 +8,7 @@ import {Link} from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, useToast} from '../../components/feedback';
@@ -32,6 +33,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 export default function SchedulesScreen() {
   const {companyId, has} = usePermissions();
+  const {refreshTick} = useSync();
   const {notify} = useToast();
   const canRead = has('schedule.read');
   const canManage = has('schedule.manage');
@@ -57,7 +59,7 @@ export default function SchedulesScreen() {
     schedulingApi.fetchEvents(companyId, branchId).then(setEvents).catch(() => setEvents([]));
     if (canReadProjects) projectsApi.fetchProjects(companyId, branchId).then(setProjects).catch(() => setProjects([]));
   }, [companyId, branchId, canRead, canReadProjects]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   // M6C filter (owner ask: "add a filter button too for everyone"). The SERVER already hides Management
   // events from users without schedule.read_private — this is a view filter on top, never the gate.
@@ -185,9 +187,13 @@ export default function SchedulesScreen() {
         }
       />
 
-      {/* M6C tier filter — visible to everyone; the Management option only exists for read_private holders */}
+      {/* M6C tier filter — visible to everyone; the Management option only exists for read_private holders.
+          Ported from Team B, owner 2026-07-16: for operator/below (no schedule.read_private), the
+          "General (everyone sees)" filter is REDUNDANT with "All events" — they only ever see General
+          entries from the server, so the split button is noise. Collapse to a single "All events" chip.
+          Admin+ keeps the full 3-option All/General/Management split. */}
       <div className="flex flex-wrap items-center gap-1.5">
-        {(['all', 'General', ...(canReadPrivate ? ['Management' as const] : [])] as const).map((t) => (
+        {(['all', ...(canReadPrivate ? (['General', 'Management'] as const) : [])] as const).map((t) => (
           <button key={t} onClick={() => setTierFilter(t as typeof tierFilter)}
             className={cn('rounded-xl border px-3 py-1.5 text-xs font-bold transition', tierFilter === t ? 'border-transparent bg-farm-green text-white' : 'border-farm-accent bg-farm-card text-farm-muted hover:text-farm-green')}>
             {t === 'all' ? 'All events' : t === 'General' ? 'General (everyone sees)' : 'Management only'}

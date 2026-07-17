@@ -1,7 +1,7 @@
 // Local-first store (B5 §4) + the durable write-ahead outbox (M1B O1). IndexedDB via Dexie.
 // Cache holds only authorized-branch data the user has read (scoped); the outbox holds unsynced writes.
 import Dexie, {type Table} from 'dexie';
-import type {Branch, CalendarEvent, CashAdvance, CashEntry, Company, CopilotMessage, CropCategory, CropProfile, CropVariety, Customer, Employee, EquipmentAsset, EquipmentLog, FinancialAccount, FinancialTransfer, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Product, Project, ProjectTask, PurchaseReceiving, Role, WagePayment} from '../../types/db';
+import type {Branch, CalendarEvent, CashAdvance, CashEntry, Company, CopilotMessage, CropCategory, CropProfile, CropVariety, Customer, Employee, EquipmentAsset, EquipmentLog, FinancialAccount, FinancialTransfer, FinishedGood, Invitation, InventoryItem, ItemCategory, Membership, Permission, PlantingTemplate, PosInvoice, Position, Product, Project, ProjectTask, PurchaseReceiving, Role, WagePayment} from '../../types/db';
 
 export type OutboxState = 'Pending' | 'Uploading' | 'Completed' | 'Failed' | 'Blocked';
 
@@ -56,6 +56,7 @@ export class OfflineDB extends Dexie {
   equipmentAssets!: Table<EquipmentAsset, string>;
   equipmentLogs!: Table<EquipmentLog, string>;
   cashEntries!: Table<CashEntry, string>;
+  positions!: Table<Position, string>;
   employees!: Table<Omit<Employee, 'advance_balance'>, string>;
   cashAdvances!: Table<CashAdvance, string>;
   wagePayments!: Table<WagePayment, string>;
@@ -135,6 +136,10 @@ export class OfflineDB extends Dexie {
     this.version(11).stores({
       copilotMessages: 'id, timestamp',
     });
+    // P1D managed position picklist (additive).
+    this.version(12).stores({
+      positions: 'id, company_id, active',
+    });
   }
 }
 
@@ -143,7 +148,7 @@ export const offlineDB = new OfflineDB();
 // Purge all scoped/cached data (M1B S1 — on logout, revocation, or company switch). Outbox is preserved
 // only for the same company; everything else is server-re-derivable.
 export async function purgeCache(db: OfflineDB = offlineDB): Promise<void> {
-  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.cashEntries, db.employees, db.cashAdvances, db.wagePayments, db.calendarEvents, db.projects, db.projectTasks, db.customers, db.financialAccounts, db.financialTransfers, db.copilotMessages, db.meta];
+  const tables = [db.companies, db.branches, db.roles, db.permissions, db.memberships, db.invitations, db.cropCategories, db.cropVarieties, db.cropProfiles, db.plantingTemplates, db.products, db.finishedGoods, db.posInvoices, db.itemCategories, db.inventoryItems, db.materialStock, db.purchaseReceivings, db.equipmentAssets, db.equipmentLogs, db.cashEntries, db.positions, db.employees, db.cashAdvances, db.wagePayments, db.calendarEvents, db.projects, db.projectTasks, db.customers, db.financialAccounts, db.financialTransfers, db.copilotMessages, db.meta];
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
   });

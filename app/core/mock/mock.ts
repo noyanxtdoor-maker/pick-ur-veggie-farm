@@ -58,8 +58,8 @@ export async function seedMockData(): Promise<void> {
     {id: DEMO.branchB, company_id: DEMO.companyId, branch_code: 'BR-A2', name: 'South Field', status: 'Active', created_at: now, updated_at: now},
   ];
   const roles: Role[] = [
-    {id: DEMO.ownerRole, company_id: DEMO.companyId, role_key: 'OWNER', description: 'Owner', status: 'Active', created_at: now, updated_at: now},
-    {id: DEMO.workerRole, company_id: DEMO.companyId, role_key: 'WORKER', description: 'Field worker', status: 'Active', created_at: now, updated_at: now},
+    {id: DEMO.ownerRole, company_id: DEMO.companyId, role_key: 'OWNER', description: 'Owner', status: 'Active', rank: 50, created_at: now, updated_at: now},
+    {id: DEMO.workerRole, company_id: DEMO.companyId, role_key: 'WORKER', description: 'Field worker', status: 'Active', rank: 10, created_at: now, updated_at: now},
   ];
   const permissions: Permission[] = ALL_KEYS.map((k, i) => ({id: `perm-${i}`, permission_key: k, description: k, status: 'Active'}));
   const memberships: Membership[] = [

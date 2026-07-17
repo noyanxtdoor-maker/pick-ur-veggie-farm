@@ -17,6 +17,12 @@ interface SyncValue {
   blocked: number;
   syncing: boolean;
   triggerSync: () => void;
+  // Manual sync (owner request 2026-07-13): a backup for auto-sync/real-time, not a replacement — the
+  // top-bar wifi icon calls this. refreshTick bumps on every explicit tap; screens add it to their own
+  // reload() effect's dependency array so a tap re-fetches whatever is currently on screen, on top of the
+  // ordinary outbox drain triggerSync() already does on focus/reconnect.
+  refreshTick: number;
+  manualSync: () => void;
 }
 
 const Ctx = createContext<SyncValue | null>(null);
@@ -24,6 +30,7 @@ const Ctx = createContext<SyncValue | null>(null);
 export function SyncProvider({children}: {children: ReactNode}) {
   const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [syncing, setSyncing] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const lock = useRef(false);
 
   const pending = useLiveQuery(
@@ -45,6 +52,11 @@ export function SyncProvider({children}: {children: ReactNode}) {
       });
   }, []);
 
+  const manualSync = useCallback(() => {
+    triggerSync();
+    setRefreshTick((t) => t + 1);
+  }, [triggerSync]);
+
   useEffect(() => {
     const goOnline = () => {
       setOnline(true);
@@ -64,8 +76,8 @@ export function SyncProvider({children}: {children: ReactNode}) {
   }, [triggerSync]);
 
   const value = useMemo<SyncValue>(
-    () => ({online, pending: pending ?? 0, blocked: blocked ?? 0, syncing, triggerSync}),
-    [online, pending, blocked, syncing, triggerSync],
+    () => ({online, pending: pending ?? 0, blocked: blocked ?? 0, syncing, triggerSync, refreshTick, manualSync}),
+    [online, pending, blocked, syncing, triggerSync, refreshTick, manualSync],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
