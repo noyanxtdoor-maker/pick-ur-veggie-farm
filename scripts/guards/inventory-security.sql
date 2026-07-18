@@ -258,4 +258,66 @@ do $$ begin set local role postgres;
   raise exception 'DEFECT inv: movement accepted with no batch reference';
 exception when check_violation then raise notice 'PASS inv: ledger one-domain check enforced (fg XOR material batch)'; end $$;
 
+-- P2-M3B: default tiers for inventory.reports.read (owner 2026-07-18 — lower tiers should not see the
+-- Purchase Summary tab by default). bootstrap_initial_tenant is a GLOBAL one-time gate
+-- (exists(select 1 from companies)), already consumed by this file's own hand-rolled Company A/B fixtures
+-- above — so this tenant is built directly (same workaround as scripts/guards/p1o-product-removal-security.sql's
+-- second-tenant fixture) and handed to seed_standard_roles() (per-company idempotent, not globally gated),
+-- matching the real onboarding path's actual role/permission seeding, not hand-rolled roles.
+insert into public.companies (id, company_code, name) values
+  ('0d000000-0000-0000-0000-0000000000d0','P2M3BCO','P2M3B Co');
+insert into public.branches (id, company_id, branch_code, name) values
+  ('0d000000-0000-0000-0000-0000000000db','0d000000-0000-0000-0000-0000000000d0','P2M3BBR','P2M3B Branch');
+do $$ begin
+  set local role service_role;
+  perform public.seed_standard_roles('0d000000-0000-0000-0000-0000000000d0');
+  set local role postgres;
+end $$;
+insert into auth.users (instance_id, id, aud, role, email) values
+  ('00000000-0000-0000-0000-000000000000', '0d000000-0000-0000-0000-0000000000d2'::uuid, 'authenticated', 'authenticated', 'emp.p2m3b@t.local'),
+  ('00000000-0000-0000-0000-000000000000', '0d000000-0000-0000-0000-0000000000d3'::uuid, 'authenticated', 'authenticated', 'op.p2m3b@t.local'),
+  ('00000000-0000-0000-0000-000000000000', '0d000000-0000-0000-0000-0000000000d4'::uuid, 'authenticated', 'authenticated', 'admin.p2m3b@t.local');
+do $$ declare v_co uuid; v_br uuid; v_emp_role uuid; v_op_role uuid; v_admin_role uuid; v_u uuid; begin
+  select id into v_co from public.companies where company_code='P2M3BCO';
+  select id into v_br from public.branches where branch_code='P2M3BBR';
+  select id into v_emp_role from public.roles where company_id=v_co and role_key='employee';
+  select id into v_op_role from public.roles where company_id=v_co and role_key='operator';
+  select id into v_admin_role from public.roles where company_id=v_co and role_key='admin';
+
+  insert into public.users (auth_user_id, display_name, email, username) values
+    ('0d000000-0000-0000-0000-0000000000d2', 'Emp P2M3B', 'emp.p2m3b@t.local', 'emp_p2m3b')
+    on conflict (auth_user_id) do nothing;
+  select id into v_u from public.users where auth_user_id='0d000000-0000-0000-0000-0000000000d2';
+  insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) values (v_u, v_co, v_br, v_emp_role);
+
+  insert into public.users (auth_user_id, display_name, email, username) values
+    ('0d000000-0000-0000-0000-0000000000d3', 'Op P2M3B', 'op.p2m3b@t.local', 'op_p2m3b')
+    on conflict (auth_user_id) do nothing;
+  select id into v_u from public.users where auth_user_id='0d000000-0000-0000-0000-0000000000d3';
+  insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) values (v_u, v_co, v_br, v_op_role);
+
+  insert into public.users (auth_user_id, display_name, email, username) values
+    ('0d000000-0000-0000-0000-0000000000d4', 'Admin P2M3B', 'admin.p2m3b@t.local', 'admin_p2m3b')
+    on conflict (auth_user_id) do nothing;
+  select id into v_u from public.users where auth_user_id='0d000000-0000-0000-0000-0000000000d4';
+  insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) values (v_u, v_co, v_br, v_admin_role);
+end $$;
+do $$ declare v_co uuid; v_has boolean;
+begin
+  select id into v_co from public.companies where company_code='P2M3BCO';
+  set local role authenticated; perform set_config('request.jwt.claims', json_build_object('sub','0d000000-0000-0000-0000-0000000000d2')::text, true);
+  select public.has_permission(v_co, 'inventory.reports.read') into v_has;
+  if v_has then raise exception 'DEFECT inv: employee has inventory.reports.read by default (should not)'; end if;
+  set local role postgres;
+  set local role authenticated; perform set_config('request.jwt.claims', json_build_object('sub','0d000000-0000-0000-0000-0000000000d3')::text, true);
+  select public.has_permission(v_co, 'inventory.reports.read') into v_has;
+  if v_has then raise exception 'DEFECT inv: operator has inventory.reports.read by default (should not)'; end if;
+  set local role postgres;
+  set local role authenticated; perform set_config('request.jwt.claims', json_build_object('sub','0d000000-0000-0000-0000-0000000000d4')::text, true);
+  select public.has_permission(v_co, 'inventory.reports.read') into v_has;
+  if not v_has then raise exception 'DEFECT inv: admin lacks inventory.reports.read by default (should have it)'; end if;
+  set local role postgres;
+  raise notice 'PASS inv: inventory.reports.read default tiers — employee/operator denied, admin granted (fresh bootstrap)';
+end $$;
+
 rollback;

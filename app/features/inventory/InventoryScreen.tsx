@@ -18,10 +18,21 @@ import {formatPeso, round2} from '../pos/money';
 import {inventoryApi, type PurchaseInput} from './api';
 import {purchaseSummary, filterByPeriod} from './purchaseSummary';
 import {membershipsApi} from '../organization/memberships/memberships';
-import type {EquipmentAsset, EquipmentLog, InventoryItem, InventoryMovement, ItemCategory, PurchaseReceiving} from '../../types/db';
+import type {EquipmentAsset, EquipmentLog, InventoryItem, InventoryMovement, ItemCategory, PermissionKey, PurchaseReceiving} from '../../types/db';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const ONLINE_SOURCES = ['Lazada', 'Shopee', 'TikTok'];
+
+// P2-M3B (owner 2026-07-18): tabs were previously unconditional once past the page-level gate — anyone
+// with ANY inventory permission saw all 4, including Purchase Summary's spend totals. Now each tab checks
+// its own key(s), mirroring OperationsLayout.tsx's established pattern.
+type InvTab = 'consumables' | 'equipment' | 'purchases' | 'usage';
+const TAB_DEFS: Array<{key: InvTab; label: string; icon: typeof ShoppingBag; perms: readonly PermissionKey[]}> = [
+  {key: 'consumables', label: 'Consumables & Seed Stocks', icon: ShoppingBag, perms: ['inventory.purchase', 'inventory.adjust']},
+  {key: 'equipment', label: 'Heavy Equipment & Spades', icon: Hammer, perms: ['equipment.manage']},
+  {key: 'purchases', label: 'Purchase Summary', icon: ReceiptText, perms: ['inventory.reports.read']},
+  {key: 'usage', label: 'Usage History', icon: History, perms: ['inventory.adjust']},
+];
 
 export default function InventoryScreen() {
   const {companyId, has} = usePermissions();
@@ -30,6 +41,8 @@ export default function InventoryScreen() {
   const canPurchase = has('inventory.purchase');
   const canAdjust = has('inventory.adjust');
   const canEquip = has('equipment.manage');
+  const canViewReports = has('inventory.reports.read');
+  const visibleTabs = TAB_DEFS.filter((t) => t.perms.some(has));
 
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
@@ -38,7 +51,10 @@ export default function InventoryScreen() {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);
   }, [branches, branchId]);
 
-  const [tab, setTab] = useState<'consumables' | 'equipment' | 'purchases' | 'usage'>('consumables');
+  const [tab, setTab] = useState<InvTab>('consumables');
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.key === tab)) setTab(visibleTabs[0]!.key);
+  }, [visibleTabs.map((t) => t.key).join(','), tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [items, setItems] = useState<InventoryItem[] | null>(null);
   const [receivings, setReceivings] = useState<PurchaseReceiving[]>([]);
@@ -216,7 +232,7 @@ export default function InventoryScreen() {
     return l ? new Date(l.performed_date).toLocaleDateString('en-PH') : 'Never';
   };
 
-  if (!canPurchase && !canAdjust && !canEquip) {
+  if (!canPurchase && !canAdjust && !canEquip && !canViewReports) {
     return (
       <div>
         <PageHeader title="Farm Inventory Control" />
@@ -259,24 +275,17 @@ export default function InventoryScreen() {
         ) : null}
       </div>
 
-      {/* tabs (prototype) */}
+      {/* tabs (prototype; P2-M3B: now permission-gated — a tab only renders if the actor holds a key for it) */}
       <div className="flex gap-2 border-b border-farm-accent pb-0.5" role="tablist">
-        <button role="tab" aria-selected={tab === 'consumables'} onClick={() => setTab('consumables')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'consumables' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-          <ShoppingBag className="h-4 w-4" aria-hidden /> Consumables &amp; Seed Stocks
-        </button>
-        <button role="tab" aria-selected={tab === 'equipment'} onClick={() => setTab('equipment')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'equipment' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-          <Hammer className="h-4 w-4" aria-hidden /> Heavy Equipment &amp; Spades
-        </button>
-        <button role="tab" aria-selected={tab === 'purchases'} onClick={() => setTab('purchases')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'purchases' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-          <ReceiptText className="h-4 w-4" aria-hidden /> Purchase Summary
-        </button>
-        <button role="tab" aria-selected={tab === 'usage'} onClick={() => setTab('usage')}
-          className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === 'usage' ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-          <History className="h-4 w-4" aria-hidden /> Usage History
-        </button>
+        {visibleTabs.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
+              className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === t.key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+              <Icon className="h-4 w-4" aria-hidden /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'usage' ? (

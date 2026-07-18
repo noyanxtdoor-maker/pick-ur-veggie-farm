@@ -35,7 +35,15 @@ export interface AccessSection {
 // (P1C3). Reuses existing catalog keys everywhere except membership.approve (new, P1C3).
 export const SECTION_TREE: AccessSection[] = [
   {key: 'pos', label: 'Weigh Point-Of-Sale', leaf: {key: 'pos', label: 'Weigh Point-Of-Sale', readKey: 'pos.sell', manageKey: 'product.manage'}},
-  {key: 'inventory', label: 'Stock Inventories', leaf: {key: 'inventory', label: 'Stock Inventories', readKey: null, manageKey: 'equipment.manage'}},
+  {
+    key: 'inventory', label: 'Stock Inventories',
+    tabs: [
+      {key: 'inv_consumables', label: 'Consumables & Seed Stocks', readKey: 'inventory.adjust', manageKey: 'inventory.purchase'},
+      {key: 'inv_equipment', label: 'Heavy Equipment & Spades', readKey: null, manageKey: 'equipment.manage'},
+      {key: 'inv_purchases', label: 'Purchase Summary', readKey: 'inventory.reports.read', manageKey: null},
+      {key: 'inv_usage', label: 'Usage History', readKey: null, manageKey: 'inventory.adjust'},
+    ],
+  },
   {key: 'accounting', label: 'Automated Accounting', leaf: {key: 'accounting', label: 'Automated Accounting', readKey: 'accounting.read', manageKey: 'accounting.manage'}},
   {key: 'customers', label: 'Customers & Credit', leaf: {key: 'customers', label: 'Customers & Credit', readKey: 'customer.read', manageKey: 'customer.manage'}},
   {

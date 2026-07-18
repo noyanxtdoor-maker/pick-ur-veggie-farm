@@ -94,7 +94,7 @@ export function AccessDialog({title, subtitle, open, onClose, getTier, applyTier
   const [tiers, setTiers] = useState<Selections>({});
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({operations: true, organization: true});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({operations: true, organization: true, inventory: true});
 
   const reload = () => {
     setLoaded(false); setSelections({}); setTiers({});
