@@ -110,3 +110,22 @@ export async function pendingCount(db: OfflineDB = offlineDB): Promise<number> {
 export async function blockedCount(db: OfflineDB = offlineDB): Promise<number> {
   return db.outbox.where('state').equals('Blocked').count();
 }
+
+export async function blockedItems(db: OfflineDB = offlineDB): Promise<OutboxItem[]> {
+  return db.outbox.where('state').equals('Blocked').reverse().sortBy('createdAt');
+}
+
+// Found live (2026-07-19, owner report — a sale made on one device never appeared anywhere else): the
+// queue already classified a permanently-rejected item as 'Blocked' and preserved it (never silently
+// dropped, B5 §7) rather than losing it, but nothing in the app ever showed a Blocked item to anyone —
+// the top bar's own "pending" count deliberately excludes 'Blocked' (it means something different: work
+// still in flight vs. work that needs a human). The record was never actually lost, just invisible.
+// This is the other half: let the person whose device holds it see it, and re-queue it once whatever
+// was wrong (e.g. a since-fixed reference) no longer applies.
+export async function retryBlocked(id: string, db: OfflineDB = offlineDB): Promise<void> {
+  await db.transaction('rw', db.outbox, async () => {
+    const row = await db.outbox.get(id);
+    if (!row || row.state !== 'Blocked') return;
+    await db.outbox.put({...row, state: 'Pending', lastError: null, updatedAt: Date.now()});
+  });
+}

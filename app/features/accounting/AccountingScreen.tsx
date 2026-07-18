@@ -10,6 +10,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import {Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {AlertCircle, BarChart3, BookOpen, FileText, HelpCircle, Landmark, PieChart, Plus, TrendingUp, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, StatCard, cn} from '../../components/ui';
@@ -46,6 +47,7 @@ export default function AccountingScreen() {
   const canManage = has('accounting.manage');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined); // for the Cash Ledger (writes need a branch)
   useEffect(() => {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);

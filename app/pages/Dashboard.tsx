@@ -9,7 +9,7 @@ import {Activity, ArrowRight, Building2, Mailbox, Plus, ShoppingCart, TrendingUp
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {supabase} from '../core/supabase/client';
 import {offlineDB} from '../core/offline/db';
-import {hydrateBranches} from '../core/offline/hydrate';
+import {hydrateBranches, hydrateCompany} from '../core/offline/hydrate';
 import {useRealtimeRefresh} from '../core/offline/realtime';
 import {useSync} from '../core/offline/sync';
 import {usePermissions} from '../core/permissions/permissions';
@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<PeriodDays>(7);
 
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
+  useEffect(() => {if (companyId) hydrateCompany(companyId);}, [companyId]);
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
   const branchCount = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).count() : 0), [companyId], 0);
 

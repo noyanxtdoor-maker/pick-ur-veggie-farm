@@ -6,6 +6,7 @@ import {NavLink, Outlet} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   ClipboardList,
   CloudOff,
@@ -29,7 +30,9 @@ import {useSession} from '../../core/auth/session';
 import {authApi} from '../../features/auth/api';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {useDarkToggle, usePref} from '../../core/prefs/prefs';
-import {offlineDB} from '../../core/offline/db';
+import {offlineDB, type OutboxItem} from '../../core/offline/db';
+import {hydrateCompany} from '../../core/offline/hydrate';
+import {blockedItems, retryBlocked} from '../../core/offline/queue';
 import type {PermissionKey} from '../../types/db';
 import {Loading, OfflineBanner} from '../feedback';
 import {cn} from '../ui';
@@ -66,24 +69,28 @@ function visibleNav<T extends {perms?: readonly PermissionKey[]}>(items: readonl
   return items.filter((m) => !m.perms || m.perms.length === 0 || m.perms.some(has));
 }
 
-// Mobile bottom bar (owner 2026-07-04): 4 user-customizable shortcut slots + a fixed "More" sheet for
-// everything else. Preference is per-device (usePref), validated against the real module list.
+// Mobile bottom bar (owner 2026-07-04): 5 user-customizable shortcut slots (was 4 — freed a slot when
+// the "More" trigger moved into the top bar, 2026-07-18) + a sheet for everything else, now opened from
+// the top bar instead of a bottom-bar button. Preference is per-device (usePref), validated against the
+// real module list. `sheetOpen`/`setSheetOpen` are owned by AppShell so the top bar's trigger and this
+// sheet share one source of truth despite living in visually separate DOM subtrees.
 const ALL_NAV = [...CORE_MODULES, ORG_LINK] as const;
-const MOBILE_NAV_DEFAULT = '/dashboard,/pos,/inventory,/operations';
+const MOBILE_NAV_DEFAULT = '/dashboard,/pos,/inventory,/operations,/payroll';
+const MOBILE_NAV_SLOTS = 5;
 
-function MobileNav() {
+function MobileNav({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v: boolean) => void}) {
   const {has} = usePermissions();
   const [slotsPref, setSlotsPref] = usePref('mobile_nav', MOBILE_NAV_DEFAULT);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
+  useEffect(() => setCustomizing(false), [sheetOpen]); // fresh "All sections" view each time the sheet opens, mirrors the old open-button's reset
   const nav = visibleNav(ALL_NAV, has);
   const validPaths = nav.map((m) => m.to as string);
-  const slots = slotsPref.split(',').filter((p) => validPaths.includes(p)).slice(0, 4);
+  const slots = slotsPref.split(',').filter((p) => validPaths.includes(p)).slice(0, MOBILE_NAV_SLOTS);
   const slotItems = slots.map((p) => nav.find((m) => m.to === p)!);
 
   const toggleSlot = (to: string) => {
     if (slots.includes(to)) setSlotsPref(slots.filter((s) => s !== to).join(','));
-    else if (slots.length < 4) setSlotsPref([...slots, to].join(','));
+    else if (slots.length < MOBILE_NAV_SLOTS) setSlotsPref([...slots, to].join(','));
   };
 
   return (
@@ -105,15 +112,6 @@ function MobileNav() {
             </NavLink>
           );
         })}
-        <button
-          onClick={() => {setSheetOpen((o) => !o); setCustomizing(false);}}
-          className={cn('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-bold', sheetOpen ? 'text-farm-green' : 'text-farm-muted')}
-          aria-expanded={sheetOpen}
-          aria-label="More sections"
-        >
-          <Menu className="h-5 w-5" aria-hidden />
-          <span>More</span>
-        </button>
       </nav>
 
       {sheetOpen ? (
@@ -121,7 +119,7 @@ function MobileNav() {
           <button className="absolute inset-0 bg-black/40" aria-label="Close" onClick={() => setSheetOpen(false)} />
           <div className="absolute inset-x-0 bottom-14 max-h-[70vh] overflow-auto rounded-t-2xl border-t border-farm-accent-soft bg-farm-card p-4 pb-6 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-black text-farm-ink">{customizing ? `Choose your shortcuts (${slots.length}/4)` : 'All sections'}</h3>
+              <h3 className="text-sm font-black text-farm-ink">{customizing ? `Choose your shortcuts (${slots.length}/${MOBILE_NAV_SLOTS})` : 'All sections'}</h3>
               <button onClick={() => setCustomizing((c) => !c)} className="rounded-lg bg-farm-accent-soft px-3 py-1.5 text-[11px] font-bold text-farm-green">
                 {customizing ? 'Done' : 'Customize bar'}
               </button>
@@ -231,13 +229,26 @@ function NavRail() {
   );
 }
 
-function TopBar() {
-  const {online, pending, syncing, manualSync} = useSync();
+function TopBar({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v: boolean) => void}) {
+  const {online, pending, blocked, syncing, manualSync} = useSync();
   const {companyId} = usePermissions();
   const [farmName] = usePref('farm_display_name');
   const [terminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
   const [isDark, toggleDark] = useDarkToggle();
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
+  useEffect(() => {if (companyId) hydrateCompany(companyId);}, [companyId]);
+
+  // Found live (2026-07-19, owner report — a sale on one device never showed up anywhere else): the
+  // outbox queue already tracked permanently-rejected items as 'Blocked' and kept them (never silently
+  // dropped, B5 §7), but nothing ever showed a Blocked item to anyone — the "pending" badge deliberately
+  // excludes them (pending = still in flight; blocked = needs a human). The record wasn't lost, just
+  // invisible on the one device that has it. This panel is that missing half: visible whenever this
+  // device is holding a Blocked item, listing the actual server error, with a Retry that re-queues it.
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [issues, setIssues] = useState<OutboxItem[]>([]);
+  const loadIssues = useCallback(() => { blockedItems().then(setIssues).catch(() => setIssues([])); }, []);
+  useEffect(() => { if (issuesOpen) loadIssues(); }, [issuesOpen, loadIssues]);
+  useEffect(() => { loadIssues(); }, [blocked, loadIssues]); // keep the count-driving list fresh as items resolve
 
   // Local UI-only sync flag (ported from Team B, owner 2026-07-16): the owner reported the Sync
   // button "doesn't animate, glitches on tap." Root cause: useSync()'s `syncing` flag toggles with
@@ -288,6 +299,34 @@ function TopBar() {
           {showSync ? <span className="text-xs">Syncing…</span> : null}
           {pending > 0 ? <span className="rounded-full bg-amber-200 px-2 text-amber-900">{pending}</span> : null}
         </button>
+        {blocked > 0 ? (
+          <button
+            onClick={() => setIssuesOpen(true)}
+            className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 font-semibold text-farm-danger"
+            title={`${blocked} change${blocked === 1 ? '' : 's'} on this device couldn't sync — tap to review`}
+          >
+            <AlertTriangle size={18} aria-hidden />
+            <span className="rounded-full bg-red-200 px-2 text-red-900">{blocked}</span>
+          </button>
+        ) : null}
+        {/* Profile + "More sections" (mobile only, 2026-07-18): moved up from the bottom bar per owner
+            request — frees a 5th customizable slot down there (now defaulted to Payroll) and keeps
+            these two reachable without opening the sheet first. Desktop/tablet already has both (the
+            NavRail's own Profile link, and every section visible directly) — no need to duplicate them
+            in the top bar there, confirmed with the owner (four buttons is fine once the view is wide
+            enough to space them out). */}
+        <NavLink to="/profile" className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg text-farm-green md:hidden" title="My Profile" aria-label="My Profile">
+          <UserCircle size={18} aria-hidden />
+        </NavLink>
+        <button
+          onClick={() => setSheetOpen(!sheetOpen)}
+          className={cn('flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg md:hidden', sheetOpen ? 'text-farm-green' : 'text-farm-muted')}
+          aria-expanded={sheetOpen}
+          aria-label="More sections"
+          title="More sections"
+        >
+          <Menu size={18} aria-hidden />
+        </button>
         <div className="hidden min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-ink md:inline-flex">
           <span className="h-2 w-2 animate-pulse rounded-full bg-farm-green" aria-hidden />
           <span>Station: <strong className="font-mono text-farm-green">{terminalId}</strong></span>
@@ -307,6 +346,43 @@ function TopBar() {
         >
           <span className="syncoverlay__shimmer" />
           <span className="syncoverlay__label">Syncing…</span>
+        </div>
+      ) : null}
+
+      {issuesOpen ? (
+        <div className="fixed inset-0 z-40" role="dialog" aria-label="Sync issues on this device">
+          <button className="absolute inset-0 bg-black/40" aria-label="Close" onClick={() => setIssuesOpen(false)} />
+          <div className="absolute inset-x-4 top-20 mx-auto max-h-[70vh] max-w-lg overflow-auto rounded-2xl border border-farm-accent-soft bg-farm-card p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-black text-farm-ink"><AlertTriangle size={16} className="text-farm-danger" aria-hidden /> Sync issues on this device</h3>
+              <button onClick={() => setIssuesOpen(false)} className="rounded-lg bg-farm-accent-soft px-3 py-1.5 text-[11px] font-bold text-farm-green">Close</button>
+            </div>
+            <p className="mb-3 text-[11px] text-farm-muted">
+              These changes were made on this device but the server rejected them — nothing was lost, but they will
+              never reach anyone else until you retry (or ask for help if the same error keeps happening).
+            </p>
+            {issues.length === 0 ? (
+              <p className="py-4 text-center text-sm text-farm-muted">No issues right now.</p>
+            ) : (
+              <ul className="space-y-2">
+                {issues.map((item) => (
+                  <li key={item.id} className="rounded-xl border border-red-200 bg-red-50 p-3">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold capitalize text-farm-ink">{item.kind.replace(/[._]/g, ' ')}</span>
+                      <span className="text-[10px] text-farm-muted">{new Date(item.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="mb-2 text-[11px] text-farm-danger">{item.lastError || 'No error detail recorded.'}</p>
+                    <button
+                      onClick={() => { void retryBlocked(item.id).then(() => { loadIssues(); manualSync(); }); }}
+                      className="rounded-lg bg-farm-green px-2.5 py-1 text-[11px] font-bold text-white hover:bg-farm-green-700"
+                    >
+                      Retry now
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       ) : null}
     </header>
@@ -368,6 +444,10 @@ function AwaitingApproval() {
 export function AppShell() {
   const {online, pending} = useSync();
   const {companyId, loading} = usePermissions();
+  // Owned here, not inside TopBar or MobileNav individually — the "More sections" trigger (top bar)
+  // and the sheet it opens (bottom-anchored, alongside the mobile nav) live in separate DOM subtrees
+  // but must share one boolean.
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   // Real-mode gate (ported from Team B, owner directive 2026-07-16): no company membership means
   // AwaitingApproval, AND we must NOT flash the dashboard for ~0.5s before that decision resolves.
   // `loading` flips false a moment after a cached snapshot is read from Dexie, and <Outlet/> could
@@ -381,7 +461,7 @@ export function AppShell() {
     <div className="flex h-screen bg-farm-bg text-farm-ink">
       <NavRail />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar />
+        <TopBar sheetOpen={mobileSheetOpen} setSheetOpen={setMobileSheetOpen} />
         {!online ? <OfflineBanner pending={pending} /> : null}
         {/* pb-24 on phones clears the fixed bottom nav bar */}
         <main className="flex-1 overflow-auto p-4 pb-24 md:p-8">
@@ -392,7 +472,7 @@ export function AppShell() {
           </div>
         </main>
       </div>
-      <MobileNav />
+      <MobileNav sheetOpen={mobileSheetOpen} setSheetOpen={setMobileSheetOpen} />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {AlertCircle, Banknote, CloudOff, Download, Lock, Printer, Scale, Settings2, ShoppingCart, Sprout, Tag, Trash2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
-import {hydrateBranches} from '../../core/offline/hydrate';
+import {hydrateBranches, hydrateInvoices} from '../../core/offline/hydrate';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSync} from '../../core/offline/sync';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -38,6 +38,11 @@ export default function PosScreen() {
   const canRequestRemove = has('product.remove') || canManageProducts;
 
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
+  // Found live (owner report, 2026-07-19): the Historical Sales Journal below reads offlineDB.posInvoices
+  // directly — correct for a sale THIS device just made, but nothing ever pulled other devices' sales
+  // into that cache, so the journal only ever showed "my own device's sales" despite the Dashboard right
+  // above it correctly aggregating everyone's. Re-hydrates on mount and on every manual sync tap.
+  useEffect(() => {if (companyId) hydrateInvoices(companyId);}, [companyId, refreshTick]);
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   useEffect(() => {

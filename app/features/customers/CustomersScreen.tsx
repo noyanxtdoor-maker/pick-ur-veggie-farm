@@ -6,6 +6,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {Archive, CreditCard, FileText, Pencil, Plus, UserPlus, Users2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
@@ -25,6 +26,7 @@ export default function CustomersScreen() {
   const canManage = has('customer.manage');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);

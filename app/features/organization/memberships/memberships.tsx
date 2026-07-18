@@ -7,6 +7,7 @@ import {Plus} from 'lucide-react';
 import {supabase} from '../../../core/supabase/client';
 import {offlineDB} from '../../../core/offline/db';
 import {enqueue} from '../../../core/offline/queue';
+import {hydrateBranches, hydrateRoles} from '../../../core/offline/hydrate';
 import {usePermissions} from '../../../core/permissions/permissions';
 import {useSync} from '../../../core/offline/sync';
 import {MOCK_MODE, mockUsers} from '../../../core/mock/mock';
@@ -162,7 +163,15 @@ export default function MembersScreen() {
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).toArray() : []), [companyId]);
   const roles = useLiveQuery(async () => (companyId ? offlineDB.roles.where('company_id').equals(companyId).toArray() : []), [companyId]);
 
-  const reload = () => {if (companyId) membershipsApi.fetch(companyId).then(setRows).catch(() => setRows([]));};
+  const reload = () => {
+    if (!companyId) return;
+    membershipsApi.fetch(companyId).then(setRows).catch(() => setRows([]));
+    // Fresh device landing directly on Memberships (never visited Branches/Roles/Approvals first): the
+    // Assign-role dialog's branch/role dropdowns read this same Dexie cache — hydrate it here too, same
+    // gap class as ApprovalsScreen's own hydrateBranches call (found live 2026-07-19).
+    hydrateBranches(companyId);
+    hydrateRoles(companyId);
+  };
   useEffect(reload, [companyId, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const current = selected && selected !== 'new' ? rows?.find((r) => r.id === selected) : undefined;
