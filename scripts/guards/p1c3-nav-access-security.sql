@@ -23,6 +23,11 @@
 --   SAD 4 (Bug-A regression): an explicit deny override on membership.approve for a co_owner (who
 --          holds it via the full-catalog role grant) makes user_key_tier resolve 'none', not 'view' —
 --          proves the read-key-deny check was actually added to user_key_tier, not just manage-key.
+--   HAPPY 8 (P1C3.2 regression, 2026-07-18): a target already holding TWO simultaneous active rows
+--          (a historical/manual-SQL anomaly the RPC itself can no longer create, but must still heal —
+--          found live: this exact state on a real account made set_user_permission_override's MAX(rank)
+--          resolve a false tie) gets reassigned once by the owner — after the call, exactly ONE active
+--          row remains, pointing at the newly assigned role, not two.
 --   GRANT SHAPE: anon has EXECUTE on none of user_key_tier, list_pending_users, reject_pending_user,
 --          assign_membership_with_payroll.
 -- Wrapped in BEGIN/ROLLBACK; does not mutate.
@@ -200,6 +205,39 @@ do $$ declare v_co uuid; v_br uuid; v_op_role uuid; v_target uuid; v_admin_auth 
   exception when insufficient_privilege then
     raise notice 'PASS p1c3: admin(approve only) denied reassigning an existing member — membership.manage still required';
   end;
+end $$;
+
+-- ── HAPPY 8 (P1C3.2 regression): reassigning a target that already holds TWO active rows leaves
+--    exactly ONE active row afterward, pointing at the new role ──
+set local role postgres; -- SAD2 above leaves the session as `authenticated`; every fixture insert needs postgres
+insert into auth.users (instance_id, id, aud, role, email) values
+  ('00000000-0000-0000-0000-000000000000', '0b000000-0000-0000-0000-0000000000c8'::uuid, 'authenticated', 'authenticated', 'dup.p1c3@t.local');
+do $$ declare v_dup uuid; v_co uuid; v_br uuid; v_emp uuid; v_coowner uuid; begin
+  set local role postgres;
+  insert into public.users (auth_user_id, display_name, email, username)
+    values ('0b000000-0000-0000-0000-0000000000c8', 'Dup P1C3', 'dup.p1c3@t.local', 'dup_p1c3')
+    on conflict (auth_user_id) do nothing;
+  select id into v_dup from public.users where auth_user_id='0b000000-0000-0000-0000-0000000000c8';
+  select v_company into v_co from g; select v_branch into v_br from g;
+  select v_emp_role into v_emp from g; select v_co_role into v_coowner from g;
+  -- simulate the historical anomaly directly — two simultaneous Active rows, different roles
+  insert into public.user_branch_roles (user_id, company_id, branch_id, role_id)
+    values (v_dup, v_co, v_br, v_emp), (v_dup, v_co, v_br, v_coowner);
+end $$;
+do $$ declare v_co uuid; v_br uuid; v_target_role uuid; v_dup uuid; v_owner_auth uuid := '0a000000-0000-0000-0000-0000000000c3'; n int; v_active_role uuid; begin
+  select v_company into v_co from g; select v_branch into v_br from g; select v_admin_role into v_target_role from g;
+  select id into v_dup from public.users where auth_user_id='0b000000-0000-0000-0000-0000000000c8';
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', v_owner_auth)::text, true);
+  perform public.assign_membership_with_payroll(v_co, v_dup, v_br, v_target_role, null, null, null, true);
+  set local role postgres;
+  select count(*) into n from public.user_branch_roles
+    where user_id = v_dup and company_id = v_co and assignment_status = 'Active';
+  if n <> 1 then raise exception 'HAPPY8: expected exactly 1 active row after reassignment, found %', n; end if;
+  select role_id into v_active_role from public.user_branch_roles
+    where user_id = v_dup and company_id = v_co and assignment_status = 'Active';
+  if v_active_role <> v_target_role then raise exception 'HAPPY8: the surviving active row is not the newly assigned role'; end if;
+  raise notice 'PASS p1c3.2: reassigning a target with 2 pre-existing active rows leaves exactly 1, pointing at the new role';
 end $$;
 
 -- ── SAD 3: set_user_permission_override(...) still raises for the admin actor ──
