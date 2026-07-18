@@ -97,13 +97,13 @@ describe('weigh-POS (mock mode)', () => {
     const settled = (await offlineDB.posInvoices.get(invoice.id))!;
     expect(settled.status).toBe('Paid');
 
-    // void → stock restored
-    await posApi.voidSale(DEMO.companyId, settled, 'test reversal');
+    // void → stock restored (mock mode has no approval concept, so requestVoid still voids instantly)
+    await posApi.requestVoid(DEMO.companyId, settled, 'test reversal');
     expect((await offlineDB.posInvoices.get(invoice.id))!.status).toBe('Voided');
     const afterStock = await posApi.fetchStock(DEMO.companyId, DEMO.branchA);
     expect(afterStock.find((f) => f.id === batch.id)!.available).toBe(availBefore);
     // void without reason rejected
-    await expect(posApi.voidSale(DEMO.companyId, settled, '  ')).rejects.toThrow(/reason/i);
+    await expect(posApi.requestVoid(DEMO.companyId, settled, '  ')).rejects.toThrow(/reason/i);
   });
 
   it('price book management: add / reprice', async () => {

@@ -31,7 +31,6 @@ export default function PosScreen() {
   const {notify} = useToast();
   const canSell = has('pos.sell');
   const canSettle = has('pos.settle');
-  const canVoid = has('pos.void');
   const canManageProducts = has('product.manage');
   // P1O: employee/operator (product.remove only, default) can request a removal but not add/edit-price;
   // product.manage always supersedes (instant removal, no approval needed).
@@ -201,12 +200,12 @@ export default function PosScreen() {
     if (busy || !companyId || !voidTarget) return;
     setBusy(true);
     try {
-      await posApi.voidSale(companyId, voidTarget, voidReason);
-      notify(`Slip #${voidTarget.invoice_number ?? '—'} voided`);
+      await posApi.requestVoid(companyId, voidTarget, voidReason);
+      notify(`Void requested for slip #${voidTarget.invoice_number ?? '—'} — awaiting approval`);
       setVoidTarget(null); setVoidReason('');
       reload();
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'Void failed', 'error');
+      notify(e instanceof Error ? e.message : 'Void request failed', 'error');
     } finally {
       setBusy(false);
     }
@@ -605,12 +604,14 @@ export default function PosScreen() {
       {/* void confirmation panel */}
       {voidTarget ? (
         <Card className="animate-fade-in border-farm-danger">
-          <h3 className="mb-2 text-lg font-bold text-farm-danger">Void slip #{voidTarget.invoice_number != null ? String(voidTarget.invoice_number).padStart(5, '0') : '—'}?</h3>
-          <p className="mb-3 text-sm text-farm-muted">This appends reversing entries (stock returned, books reversed). It cannot be undone — history is preserved.</p>
+          <h3 className="mb-2 text-lg font-bold text-farm-danger">Request void — slip #{voidTarget.invoice_number != null ? String(voidTarget.invoice_number).padStart(5, '0') : '—'}?</h3>
+          {/* P2N2 (2026-07-19): voiding is now a request, not a unilateral click — a pos.void holder
+              who is NOT you reviews it on the Approvals screen. Nothing reverses until they approve. */}
+          <p className="mb-3 text-sm text-farm-muted">Sends this slip to Approvals for review. Nothing is reversed yet — a manager who did not file this request approves or rejects it there.</p>
           <div className="flex flex-wrap items-center gap-2">
             <input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Reason (required)…" aria-label="Void reason" className="min-h-12 flex-1 rounded-lg border border-farm-accent px-3 text-sm" />
             <Button variant="secondary" onClick={() => {setVoidTarget(null); setVoidReason('');}} disabled={busy}>Cancel</Button>
-            <Button variant="danger" onClick={() => void commitVoid()} disabled={busy || !voidReason.trim()}>{busy ? 'VOIDING…' : 'VOID SLIP'}</Button>
+            <Button variant="danger" onClick={() => void commitVoid()} disabled={busy || !voidReason.trim()}>{busy ? 'SENDING…' : 'REQUEST VOID'}</Button>
           </div>
         </Card>
       ) : null}
@@ -706,13 +707,15 @@ export default function PosScreen() {
                         {t.status === 'Unpaid' && canSettle ? (
                           <button onClick={() => {setSettleTarget(t); setCash(''); setPayAccountId(''); setPane('settle');}} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100">Mark Paid</button>
                         ) : null}
-                        {t.status !== 'Voided' && t.status !== 'PendingSync' && canVoid ? (
-                          <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Void</button>
+                        {/* P2N2 (2026-07-19): filing is pos.sell-gated (anyone can request); approving is
+                            pos.void-gated on the Approvals screen, by someone other than the requester. */}
+                        {t.status !== 'Voided' && t.status !== 'PendingSync' && canSell ? (
+                          <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Request Void</button>
                         ) : null}
                         <button onClick={() => {setLastSale({invoice: t, provisional: false}); setPane('receipt');}} className="rounded border border-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" aria-label={`Print slip #${t.invoice_number ?? ''}`}>
                           <Printer className="h-3.5 w-3.5" aria-hidden />
                         </button>
-                        {t.status !== 'Voided' && !canVoid && !canSettle ? <Lock className="h-3.5 w-3.5 text-farm-accent" aria-hidden /> : null}
+                        {t.status !== 'Voided' && !canSell && !canSettle ? <Lock className="h-3.5 w-3.5 text-farm-accent" aria-hidden /> : null}
                       </span>
                     </td>
                   </tr>

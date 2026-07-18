@@ -256,10 +256,15 @@ export const posApi = {
     return change;
   },
 
-  // Void (audited reversal; reason mandatory; approval-tier permission enforced server-side).
-  async voidSale(companyId: string, invoice: PosInvoice, reason: string): Promise<void> {
+  // P2N2 (2026-07-19, owner: "finish and deploy the deferred money path"): a void is now a REQUEST,
+  // not a unilateral click — pos.sell-gated (anyone can file), approved/rejected on the Approvals
+  // screen by a pos.void holder who isn't the requester (separation of duties). The reversal itself
+  // only happens on approve_void_request; filing a request does NOT touch the invoice's stock or
+  // status, so — unlike the old voidSale — this does not write a local Voided flip.
+  async requestVoid(companyId: string, invoice: PosInvoice, reason: string): Promise<void> {
     if (!reason.trim()) throw new Error('A void reason is required.');
     if (MOCK_MODE) {
+      // Mock/demo mode has no approval concept — mirrors the pre-P2N2 instant-void behavior.
       for (const l of invoice.lines) {
         if (l.weight_kg === null || l.finished_goods_batch_id === null) continue; // bulk lines never moved stock
         const fg = await offlineDB.finishedGoods.get(l.finished_goods_batch_id);
@@ -270,12 +275,11 @@ export const posApi = {
     }
     const payload = {p_invoice_id: invoice.id, p_reason: reason};
     if (online()) {
-      const {error} = await supabase.rpc('pos_void_sale', payload);
+      const {error} = await supabase.rpc('request_void', payload);
       if (error) throw new Error(error.message);
     } else {
-      await enqueue({companyId, kind: 'pos.void', request: {type: 'rpc', rpc: 'pos_void_sale', payload}});
+      await enqueue({companyId, kind: 'pos.void.request', request: {type: 'rpc', rpc: 'request_void', payload}});
     }
-    await offlineDB.posInvoices.put({...invoice, status: 'Voided'});
   },
 
   // ── Crop Pricing Menu (prototype Catalog Manager; product.manage; M2A client write grants) ──

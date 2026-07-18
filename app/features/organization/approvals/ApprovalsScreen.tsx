@@ -27,6 +27,7 @@ import {payrollApi} from '../../payroll/api';
 import {AccessDialog} from '../overrides/AccessDialog';
 import {accessApi} from '../overrides/access';
 import {revokeRequestsApi, type RevokeRequest} from '../revoke-requests/revokeRequests';
+import {voidRequestsApi, type VoidRequest} from '../../pos/voidRequests';
 import {MOCK_MODE, DEMO} from '../../../core/mock/mock';
 
 // P1D §Part1: rank<40 (below co_owner) = a role that implies paid work — approving/assigning it requires
@@ -65,6 +66,9 @@ export default function ApprovalsScreen() {
   // via the full-catalog seed grant); the OR only matters for a per-user override that grants
   // membership.manage without also granting membership.approve.
   const canApprove = has('membership.approve') || canManage;
+  // P2N2 (2026-07-19): approving/rejecting a queued void request is pos.void-gated, independent of
+  // the membership approve/manage tiers above — a co_owner without pos.void still can't clear a void.
+  const canVoid = has('pos.void');
   const canManageJobTitle = has('job_title.manage');
   const [jobTitleTarget, setJobTitleTarget] = useState<MemberRow | null>(null);
   const [jobTitleValue, setJobTitleValue] = useState('');
@@ -97,6 +101,10 @@ export default function ApprovalsScreen() {
   // membership.manage-gated). Any co_owner/owner may REQUEST a revoke; a DIFFERENT co_owner/owner must
   // APPROVE/REJECT it (separation of duties). The box only renders when this queue is non-empty.
   const [revokeReqs, setRevokeReqs] = useState<RevokeRequest[] | null>(null);
+  // P2N2 (2026-07-19): the void-approval queue (server: list_void_requests, pos.void-gated). Any
+  // pos.sell holder may REQUEST a void from the POS Journal; a DIFFERENT pos.void holder must
+  // APPROVE/REJECT it here (separation of duties). The box only renders when this queue is non-empty.
+  const [voidReqs, setVoidReqs] = useState<VoidRequest[] | null>(null);
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
 
   // P1D §Part1: the unified approve/reassign dialog — see AssignTarget above.
@@ -115,6 +123,7 @@ export default function ApprovalsScreen() {
     membershipsApi.fetch(companyId).then(setRows).catch(() => setRows([]));
     if (canApprove) authApi.listPendingUsers().then(setPending).catch(() => setPending([]));
     if (canManage) revokeRequestsApi.list().then(setRevokeReqs).catch(() => setRevokeReqs([]));
+    if (canVoid) voidRequestsApi.list().then(setVoidReqs).catch(() => setVoidReqs([]));
     // P1C3: positions + unlinked-eligible move to canApprove too — an approve-tier admin approving
     // someone into a payroll-eligible role needs the position dropdown populated, or the approve
     // dialog is uncompletable for a waged role.
@@ -130,8 +139,8 @@ export default function ApprovalsScreen() {
         .then(({data}) => {if (data) void offlineDB.roles.bulkPut(data as never[]);}).catch(() => undefined);
     }
   };
-  useEffect(reload, [companyId, canManage, canApprove, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
-  useRealtimeRefresh([{table: 'user_branch_roles'}, {table: 'users', scoped: false}], companyId, reload); // P1K: another session's approve/revoke/archive/reject/archive shows up here without a manual refresh (users has no company_id — a pending signup has no company yet, C2 §3)
+  useEffect(reload, [companyId, canManage, canApprove, canVoid, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
+  useRealtimeRefresh([{table: 'user_branch_roles'}, {table: 'users', scoped: false}, {table: 'void_requests'}], companyId, reload); // P1K: another session's approve/revoke/archive/reject/archive/void-decision shows up here without a manual refresh (users has no company_id — a pending signup has no company yet, C2 §3)
 
   function closeAssignDialog() {
     setAssignTarget(null); setApBranch(''); setApRole('');
@@ -297,6 +306,26 @@ export default function ApprovalsScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Reject failed', 'error'); } finally { setBusy(false); }
   }
 
+  // P2N2 (2026-07-19): approve executes the reversal server-side (journal + stock return, reverses
+  // against whatever account was actually debited — B2A-aware); reject leaves the slip untouched.
+  async function approveVoid(req: VoidRequest) {
+    setBusy(true);
+    try {
+      await voidRequestsApi.approve(req.id);
+      await triggerSync();
+      notify(`Slip #${req.invoice_number ?? '—'} voided (request approved)`);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Approve failed', 'error'); } finally { setBusy(false); }
+  }
+  async function rejectVoid(req: VoidRequest) {
+    setBusy(true);
+    try {
+      await voidRequestsApi.reject(req.id, 'Not approved at this time');
+      notify('Void request rejected');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Reject failed', 'error'); } finally { setBusy(false); }
+  }
+
   // P1G/P1G.1: retire an account so it drops off the day-to-day directory — auto-revokes any access it
   // still holds in the same call; never a hard-delete. Unarchiving lives in its own "Archived" tab.
   const [archiveTarget, setArchiveTarget] = useState<MemberRow | null>(null);
@@ -378,6 +407,40 @@ export default function ApprovalsScreen() {
                     Approve revoke
                   </button>
                   <button onClick={() => void rejectRevoke(r)} disabled={busy}
+                    className="rounded-lg border border-farm-accent bg-farm-bg px-3 py-1.5 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">
+                    Reject
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {/* P2N2 (2026-07-19, owner: "finish and deploy the deferred money path"): the Pending Voids
+          box — mirrors Pending Revoke Approvals. Any pos.sell holder queues a void from the POS
+          Journal; a DIFFERENT pos.void holder approves (executes the reversal) or rejects it here.
+          Renders ONLY when there's a pending void, same convention as the box above. */}
+      {canVoid && voidReqs != null && voidReqs.length > 0 ? (
+        <Card>
+          <h3 className="mb-2 flex items-center gap-2 text-lg font-bold text-farm-warn"><Clock3 className="h-5 w-5" aria-hidden /> Pending Voids</h3>
+          <p className="mb-3 text-xs text-farm-muted">A pos.sell holder requested these voids. A DIFFERENT pos.void holder must approve or reject each — you cannot approve your own request. Approving reverses the sale (stock returned, books reversed) immediately.</p>
+          <ul className="divide-y divide-farm-accent-soft">
+            {voidReqs.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                <div>
+                  <p className="text-sm font-bold text-farm-ink">Slip #{r.invoice_number != null ? String(r.invoice_number).padStart(5, '0') : '—'} <span className="font-normal text-farm-muted">— {r.branch_name}</span></p>
+                  <p className="text-xs text-farm-muted">
+                    Requested by {r.requester_name} · {new Date(r.created_at).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}
+                  </p>
+                  <p className="mt-0.5 text-xs italic text-farm-muted">"{r.reason}"</p>
+                </div>
+                <span className="flex gap-1.5">
+                  <button onClick={() => void approveVoid(r)} disabled={busy}
+                    className="rounded-lg bg-farm-danger px-3 py-1.5 text-xs font-bold text-white hover:opacity-90">
+                    Approve void
+                  </button>
+                  <button onClick={() => void rejectVoid(r)} disabled={busy}
                     className="rounded-lg border border-farm-accent bg-farm-bg px-3 py-1.5 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">
                     Reject
                   </button>
