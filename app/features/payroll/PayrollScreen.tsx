@@ -105,15 +105,19 @@ export default function PayrollScreen() {
   const [wMode, setWMode] = useState<'days' | 'amount'>('days');
   const [wAmount, setWAmount] = useState('');
   const [wDed, setWDed] = useState('0');
+  const [wBonus, setWBonus] = useState('0');
   const [wPeriod, setWPeriod] = useState('');
   const [wNotes, setWNotes] = useState('');
 
   const wAmountNum = parseFloat(wAmount) || 0;
-  // Amount mode shows the typed figure verbatim as gross (exact, no derived-then-rebuilt rounding
-  // surprise for the owner) — the days sent to the RPC is solved from it only at submit time.
-  const wGross = !wageEmp ? 0 : wMode === 'amount' ? round2(wAmountNum) : round2((parseFloat(wDays) || 0) * wageEmp.daily_rate);
+  // Amount mode shows the typed figure verbatim as the base (exact, no derived-then-rebuilt rounding
+  // surprise for the owner) — the days sent to the RPC is solved from it only at submit time. A bonus
+  // is always additive on top of the base, shown as its own line so it's never silently folded in.
+  const wBaseGross = !wageEmp ? 0 : wMode === 'amount' ? round2(wAmountNum) : round2((parseFloat(wDays) || 0) * wageEmp.daily_rate);
   const wDaysForSubmit = wMode === 'amount' ? (wageEmp && wageEmp.daily_rate > 0 ? wAmountNum / wageEmp.daily_rate : 0) : parseFloat(wDays) || 0;
   const wDedNum = parseFloat(wDed) || 0;
+  const wBonusNum = parseFloat(wBonus) || 0;
+  const wGross = round2(wBaseGross + wBonusNum);
   const wNet = round2(Math.max(0, wGross - wDedNum));
 
   // ── link app user (M5C) — gives a worker self-service visibility of their OWN pay record ──
@@ -181,9 +185,9 @@ export default function PayrollScreen() {
     if (!companyId || !branchId || !wageEmp) return;
     setBusy(true);
     try {
-      await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, wDaysForSubmit, wDedNum, wNotes);
+      await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, wDaysForSubmit, wDedNum, wNotes, wBonusNum);
       notify(`Wage disbursed to ${wageEmp.name} — net ${formatPeso(wNet)}`);
-      setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWPeriod(''); setWNotes('');
+      setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWBonus('0'); setWPeriod(''); setWNotes('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Disbursement failed', 'error'); } finally { setBusy(false); }
   }
@@ -279,7 +283,7 @@ export default function PayrollScreen() {
                       {e.status === 'Active' ? (
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
+                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
                           {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>
@@ -459,6 +463,10 @@ export default function PayrollScreen() {
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-ded">Deduct Advance (₱)</label>
                   <input id="w-ded" value={wDed} onChange={(e) => setWDed(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold text-farm-danger" />
                 </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-bonus">Bonus / Incentive (₱)</label>
+                  <input id="w-bonus" value={wBonus} onChange={(e) => setWBonus(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold text-farm-green" />
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-period">Pay Period</label>
@@ -469,7 +477,8 @@ export default function PayrollScreen() {
                 <input id="w-notes" value={wNotes} onChange={(e) => setWNotes(e.target.value)} placeholder="Regular harvesting cycle pay" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
               <div className="space-y-1 rounded-xl border border-farm-accent bg-emerald-50/60 p-3 text-xs">
-                <div className="flex justify-between"><span>Gross{wMode === 'amount' ? '' : ' (days × rate)'}</span><span className="tabular font-bold">{formatPeso(wGross)}</span></div>
+                <div className="flex justify-between"><span>{wMode === 'amount' ? 'Base amount' : 'Days × rate'}</span><span className="tabular font-bold">{formatPeso(wBaseGross)}</span></div>
+                {wBonusNum > 0 ? <div className="flex justify-between text-farm-green"><span>+ Bonus</span><span className="tabular font-bold">+{formatPeso(wBonusNum)}</span></div> : null}
                 <div className="flex justify-between text-farm-danger"><span>Deduct advance</span><span className="tabular font-bold">−{formatPeso(wDedNum)}</span></div>
                 <div className="flex justify-between border-t border-dashed border-farm-accent pt-1 font-black text-farm-green"><span>NET PAYOUT</span><span className="tabular">{formatPeso(wNet)}</span></div>
               </div>

@@ -110,6 +110,34 @@ begin
   raise notice 'PASS payroll: wage gross 1000 (server-computed), Dr Wages 1000/Cr Cash 700/Cr Advances 300 balanced; advance balance reduced 300';
 end $$;
 
+-- ── T3.3 HAPPY: bonus adds to gross correctly (1 day x 500 rate + 150 bonus = 650 gross, no deduction) ──
+do $$ declare v_wage uuid; v_entry uuid; d numeric; c numeric; v_gross numeric; v_net numeric; v_bonus numeric;
+begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_wage := public.payroll_disburse_wage('a1111111-1111-1111-1111-111111111111','e1000000-0000-0000-0000-0000000000e1','wk-bonus', 1.0, 0, 'x', 'wage-bonus-1', 150.00);
+  set local role postgres;
+  select gross, net, bonus_amount into v_gross, v_net, v_bonus from public.wage_payments where id = v_wage;
+  if v_gross <> 650.00 then raise exception 'DEFECT payroll (T3.3): bonus gross wrong (got %, want 650 = 1 x 500 + 150 bonus)', v_gross; end if;
+  if v_net <> 650.00 then raise exception 'DEFECT payroll (T3.3): bonus net wrong (got %, want 650, no deduction)', v_net; end if;
+  if v_bonus <> 150.00 then raise exception 'DEFECT payroll (T3.3): bonus_amount not persisted (got %, want 150)', v_bonus; end if;
+  select je.id into v_entry from public.journal_entries je where je.source_document_id = v_wage;
+  select coalesce(sum(debit),0), coalesce(sum(credit),0) into d, c from public.journal_lines where journal_entry_id = v_entry;
+  if d <> c or d <> 650.00 then raise exception 'DEFECT payroll (T3.3): bonus wage journal wrong (d=% c=%, want 650)', d, c; end if;
+  raise notice 'PASS payroll (T3.3): bonus 150 adds to gross (650), journal balanced, bonus_amount persisted';
+end $$;
+
+-- ── T3.3 HAPPY: omitting the bonus arg (old 7-arg call shape) behaves identically to pre-T3.3 — no regression ──
+do $$ declare v_wage uuid; v_gross numeric; v_bonus numeric;
+begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_wage := public.payroll_disburse_wage('a1111111-1111-1111-1111-111111111111','e1000000-0000-0000-0000-0000000000e1','wk-nobonus', 1.0, 0, 'x', 'wage-nobonus-1');
+  set local role postgres;
+  select gross, bonus_amount into v_gross, v_bonus from public.wage_payments where id = v_wage;
+  if v_gross <> 500.00 then raise exception 'DEFECT payroll (T3.3): 7-arg call (no bonus) gross wrong (got %, want 500 = 1 x 500, no regression)', v_gross; end if;
+  if v_bonus <> 0 then raise exception 'DEFECT payroll (T3.3): 7-arg call should default bonus_amount to 0 (got %)', v_bonus; end if;
+  raise notice 'PASS payroll (T3.3): 7-arg call (bonus omitted) unaffected — gross 500, bonus_amount defaults to 0';
+end $$;
+
 -- ── ATTACKS ──
 do $$ begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
   perform public.payroll_record_cash_advance('a1111111-1111-1111-1111-111111111111','e2000000-0000-0000-0000-0000000000e2', 100.00, 'x', 'ca-inactive');

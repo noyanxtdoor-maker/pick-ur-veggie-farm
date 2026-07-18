@@ -127,7 +127,7 @@ export const payrollApi = {
     }
     const {data, error} = await supabase.from('wage_payments').select('*').eq('company_id', companyId).eq('employee_id', employeeId).order('created_at', {ascending: false}).limit(300);
     if (error) throw new Error(error.message);
-    return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net)}));
+    return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net), bonus_amount: Number(w.bonus_amount)}));
   },
 
   // P2-M5C: link/unlink a staff record to an app user (payroll self-visibility). Governed rpc; audited server-side.
@@ -180,14 +180,16 @@ export const payrollApi = {
     }
     const {data, error} = await supabase.from('wage_payments').select('*').eq('company_id', companyId).eq('branch_id', branchId).order('created_at', {ascending: false}).limit(300);
     if (error) throw new Error(error.message);
-    return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net)}));
+    return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net), bonus_amount: Number(w.bonus_amount)}));
   },
 
-  // Disburse a wage: gross = days × rate (server recomputes; mock mirrors). Returns nothing (caller reloads).
-  async disburseWage(companyId: string, branchId: string, employee: Employee, payPeriod: string, daysWorked: number, caDeduction: number, notes: string): Promise<void> {
+  // Disburse a wage: gross = days × rate + optional bonus (server recomputes; mock mirrors). Returns nothing (caller reloads).
+  async disburseWage(companyId: string, branchId: string, employee: Employee, payPeriod: string, daysWorked: number, caDeduction: number, notes: string, bonusAmount = 0): Promise<void> {
     if (!(daysWorked > 0)) throw new Error('Days worked must be greater than 0.');
     if (caDeduction < 0) throw new Error('Deduction cannot be negative.');
-    const gross = round2(daysWorked * employee.daily_rate);
+    if (bonusAmount < 0) throw new Error('Bonus cannot be negative.');
+    const bonus = round2(bonusAmount);
+    const gross = round2(round2(daysWorked * employee.daily_rate) + bonus);
     if (caDeduction > gross) throw new Error('Deduction exceeds the gross wage.');
     const idem = uuidv7();
     if (MOCK_MODE) {
@@ -196,12 +198,12 @@ export const payrollApi = {
       await offlineDB.wagePayments.put({
         id: idem, company_id: companyId, branch_id: branchId, employee_id: employee.id,
         pay_period: payPeriod.trim() || 'Cycle', days_worked: daysWorked, daily_rate: employee.daily_rate,
-        gross, ca_deducted: round2(caDeduction), net: round2(gross - caDeduction), notes: notes.trim() || null,
+        gross, ca_deducted: round2(caDeduction), net: round2(gross - caDeduction), bonus_amount: bonus, notes: notes.trim() || null,
         created_at: new Date().toISOString(),
       });
       return;
     }
-    const payload = {p_branch_id: branchId, p_employee_id: employee.id, p_pay_period: payPeriod.trim() || 'Cycle', p_days_worked: daysWorked, p_ca_deduction: round2(caDeduction), p_notes: notes.trim() || null, p_idempotency_key: idem};
+    const payload = {p_branch_id: branchId, p_employee_id: employee.id, p_pay_period: payPeriod.trim() || 'Cycle', p_days_worked: daysWorked, p_ca_deduction: round2(caDeduction), p_notes: notes.trim() || null, p_idempotency_key: idem, p_bonus_amount: bonus};
     if (online()) {
       const {error} = await supabase.rpc('payroll_disburse_wage', payload);
       if (error) throw new Error(error.message);

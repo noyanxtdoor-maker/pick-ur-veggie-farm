@@ -491,6 +491,7 @@ export interface WagePayment {
   gross: number;
   ca_deducted: number;
   net: number;
+  bonus_amount: number; // T3.3: optional bonus/incentive already folded into gross — tracked separately for audit-trail honesty
   notes: string | null;
   created_at: string;
 }
