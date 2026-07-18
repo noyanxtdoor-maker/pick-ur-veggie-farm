@@ -91,7 +91,10 @@ export default function PayrollScreen() {
 
   // ── wage ──
   const [wageEmp, setWageEmp] = useState<Employee | null>(null);
-  const [wDays, setWDays] = useState('5');
+  // Defaults to a single day (found during the role-sweep, 2026-07-18) — it previously defaulted to
+  // '5', so disbursing without touching this field paid 5 days' wage for 1 day worked. Matches the
+  // "Full day" quick-pick's own value and the owner's own framing (daily disbursement is the norm).
+  const [wDays, setWDays] = useState('1');
   const [wDed, setWDed] = useState('0');
   const [wPeriod, setWPeriod] = useState('');
   const [wNotes, setWNotes] = useState('');
@@ -167,7 +170,7 @@ export default function PayrollScreen() {
     try {
       await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, parseFloat(wDays), wDedNum, wNotes);
       notify(`Wage disbursed to ${wageEmp.name} — net ${formatPeso(wNet)}`);
-      setWageEmp(null); setWDays('5'); setWDed('0'); setWPeriod(''); setWNotes('');
+      setWageEmp(null); setWDays('1'); setWDed('0'); setWPeriod(''); setWNotes('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Disbursement failed', 'error'); } finally { setBusy(false); }
   }
@@ -263,7 +266,7 @@ export default function PayrollScreen() {
                       {e.status === 'Active' ? (
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('5'); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
+                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
                           {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>

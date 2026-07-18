@@ -63,6 +63,31 @@ export default function RolesScreen() {
     rolesApi.fetch(companyId).then((r) => offlineDB.roles.bulkPut(r)).catch(() => undefined).finally(() => setLoaded(true));
   }, [companyId]);
 
+  // Found during the role-sweep (2026-07-18): editing a role's description/status/default-access is
+  // capped server-side to roles the actor strictly outranks (roles_update_manage /
+  // role_permissions_insert_manage — same §2.5 rule as membership actions), but this screen only
+  // checked role.manage — a co_owner saw live-looking Save/Edit-default-access controls on the owner
+  // role that would fail (or, for a future non-owner peer tier, silently no-op) server-side. Mirrors
+  // ApprovalsScreen's outranksRow pattern: my own highest active rank in this company, computed once
+  // roles are loaded (roles carry .rank already, so no extra role lookup needed).
+  const [myRank, setMyRank] = useState<number | null>(null);
+  useEffect(() => {
+    if (MOCK_MODE) { setMyRank(50); return; } // demo identity always holds the seeded OWNER role
+    if (!companyId || !roles) { setMyRank(null); return; }
+    let alive = true;
+    (async () => {
+      const {data: me} = await supabase.rpc('current_app_user_id');
+      if (!me) { if (alive) setMyRank(null); return; }
+      const {data} = await supabase.from('user_branch_roles').select('role_id')
+        .eq('user_id', me).eq('company_id', companyId).eq('assignment_status', 'Active');
+      if (!alive) return;
+      const roleIds = new Set((data ?? []).map((r: {role_id: string}) => r.role_id));
+      const ranks = roles.filter((r) => roleIds.has(r.id)).map((r) => r.rank);
+      setMyRank(ranks.length ? Math.max(...ranks) : null);
+    })();
+    return () => { alive = false; };
+  }, [companyId, roles]);
+
   const current = selected && selected !== 'new' ? roles?.find((r) => r.id === selected) : undefined;
 
   return (
@@ -91,7 +116,7 @@ export default function RolesScreen() {
           {selected === 'new' ? (
             <CreateRole companyId={companyId} onDone={() => {setSelected(null); triggerSync();}} />
           ) : current ? (
-            <RoleDetail role={current} canManage={canManage} onChanged={triggerSync} />
+            <RoleDetail role={current} canManage={canManage && myRank !== null && current.rank < myRank} onChanged={triggerSync} />
           ) : (
             <Card><p className="p-4 text-lg text-farm-muted">Select a role, or create one.</p></Card>
           )}

@@ -244,6 +244,15 @@ export default function ApprovalsScreen() {
     return list.filter((r) => r.rank < myRank); // you appoint BELOW your tier, never peers/above
   }, [roles, myRank]);
 
+  // Mirrors the server's outranks_role check (strictly above, per §2.5) — found during the role-sweep
+  // (2026-07-18): Access/Revoke/Archive were rendering on peer-or-above rows (e.g. a co_owner saw them
+  // on the owner's own row). The server already blocks every one of those writes, but the buttons were
+  // live-looking dead ends — Archive/Reactivate fail with an RLS error, and Revoke silently queues a
+  // request nobody can ever approve (nothing outranks a peer-or-above target). Hide, don't just disable.
+  function outranksRow(m: MemberRow): boolean {
+    return myRank !== null && (roleRankById.get(m.role_id) ?? 0) < myRank;
+  }
+
   async function setStatus(m: MemberRow, status: 'Active' | 'Expired') {
     setBusy(true);
     try {
@@ -499,7 +508,7 @@ export default function ApprovalsScreen() {
                         ) : (m.jobTitle || '—')}
                       </td>
                       <td className="py-3">
-                        {canManage && !isMe && m.assignment_status === 'Active' ? (
+                        {canManage && !isMe && outranksRow(m) && m.assignment_status === 'Active' ? (
                           <div className="w-36"><SelectField value={m.role_id} onChange={(v) => openReassign(m, v)} options={[{value: m.role_id, label: m.roleKey}, ...assignableRoles.filter((r) => r.id !== m.role_id).map((r) => ({value: r.id, label: r.role_key}))]} /></div>
                         ) : (
                           <span className="rounded-full bg-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green">{m.roleKey}</span>
@@ -510,15 +519,15 @@ export default function ApprovalsScreen() {
                       <td className="py-3"><StatusBadge status={m.assignment_status} /></td>
                       <td className="py-3 text-right">
                         <span className="flex justify-end gap-1.5">
-                          {canManage && !isMe ? (
+                          {canManage && !isMe && outranksRow(m) ? (
                             <button onClick={() => setAccessTarget(m)} disabled={busy} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" title="Set what this person can see and do, per section">Access</button>
                           ) : null}
-                          {canManage && !isMe ? (
+                          {canManage && !isMe && outranksRow(m) ? (
                             m.assignment_status === 'Active'
                               ? <button onClick={() => setRevokeTarget(m)} disabled={busy} className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-farm-danger hover:bg-red-100">Revoke</button>
                               : <button onClick={() => void setStatus(m, 'Active')} disabled={busy} className="rounded-lg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Reactivate</button>
                           ) : null}
-                          {canManage && !isMe ? (
+                          {canManage && !isMe && outranksRow(m) ? (
                             <button onClick={() => setArchiveTarget(m)} disabled={busy} className="rounded-lg border border-farm-accent-soft bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-muted hover:bg-farm-accent-soft" title="Retire this account — revokes any access it still has and hides it from the directory; nothing is deleted">Archive</button>
                           ) : null}
                         </span>

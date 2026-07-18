@@ -73,7 +73,10 @@ export default function PosScreen() {
   // checkout classification (prototype: Direct Cash Clearance | Pre-order Unpaid Delivery)
   const [saleKind, setSaleKind] = useState<SaleKind>('paid');
   // P2-M2G (owner 2026-07-18): the 10% discount toggle now applies to either tab, not preorder-only.
-  const [applyDiscount, setApplyDiscount] = useState(true);
+  // Defaults OFF (found during the role-sweep, 2026-07-18) — it was defaulting to true, meaning every
+  // sale silently gave 10% off unless the cashier remembered to uncheck it. Discount should always be
+  // an explicit per-sale opt-in, not something a distracted cashier gives away by accident.
+  const [applyDiscount, setApplyDiscount] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [preDelivery, setPreDelivery] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
