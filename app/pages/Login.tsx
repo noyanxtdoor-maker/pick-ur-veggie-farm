@@ -9,7 +9,7 @@
 // wrong password would. Email+password via Supabase Auth; self-service reset (B7 §2) + Google OAuth.
 // Quick test identities appear in DEMO mode only.
 import {useEffect, useState} from 'react';
-import {Navigate} from 'react-router-dom';
+import {Navigate, useNavigate} from 'react-router-dom';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 import {Eye, EyeOff, User as UserIcon, Fingerprint} from 'lucide-react';
@@ -58,6 +58,7 @@ function GoogleIcon() {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
   const {signIn, signUp, resetPassword, signInWithGoogle, signInWithPasskey, configured, status} = useSession();
   const [tab, setTab] = useState<Tab>('signin');
   const [forgot, setForgot] = useState(false);
@@ -199,10 +200,16 @@ export default function Login() {
               setError(null);
               const res = await signUp(v.email, v.password, '');
               if (res.error) {setError(res.error); return;}
+              if (!res.needsConfirmation) {
+                // A session was already issued (email confirmation is off) — go straight to the
+                // awaiting-approval screen instead of parking on a login-page notice the user
+                // would otherwise have to act on (owner: "i want direct to approval screen not
+                // back to the log-in interface").
+                navigate('/dashboard', {replace: true});
+                return;
+              }
               switchTab('signin');
-              setNotice(res.needsConfirmation
-                ? 'Almost there — confirm your email via the link we sent, then sign in. An admin will approve your access.'
-                : 'Account created. An admin will approve your access shortly.');
+              setNotice('Almost there — confirm your email via the link we sent, then sign in. An admin will approve your access.');
             })}>
               <div>
                 <label className={darkLabelCls} htmlFor="su-email">Email</label>
