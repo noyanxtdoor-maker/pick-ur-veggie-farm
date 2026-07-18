@@ -147,7 +147,9 @@ export type PermissionKey =
   | 'position.manage' // P1D: add/rename/deactivate the Farm Hand position picklist (co_owner/owner by default)
   | 'job_title.manage' // P1D: set another company member's descriptive job title (admin+ by default)
   | 'membership.approve' // P1C3: approve/reject pending sign-ups only — the lighter tier below membership.manage (admin by default)
-  | 'inventory.reports.read'; // P2-M3B: view the Stock Inventories "Purchase Summary" tab (admin+ default) — does not gate buying stock
+  | 'inventory.reports.read' // P2-M3B: view the Stock Inventories "Purchase Summary" tab (admin+ default) — does not gate buying stock
+  | 'vendor.read' // T3.1: view vendors, cost schedules, and AP standing
+  | 'vendor.manage'; // T3.1: create/edit vendors, cost schedules, and post AP invoices/payments
 
 // ── Digital payments (P2-B2A / backlog B2, 20.24 + 22.10) ──
 // Thin registry keyed to a chart_of_accounts Asset code. NO stored balance anywhere —
@@ -329,9 +331,10 @@ export interface PurchaseReceiving {
   item_id: string;
   quantity: number;
   total_amount: number;
-  source_type: 'online' | 'physical';
+  source_type: 'online' | 'physical' | 'vendor';
   source_name: string;
   source_contact: string | null;
+  vendor_id: string | null; // T3.2: set when source_type='vendor' — links back to the vendor master
   received_date: string; // date
   created_at: string;
 }

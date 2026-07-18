@@ -9,7 +9,7 @@ const cat = (id: string, key: string, name: string): ItemCategory =>
 const item = (id: string, category_id: string): Omit<InventoryItem, 'available'> =>
   ({id, company_id: 'c', branch_id: 'b', category_id, name: id, base_unit: 'kg', reorder_level: 0, inventory_type: 'Consumable', status: 'Active', created_at: '', updated_at: ''} as unknown as Omit<InventoryItem, 'available'>);
 const recv = (item_id: string, total: number, qty: number, source_type: 'online' | 'physical', source_name: string, date: string): PurchaseReceiving =>
-  ({id: `${item_id}-${date}`, company_id: 'c', branch_id: 'b', item_id, quantity: qty, total_amount: total, source_type, source_name, source_contact: null, received_date: date, created_at: ''});
+  ({id: `${item_id}-${date}`, company_id: 'c', branch_id: 'b', item_id, quantity: qty, total_amount: total, source_type, source_name, source_contact: null, vendor_id: null, received_date: date, created_at: ''});
 
 const cats = new Map([cat('cat-seed', 'seeds', 'Seeds/Seedlings'), cat('cat-fert', 'fertilizer', 'Fertilizer')].map((c) => [c.id, c]));
 const items = new Map([item('seed1', 'cat-seed'), item('fert1', 'cat-fert')].map((i) => [i.id, i]));

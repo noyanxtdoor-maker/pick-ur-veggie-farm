@@ -33,6 +33,7 @@ const ProfileScreen = lazy(() => import('../../features/profile/ProfileScreen'))
 const CopilotPanel = lazy(() => import('../../features/copilot/CopilotPanel'));
 const OperationsLayout = lazy(() => import('../../features/operations/OperationsLayout'));
 const CustomersScreen = lazy(() => import('../../features/customers/CustomersScreen'));
+const VendorsScreen = lazy(() => import('../../features/vendors/VendorsScreen'));
 
 function RequireAuth({children}: {children: ReactNode}) {
   const {status} = useSession();
@@ -117,6 +118,7 @@ export const router = createBrowserRouter([
       {path: 'inventory', element: <InventoryScreen />},
       {path: 'accounting', element: <AccountingScreen />},
       {path: 'customers', element: <CustomersScreen />},
+      {path: 'vendors', element: <VendorsScreen />},
       {path: 'payroll', element: <PayrollScreen />},
       // Operations hub (owner 2026-07-04): Schedules + Projects under one entry with tabs.
       // Crops & Plans deleted entirely 2026-07-17 (owner: "actually delete the crop & plan tab").

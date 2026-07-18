@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   Sparkles,
   Sun,
+  Truck,
   UserCheck,
   UserCircle,
 } from 'lucide-react';
@@ -49,6 +50,7 @@ const CORE_MODULES = [
   {to: '/inventory', label: 'Stock Inventories', icon: Package, perms: ['inventory.purchase', 'inventory.adjust', 'equipment.manage']},
   {to: '/accounting', label: 'Automated Accounting', icon: Landmark, perms: ['accounting.read']},
   {to: '/customers', label: 'Customers & Credit', icon: Contact, perms: ['customer.read']},
+  {to: '/vendors', label: 'Vendors & AP', icon: Truck, perms: ['vendor.read']}, // T3.1 (2026-07-19): vendor master + AP ledger
   {to: '/payroll', label: 'Salaries & Payroll', icon: Users2, perms: undefined},
   {to: '/operations', label: 'Operations', icon: ClipboardList, perms: undefined},
   {to: '/reports', label: 'Reports', icon: BarChart3, perms: ['accounting.read']}, // ported from Team B, owner 2026-07-16: admin+ only

@@ -48,6 +48,9 @@
     "guard:p1c4": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p1c4-role-default-access-security.sql",
     "guard:p1o": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p1o-product-removal-security.sql",
     "guard:p1p": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/mpin-security.sql",
+    "guard:p2n2": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2n2-void-approval-security.sql",
+    "guard:t3-1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/t3-1-vendors-and-ledger-security.sql",
+    "guard:t3-2": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/t3-2-purchase-vendor-link-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {

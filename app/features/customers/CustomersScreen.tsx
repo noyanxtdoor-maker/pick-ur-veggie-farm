@@ -4,7 +4,8 @@
 import {useCallback, useEffect, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Archive, CreditCard, FileText, Pencil, Plus, UserPlus, Users2, X} from 'lucide-react';
+import {Link} from 'react-router-dom';
+import {Archive, CreditCard, FileText, Pencil, Plus, Truck, UserPlus, Users2, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -24,6 +25,7 @@ export default function CustomersScreen() {
   const {notify} = useToast();
   const canRead = has('customer.read');
   const canManage = has('customer.manage');
+  const canReadVendors = has('vendor.read');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
@@ -104,6 +106,12 @@ export default function CustomersScreen() {
         subtitle="Track regular buyers and their outstanding receivables against an optional credit limit."
         action={canManage ? <Button onClick={openCreate}><Plus size={18} aria-hidden /> New Customer</Button> : undefined}
       />
+
+      {canReadVendors ? (
+        <Link to="/vendors" className="inline-flex items-center gap-1.5 text-xs font-bold text-farm-green hover:underline">
+          <Truck className="h-3.5 w-3.5" aria-hidden /> Open Vendors &amp; AP (money owed to suppliers)
+        </Link>
+      ) : null}
 
       {standing === null ? (
         <Skeleton rows={4} />

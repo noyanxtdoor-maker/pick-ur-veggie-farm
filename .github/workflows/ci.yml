@@ -162,6 +162,15 @@ jobs:
       - name: Copilot degrade guard (CAP-VG1 v1 = zero Postgres surface — no tables/permissions/policies/functions)
         run: npm run guard:copilot
 
+      - name: P2N2 void-sale approval workflow security tests (separation of duties, financial-account-aware reversal, one-pending-per-invoice, double-approve idempotency)
+        run: npm run guard:p2n2
+
+      - name: T3.1 vendors + cost schedule + AP ledger security tests (invoice/payment journal balance, AP standing, cost-schedule auto-close, permission grant shape)
+        run: npm run guard:t3-1
+
+      - name: T3.2 purchase-vendor-link security tests (vendor snapshot on purchase, cross-company/archived-vendor rejection, backward-compat 11-arg call)
+        run: npm run guard:t3-2
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
