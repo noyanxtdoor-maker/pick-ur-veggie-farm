@@ -527,7 +527,10 @@ export default function ApprovalsScreen() {
                               ? <button onClick={() => setRevokeTarget(m)} disabled={busy} className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-farm-danger hover:bg-red-100">Revoke</button>
                               : <button onClick={() => void setStatus(m, 'Active')} disabled={busy} className="rounded-lg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Reactivate</button>
                           ) : null}
-                          {canManage && !isMe && outranksRow(m) ? (
+                          {/* Owner request (2026-07-18): Archive only once an account is already revoked — an
+                              Active account has Access + Revoke to work with; showing Archive too, before
+                              there's anything to retire beyond what Revoke already covers, was just noise. */}
+                          {canManage && !isMe && outranksRow(m) && m.assignment_status === 'Expired' ? (
                             <button onClick={() => setArchiveTarget(m)} disabled={busy} className="rounded-lg border border-farm-accent-soft bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-muted hover:bg-farm-accent-soft" title="Retire this account — revokes any access it still has and hides it from the directory; nothing is deleted">Archive</button>
                           ) : null}
                         </span>

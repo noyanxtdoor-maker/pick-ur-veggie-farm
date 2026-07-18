@@ -19,6 +19,7 @@ import {consumeAuthRedirectError} from '../core/supabase/client';
 import {biometricApi} from '../features/auth/onboarding';
 import {Button} from '../components/ui';
 import {zodResolver} from '../components/forms';
+import {Loading} from '../components/feedback';
 
 type Tab = 'signin' | 'signup';
 
@@ -93,7 +94,13 @@ export default function Login() {
     }
   }, []);
 
-  if (status === 'authenticated') return <Navigate to="/dashboard" replace />;
+  // Owner report (2026-07-18): "when an account is already sign-in... dont show the log-in and Create
+  // a POS Account." The redirect below already existed, but only fired once `status` resolved to
+  // 'authenticated' — while it was still 'loading' (session read from storage, brief but real on a
+  // slow network or a hard refresh), this component fell through and rendered the full Sign In/Create
+  // Account form for a beat before redirecting, which is exactly the flash being described. Gate on
+  // "not yet confirmed anonymous" instead — only the CONFIRMED-signed-out state ever sees this form now.
+  if (status !== 'anonymous') return status === 'loading' ? <Loading label="Checking your session…" /> : <Navigate to="/dashboard" replace />;
 
   const switchTab = (t: Tab) => {setTab(t); setForgot(false); setError(null); setNotice(null);};
 

@@ -74,12 +74,19 @@ export function ActionTile({
   );
 }
 
+// Mobile redesign (owner 2026-07-18: "the interface still looks cramp... doesnt have much space"):
+// this single component backs the title+action row on ~19 screens, and it never wrapped — title and
+// action (often a branch selector plus 1-2 buttons) were forced onto one unbreakable row at every
+// viewport width, the single biggest source of the cramped feeling across the app. Now stacks on
+// mobile (action gets its own full-width row below the title) and returns to the original
+// side-by-side layout at `sm:` (640px+, tablet and up) where there's room for it. Title/subtitle size
+// down a step on mobile too — `text-3xl` read oversized next to a stacked action row on a 375px screen.
 export function PageHeader({title, subtitle, action}: {title: string; subtitle?: string; action?: ReactNode}) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div>
-        <h1 className="text-3xl font-black text-farm-ink">{title}</h1>
-        {subtitle ? <p className="mt-1 text-lg text-farm-muted">{subtitle}</p> : null}
+        <h1 className="text-2xl font-black text-farm-ink sm:text-3xl">{title}</h1>
+        {subtitle ? <p className="mt-1 text-base text-farm-muted sm:text-lg">{subtitle}</p> : null}
       </div>
       {action}
     </div>

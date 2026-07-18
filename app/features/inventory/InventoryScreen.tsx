@@ -276,7 +276,7 @@ export default function InventoryScreen() {
       </div>
 
       {/* tabs (prototype; P2-M3B: now permission-gated — a tab only renders if the actor holds a key for it) */}
-      <div className="flex gap-2 border-b border-farm-accent pb-0.5" role="tablist">
+      <div className="flex flex-wrap gap-2 border-b border-farm-accent pb-0.5" role="tablist">
         {visibleTabs.map((t) => {
           const Icon = t.icon;
           return (
