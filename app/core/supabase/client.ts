@@ -44,5 +44,8 @@ export const supabase: SupabaseClient = createClient(url ?? 'http://localhost', 
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
+    // P1P.2: passkey methods (auth.registerPasskey/signInWithPasskey/passkey.*) throw at call time
+    // unless this is set — required even though Supabase's own passkey feature is out of beta.
+    experimental: { passkey: true },
   },
 });

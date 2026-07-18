@@ -4,12 +4,14 @@ import {lazy, useEffect, useState, type ReactNode} from 'react';
 import {createBrowserRouter, Navigate} from 'react-router-dom';
 import {useSession} from '../auth/session';
 import {usePermissions} from '../permissions/permissions';
-import {usernameOnboardingApi} from '../../features/auth/onboarding';
+import {onboardingApi} from '../../features/auth/onboarding';
 import {AppShell, OrganizationLayout} from '../../components/layout/AppShell';
 import {Loading} from '../../components/feedback';
 import Login from '../../pages/Login';
 import ResetPassword from '../../pages/ResetPassword';
 import ChooseUsername from '../../pages/ChooseUsername';
+import SetMpin from '../../pages/SetMpin';
+import SetupBiometric from '../../pages/SetupBiometric';
 import Placeholder from '../../pages/Placeholder';
 import type {PermissionKey} from '../../types/db';
 
@@ -46,25 +48,37 @@ function RequirePermission({perm, children}: {perm: PermissionKey; children: Rea
   return <>{children}</>;
 }
 
-// P1N (ported from Team B, 2026-07-17): post-approval username onboarding gate. An authenticated,
-// APPROVED user with public.users.username_chosen_at IS NULL is redirected to /onboarding/username
-// before reaching the main app. One-time-only (set_chosen_username raises on re-entry). MOCK_MODE
-// skips the gate (demo has no real approval flow). The check is best-effort — if the RPC errors
-// (offline, edge), we do NOT block the app: fail-open to the requested route (the server still
-// enforces on actual writes).
-function RequireUsernameOnboarding({children}: {children: ReactNode}) {
+// P1N/P1P: post-approval onboarding gate, generalized (2026-07-18) from a single username check
+// into an ORDERED SEQUENCE driven by onboarding_next_step() — username first, then the mandatory
+// MPIN. An authenticated, approved user who hasn't finished a step is redirected to it before
+// reaching the main app. Each step is one-time-only (the RPCs behind them reject re-entry once
+// done). MOCK_MODE skips the gate entirely (demo has no real approval/security flow). The check is
+// best-effort — if the RPC errors (offline, edge), we do NOT block the app: fail-open to the
+// requested route (the server still enforces on actual writes).
+//
+// Also depends on usePermissions().companyId, not just session status — an "awaiting approval"
+// user is already fully `status === 'authenticated'` (Supabase auth doesn't know about company
+// membership at all), so the moment they get approved and AppShell's own AwaitingApproval screen
+// swaps to the real Outlet (via a companyId flip, not a re-login), this gate must re-run too —
+// otherwise a user approved while sitting on the same tab would skip username AND MPIN onboarding
+// entirely (status never changed, so a status-only effect never re-checks).
+function RequireOnboarding({children}: {children: ReactNode}) {
   const {status} = useSession();
-  const [gate, setGate] = useState<'loading' | 'needed' | 'ok'>('loading');
+  const {companyId} = usePermissions();
+  const [gate, setGate] = useState<'loading' | 'username' | 'mpin' | 'biometric_offer' | 'ok'>('loading');
   useEffect(() => {
     let alive = true;
-    if (status !== 'authenticated') { if (alive) setGate('ok'); return; }
-    usernameOnboardingApi.needsOnboarding()
-      .then((need) => { if (alive) setGate(need ? 'needed' : 'ok'); })
+    if (status !== 'authenticated') { setGate('ok'); return; }
+    setGate('loading'); // re-checking (e.g. companyId just flipped on approval) — don't flash the previous gate's route
+    onboardingApi.nextStep()
+      .then((step) => { if (alive) setGate(step ?? 'ok'); })
       .catch(() => { if (alive) setGate('ok'); }); // fail-open on RPC error
     return () => { alive = false; };
-  }, [status]);
+  }, [status, companyId]);
   if (status === 'loading' || gate === 'loading') return <Loading label="Checking your account…" />;
-  if (gate === 'needed') return <Navigate to="/onboarding/username" replace />;
+  if (gate === 'username') return <Navigate to="/onboarding/username" replace />;
+  if (gate === 'mpin') return <Navigate to="/onboarding/mpin" replace />;
+  if (gate === 'biometric_offer') return <Navigate to="/onboarding/biometric" replace />;
   return <>{children}</>;
 }
 
@@ -72,13 +86,15 @@ export const router = createBrowserRouter([
   {path: '/login', element: <Login />},
   {path: '/auth/reset', element: <ResetPassword />},
   {path: '/onboarding/username', element: <RequireAuth><ChooseUsername /></RequireAuth>},
+  {path: '/onboarding/mpin', element: <RequireAuth><SetMpin /></RequireAuth>},
+  {path: '/onboarding/biometric', element: <RequireAuth><SetupBiometric /></RequireAuth>},
   {
     path: '/',
     element: (
       <RequireAuth>
-        <RequireUsernameOnboarding>
+        <RequireOnboarding>
           <AppShell />
-        </RequireUsernameOnboarding>
+        </RequireOnboarding>
       </RequireAuth>
     ),
     children: [

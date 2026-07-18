@@ -156,6 +156,9 @@ jobs:
       - name: P1O POS product-removal approval security tests (instant manage removal, queued request+approve/reject, override composition, self-approve denied, grant shape)
         run: npm run guard:p1o
 
+      - name: P1P MPIN security-layer tests (format/deny-list validation, escalating lockout survives the RPC transaction, change_mpin re-auth, cross-user isolation, onboarding sequence, grant shape)
+        run: npm run guard:p1p
+
       - name: Copilot degrade guard (CAP-VG1 v1 = zero Postgres surface — no tables/permissions/policies/functions)
         run: npm run guard:copilot
 

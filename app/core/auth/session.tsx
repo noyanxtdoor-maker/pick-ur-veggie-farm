@@ -10,6 +10,25 @@ import {DEMO, MOCK_MODE} from '../mock/mock';
 // A minimal stand-in session for mock/offline-dev mode (no cloud auth).
 const MOCK_SESSION = {access_token: 'mock', token_type: 'bearer', user: {id: DEMO.authId}} as unknown as Session;
 
+// P1P: distinguishes "this tab just performed an interactive sign-in" from "a persisted session
+// silently rehydrated on load" — LockProvider (app/core/security/lock.tsx) reads this once to decide
+// whether to show the lock screen immediately when status flips to 'authenticated'. sessionStorage
+// (not a plain module variable) because signInWithGoogle triggers a full-page OAuth redirect, which
+// wipes any in-memory JS state; sessionStorage survives that round-trip within the same tab and is
+// still cleared when the tab actually closes (unlike localStorage, which would leak "interactive"
+// into every future tab forever).
+const INTERACTIVE_AUTH_KEY = 'p1p-interactive-auth';
+function markInteractiveSignIn() {
+  try { sessionStorage.setItem(INTERACTIVE_AUTH_KEY, '1'); } catch { /* storage unavailable — LockProvider defaults to locked, the safe fallback */ }
+}
+export function consumeInteractiveSignInFlag(): boolean {
+  try {
+    const v = sessionStorage.getItem(INTERACTIVE_AUTH_KEY) === '1';
+    sessionStorage.removeItem(INTERACTIVE_AUTH_KEY);
+    return v;
+  } catch { return false; }
+}
+
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 
 interface SessionValue {
@@ -35,6 +54,9 @@ interface SessionValue {
   // Email change (Supabase Auth updateUser — triggers email-confirmation to the NEW address before it lands).
   updateOwnEmail: (newEmail: string) => Promise<{error: string | null}>;
   signInWithGoogle: () => Promise<{error: string | null}>;
+  // P1P.2: cold-start biometric sign-in for Login.tsx — see the implementation's own comment for
+  // why the lock screen's biometric button does NOT reuse this.
+  signInWithPasskey: () => Promise<{error: string | null}>;
   signOut: () => Promise<void>;
 }
 
@@ -81,6 +103,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
       authUserId: session?.user?.id ?? null,
       configured: isSupabaseConfigured,
       signIn: async (email, password) => {
+        markInteractiveSignIn();
         if (MOCK_MODE) {
           await offlineDB.meta.put({key: 'mock-auth', value: true});
           setSession(MOCK_SESSION);
@@ -99,6 +122,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
         return {error: error ? error.message : null};
       },
       signUp: async (email, password, displayName, requestedRole) => {
+        markInteractiveSignIn();
         if (MOCK_MODE) {
           // demo mode has no cloud identities — signing up just signs you in
           await offlineDB.meta.put({key: 'mock-auth', value: true});
@@ -152,7 +176,23 @@ export function SessionProvider({children}: {children: ReactNode}) {
       },
       signInWithGoogle: async () => {
         if (MOCK_MODE) return {error: 'Demo mode — just sign in with any email & password.'};
+        markInteractiveSignIn(); // set BEFORE the redirect — this tab is about to fully navigate away and back
         const {error} = await supabase.auth.signInWithOAuth({provider: 'google', options: {redirectTo: `${window.location.origin}/dashboard`}});
+        return {error: error ? error.message : null};
+      },
+      // P1P.2: cold-start biometric sign-in (Login.tsx only — mints a brand-new session, unlike
+      // MPIN which only ever resumes one). markInteractiveSignIn() here so LockProvider starts this
+      // tab unlocked, exactly like signIn/signUp/signInWithGoogle. The LOCK SCREEN's own "Use
+      // biometric" button deliberately does NOT go through this wrapper — it calls
+      // supabase.auth.signInWithPasskey() directly, skipping the interactive-flag mark entirely,
+      // because it is resuming an already-unlocked tab, not a fresh entry (see lock.tsx).
+      signInWithPasskey: async () => {
+        if (MOCK_MODE) return {error: 'Demo mode — just sign in with any email & password.'};
+        markInteractiveSignIn();
+        const {error} = await supabase.auth.signInWithPasskey();
+        // A cancelled OS prompt (user backed out of Face ID/fingerprint) is not a failure worth
+        // showing — quiet no-op, matching every other biometric entry point in this app.
+        if (error && (error as {code?: string}).code === 'ERROR_CEREMONY_ABORTED') return {error: null};
         return {error: error ? error.message : null};
       },
       signOut: async () => {

@@ -12,10 +12,11 @@ import {useEffect, useState} from 'react';
 import {Navigate} from 'react-router-dom';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
-import {Eye, EyeOff, User as UserIcon} from 'lucide-react';
+import {Eye, EyeOff, User as UserIcon, Fingerprint} from 'lucide-react';
 import {useSession} from '../core/auth/session';
 import {MOCK_MODE} from '../core/mock/mock';
 import {consumeAuthRedirectError} from '../core/supabase/client';
+import {biometricApi} from '../features/auth/onboarding';
 import {Button} from '../components/ui';
 import {zodResolver} from '../components/forms';
 
@@ -57,13 +58,20 @@ function GoogleIcon() {
 }
 
 export default function Login() {
-  const {signIn, signUp, resetPassword, signInWithGoogle, configured, status} = useSession();
+  const {signIn, signUp, resetPassword, signInWithGoogle, signInWithPasskey, configured, status} = useSession();
   const [tab, setTab] = useState<Tab>('signin');
   const [forgot, setForgot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
   const [showSuPw, setShowSuPw] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    biometricApi.isSupported().then((v) => { if (alive) setBiometricSupported(v); });
+    return () => { alive = false; };
+  }, []);
 
   const si = useForm<SigninInput>({resolver: zodResolver(signinSchema)});
   const su = useForm<SignupInput>({resolver: zodResolver(signupSchema)});
@@ -150,6 +158,13 @@ export default function Login() {
               </div>
               {error ? <p className="text-sm font-medium text-red-400" role="alert">{error}</p> : null}
               <Button type="submit" className="w-full !bg-emerald-400 !text-[#0c0c0c] hover:!opacity-90" disabled={si.formState.isSubmitting || (!configured && !MOCK_MODE)}>Sign In</Button>
+              {!MOCK_MODE && biometricSupported ? (
+                <button type="button" disabled={!configured}
+                  className="flex w-full min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white hover:bg-white/10 disabled:opacity-50"
+                  onClick={async () => {setError(null); const r = await signInWithPasskey(); if (r.error) setError(r.error);}}>
+                  <Fingerprint className="h-4 w-4" aria-hidden /> Sign in with biometric
+                </button>
+              ) : null}
               {!MOCK_MODE ? (
                 <button type="button" disabled={!configured}
                   className="flex w-full min-h-12 items-center justify-center gap-2.5 rounded-xl bg-white text-sm font-bold text-[#1f1f1f] hover:bg-white/90 disabled:opacity-50"

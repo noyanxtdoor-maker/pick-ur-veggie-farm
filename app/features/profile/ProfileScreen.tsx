@@ -5,15 +5,20 @@
 // Email changes via supabase.auth.updateUser (triggers email-confirmation to the NEW address).
 // No permission key needed — this is SELF-service (the caller edits their own identity, always).
 import {useEffect, useState} from 'react';
-import {UserCircle, AtSign, KeyRound, Save} from 'lucide-react';
+import {UserCircle, AtSign, KeyRound, Save, ShieldCheck, Fingerprint, Trash2} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {supabase} from '../../core/supabase/client';
 import {offlineDB} from '../../core/offline/db';
 import {MOCK_MODE} from '../../core/mock/mock';
 import {Button, Card, PageHeader} from '../../components/ui';
 import {useToast} from '../../components/feedback';
+import {mpinApi, biometricApi, type PasskeyListItem} from '../auth/onboarding';
 
-const USERNAME_RULES = '3–30 chars: letters, numbers, dot, or underscore. Case-insensitive unique.';
+// P1L's server RPC (update_own_username) force-lowercases and validates ^[a-z0-9_.]{3,30}$ — this client
+// check mirrors that exactly (was ^[a-zA-Z0-9_.]$ before, letting uppercase pass validation here only to
+// get silently downcased on save, which read as a bug). Owner 2026-07-18: highlight "lowercase" so it's
+// not a silent surprise.
+const USERNAME_RULES = '3–30 chars: lowercase letters, numbers, dot, or underscore. Unique across the farm.';
 
 function UsernameCard() {
   const {user, updateOwnUsername} = useSession();
@@ -44,7 +49,7 @@ function UsernameCard() {
   async function save() {
     const next = draft.trim();
     if (next === current) { setErr(null); notify('No change — username already set'); return; }
-    if (!next || !/^[a-zA-Z0-9_.]{3,30}$/.test(next)) { setErr(USERNAME_RULES); return; }
+    if (!next || !/^[a-z0-9_.]{3,30}$/.test(next)) { setErr(USERNAME_RULES); return; }
     setBusy(true); setErr(null);
     const r = await updateOwnUsername(next);
     setBusy(false);
@@ -56,7 +61,7 @@ function UsernameCard() {
     <Card>
       <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><UserCircle className="h-5 w-5" aria-hidden /> Username</h3>
       <p className="mb-3 text-xs text-farm-muted">
-        Your login alias — you can sign in with this OR your email. {USERNAME_RULES}
+        Your login alias — you can sign in with this OR your email. 3–30 chars: <strong className="font-bold text-farm-ink">lowercase</strong> letters, numbers, dot, or underscore. Unique across the farm.
       </p>
       {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -64,7 +69,7 @@ function UsernameCard() {
           <span className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Username</span>
           <input
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setDraft(e.target.value.toLowerCase())}
             placeholder="yourname"
             autoCapitalize="none"
             autoCorrect="off"
@@ -197,6 +202,153 @@ function PasswordCard() {
   );
 }
 
+// P1P (owner directive 2026-07-18): self-service MPIN change, same shape as PasswordCard above but
+// against change_mpin (requires the CURRENT MPIN — same rate-limited check the lock screen uses,
+// see lock.tsx / the P1P migration header for why that matters). Plain numeric inputs rather than
+// the bank-style PinPad keypad — Profile is a settings page, not the quick-unlock flow, and matches
+// this screen's existing PasswordCard convention.
+function MpinCard() {
+  const {notify} = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function save() {
+    setErr(null); setMsg(null);
+    if (current.length !== 6) return setErr('Enter your current 6-digit MPIN.');
+    if (next.length !== 6) return setErr('New MPIN must be exactly 6 digits.');
+    if (next !== confirm) return setErr('New MPIN entries do not match.');
+    setBusy(true);
+    try {
+      const result = await mpinApi.change(current, next);
+      if (result === 'ok') {
+        setCurrent(''); setNext(''); setConfirm('');
+        setMsg('MPIN changed. Use it next time you unlock.');
+        notify('MPIN changed');
+      } else if (result === 'wrong') setErr('Current MPIN is incorrect.');
+      else if (result === 'locked') setErr('Too many attempts — try again in a bit.');
+      else setErr('No MPIN is set on this account yet.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not change MPIN');
+    } finally { setBusy(false); }
+  }
+
+  if (MOCK_MODE) {
+    return (
+      <Card>
+        <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><ShieldCheck className="h-5 w-5" aria-hidden /> MPIN</h3>
+        <p className="text-xs text-farm-muted">Demo mode has no MPIN — this is set up on your first real sign-in.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><ShieldCheck className="h-5 w-5" aria-hidden /> MPIN</h3>
+      <p className="mb-3 text-xs text-farm-muted">Your 6-digit quick-unlock PIN for the lock screen. Changing it needs your current MPIN.</p>
+      {msg ? <p className="mb-2 rounded-lg bg-farm-accent-soft px-3 py-2 text-xs font-semibold text-farm-green" role="status">{msg}</p> : null}
+      {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
+      <div className="space-y-2.5">
+        <input value={current} onChange={(e) => setCurrent(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" type="password" autoComplete="off" placeholder="Current MPIN" aria-label="Current MPIN" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-sm tracking-widest" />
+        <input value={next} onChange={(e) => setNext(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" type="password" autoComplete="off" placeholder="New MPIN (6 digits)" aria-label="New MPIN" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-sm tracking-widest" />
+        <input value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" type="password" autoComplete="off" placeholder="Repeat new MPIN" aria-label="Repeat new MPIN" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-sm tracking-widest" />
+        <Button variant="secondary" onClick={() => void save()} disabled={busy || current.length !== 6 || next.length !== 6 || confirm.length !== 6}>
+          {busy ? 'Saving…' : 'Change MPIN'}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// P1P.2 (owner directive 2026-07-18): self-service passkey management — list what's registered,
+// remove any of them, add another (e.g. for a second device). Mirrors MpinCard's shape, including
+// the MOCK_MODE early return. Removing a passkey does NOT re-arm the onboarding offer — that's a
+// deliberate management action, not "never decided" (see the P1P.2 migration header).
+function BiometricCard() {
+  const {notify} = useToast();
+  const [supported, setSupported] = useState(false);
+  const [passkeys, setPasskeys] = useState<PasskeyListItem[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function refresh() {
+    try { setPasskeys(await biometricApi.list()); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'Could not load your passkeys'); }
+  }
+
+  useEffect(() => {
+    biometricApi.isSupported().then(setSupported);
+    void refresh();
+  }, []);
+
+  async function add() {
+    setBusy(true); setErr(null);
+    const result = await biometricApi.register();
+    setBusy(false);
+    if (result.status === 'ok') { notify('Passkey added'); void refresh(); return; }
+    if (result.status === 'cancelled') return; // quiet — user backed out of the OS prompt
+    setErr(result.message);
+  }
+
+  async function remove(passkeyId: string) {
+    setBusy(true); setErr(null);
+    const r = await biometricApi.remove(passkeyId);
+    setBusy(false);
+    if (r.error) { setErr(r.error); return; }
+    notify('Passkey removed');
+    void refresh();
+  }
+
+  if (MOCK_MODE) {
+    return (
+      <Card>
+        <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Fingerprint className="h-5 w-5" aria-hidden /> Biometric</h3>
+        <p className="text-xs text-farm-muted">Demo mode has no biometric flow — this is set up on your first real sign-in.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Fingerprint className="h-5 w-5" aria-hidden /> Biometric</h3>
+      <p className="mb-3 text-xs text-farm-muted">Fingerprint, Face ID, or device PIN for a faster unlock. Optional — your MPIN always works too.</p>
+      {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
+      {passkeys === null ? (
+        <p className="text-xs text-farm-muted">Loading…</p>
+      ) : passkeys.length === 0 ? (
+        <p className="mb-3 text-xs text-farm-muted">No passkey set up yet on this account.</p>
+      ) : (
+        <ul className="mb-3 space-y-1.5">
+          {passkeys.map((p) => (
+            <li key={p.id} className="flex items-center justify-between rounded-lg border border-farm-accent-soft bg-farm-bg px-3 py-2">
+              <div>
+                <p className="text-xs font-bold text-farm-ink">{p.friendly_name || 'Passkey'}</p>
+                <p className="text-[10px] text-farm-muted">
+                  Added {new Date(p.created_at).toLocaleDateString()}
+                  {p.last_used_at ? ` · last used ${new Date(p.last_used_at).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+              <button type="button" onClick={() => void remove(p.id)} disabled={busy} className="text-red-700 hover:text-red-900" aria-label={`Remove ${p.friendly_name || 'passkey'}`}>
+                <Trash2 className="h-4 w-4" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {supported ? (
+        <Button variant="secondary" onClick={() => void add()} disabled={busy}>
+          {busy ? 'Waiting for your device…' : 'Add another passkey'}
+        </Button>
+      ) : (
+        <p className="text-[10px] text-farm-muted">This device doesn't support adding a new passkey.</p>
+      )}
+    </Card>
+  );
+}
+
 export default function ProfileScreen() {
   const {user} = useSession();
   return (
@@ -212,6 +364,8 @@ export default function ProfileScreen() {
         </div>
         <div className="space-y-6">
           <PasswordCard />
+          <MpinCard />
+          <BiometricCard />
           <Card>
             <h3 className="mb-2 text-base font-bold text-farm-muted">Session</h3>
             <p className="text-xs text-farm-muted">

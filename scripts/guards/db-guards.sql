@@ -5,7 +5,8 @@ do $$
 declare
   v_tbl text;
   -- Exempt from the company_id requirement: identity, tenant-root, global-reference, and system-singleton tables.
-  v_exempt_tenant text[] := array['users', 'companies', 'permissions', 'bootstrap_state'];
+  -- user_mpin (P1P): a user's MPIN is a property of the person, not any one company — same reasoning as users itself.
+  v_exempt_tenant text[] := array['users', 'companies', 'permissions', 'bootstrap_state', 'user_mpin'];
 begin
   -- Guard 1: every public base table must have RLS enabled.
   for v_tbl in

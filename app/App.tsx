@@ -5,6 +5,7 @@ import {RouterProvider} from 'react-router-dom';
 import {SessionProvider} from './core/auth/session';
 import {PermissionProvider} from './core/permissions/permissions';
 import {SyncProvider} from './core/offline/sync';
+import {LockProvider} from './core/security/lock';
 import {router} from './core/routing/router';
 import {ErrorBoundary, Loading, ToastProvider} from './components/feedback';
 
@@ -15,9 +16,11 @@ export default function App() {
         <SessionProvider>
           <PermissionProvider>
             <SyncProvider>
-              <Suspense fallback={<Loading label="Starting…" />}>
-                <RouterProvider router={router} />
-              </Suspense>
+              <LockProvider>
+                <Suspense fallback={<Loading label="Starting…" />}>
+                  <RouterProvider router={router} />
+                </Suspense>
+              </LockProvider>
             </SyncProvider>
           </PermissionProvider>
         </SessionProvider>
