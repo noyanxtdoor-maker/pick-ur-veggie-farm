@@ -7,6 +7,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
 import {HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
+import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
 import {usePermissions} from '../../core/permissions/permissions';
 import {useSession} from '../../core/auth/session';
@@ -28,6 +29,7 @@ export default function PayrollScreen() {
   const canManagePositions = has('position.manage');
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!branchId && branches && branches.length > 0) setBranchId(branches[0]!.id);
@@ -95,11 +97,22 @@ export default function PayrollScreen() {
   // '5', so disbursing without touching this field paid 5 days' wage for 1 day worked. Matches the
   // "Full day" quick-pick's own value and the owner's own framing (daily disbursement is the norm).
   const [wDays, setWDays] = useState('1');
+  // Owner ask (2026-07-19): paying an odd amount meant back-solving days = amount / rate by hand —
+  // e.g. typing "0.387" to land on a specific peso figure. "By Exact Amount" flips the direction: the
+  // owner types the peso amount they actually want to pay, and the equivalent days-worked (still the
+  // unit the RPC/audit trail records — B4/M5B never gained a separate "flat amount" concept) is derived
+  // silently. No schema change: payroll_disburse_wage already accepts any decimal p_days_worked.
+  const [wMode, setWMode] = useState<'days' | 'amount'>('days');
+  const [wAmount, setWAmount] = useState('');
   const [wDed, setWDed] = useState('0');
   const [wPeriod, setWPeriod] = useState('');
   const [wNotes, setWNotes] = useState('');
 
-  const wGross = wageEmp ? round2((parseFloat(wDays) || 0) * wageEmp.daily_rate) : 0;
+  const wAmountNum = parseFloat(wAmount) || 0;
+  // Amount mode shows the typed figure verbatim as gross (exact, no derived-then-rebuilt rounding
+  // surprise for the owner) — the days sent to the RPC is solved from it only at submit time.
+  const wGross = !wageEmp ? 0 : wMode === 'amount' ? round2(wAmountNum) : round2((parseFloat(wDays) || 0) * wageEmp.daily_rate);
+  const wDaysForSubmit = wMode === 'amount' ? (wageEmp && wageEmp.daily_rate > 0 ? wAmountNum / wageEmp.daily_rate : 0) : parseFloat(wDays) || 0;
   const wDedNum = parseFloat(wDed) || 0;
   const wNet = round2(Math.max(0, wGross - wDedNum));
 
@@ -168,9 +181,9 @@ export default function PayrollScreen() {
     if (!companyId || !branchId || !wageEmp) return;
     setBusy(true);
     try {
-      await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, parseFloat(wDays), wDedNum, wNotes);
+      await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, wDaysForSubmit, wDedNum, wNotes);
       notify(`Wage disbursed to ${wageEmp.name} — net ${formatPeso(wNet)}`);
-      setWageEmp(null); setWDays('1'); setWDed('0'); setWPeriod(''); setWNotes('');
+      setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWPeriod(''); setWNotes('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Disbursement failed', 'error'); } finally { setBusy(false); }
   }
@@ -266,7 +279,7 @@ export default function PayrollScreen() {
                       {e.status === 'Active' ? (
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
+                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
                           {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>
@@ -408,24 +421,40 @@ export default function PayrollScreen() {
             <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Disburse Wage</Dialog.Title>
             <p className="mb-4 mt-1 text-xs text-farm-muted"><span className="font-bold text-farm-green">{wageEmp?.name}</span> · {formatPeso(wageEmp?.daily_rate ?? 0)}/day</p>
             <div className="space-y-4 text-sm">
+              <div className="flex gap-1.5 rounded-lg bg-farm-bg p-1">
+                {([['days', 'By Days Worked'], ['amount', 'By Exact Amount']] as const).map(([m, label]) => (
+                  <button key={m} type="button" onClick={() => setWMode(m)}
+                    className={cn('flex-1 rounded-md py-1.5 text-xs font-bold', wMode === m ? 'bg-farm-green text-white' : 'text-farm-muted hover:bg-farm-accent-soft')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-days">Days Worked</label>
-                  <input id="w-days" value={wDays} onChange={(e) => setWDays(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
-                  {/* owner 2026-07-18: "some will work half day or even just 1hr due to personal reasons or
-                      emergency" — the field already accepted any decimal (server: p_days_worked numeric, no
-                      integer constraint), it just never said so. Quick-picks make partial days discoverable;
-                      typing a custom decimal (e.g. 0.125 for 1hr of an 8hr day) still works. */}
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {[['1', 'Full day'], ['0.5', 'Half day'], ['0.25', '2 hrs'], ['0.125', '1 hr']].map(([v, label]) => (
-                      <button key={v} type="button" onClick={() => setWDays(v)}
-                        className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold', wDays === v ? 'border-farm-green bg-farm-green text-white' : 'border-farm-accent-soft text-farm-muted hover:bg-farm-accent-soft')}>
-                        {label}
-                      </button>
-                    ))}
+                {wMode === 'days' ? (
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-days">Days Worked</label>
+                    <input id="w-days" value={wDays} onChange={(e) => setWDays(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
+                    {/* owner 2026-07-18: "some will work half day or even just 1hr due to personal reasons or
+                        emergency" — the field already accepted any decimal (server: p_days_worked numeric, no
+                        integer constraint), it just never said so. Quick-picks make partial days discoverable;
+                        typing a custom decimal (e.g. 0.125 for 1hr of an 8hr day) still works. */}
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {[['1', 'Full day'], ['0.5', 'Half day'], ['0.25', '2 hrs'], ['0.125', '1 hr']].map(([v, label]) => (
+                        <button key={v} type="button" onClick={() => setWDays(v)}
+                          className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold', wDays === v ? 'border-farm-green bg-farm-green text-white' : 'border-farm-accent-soft text-farm-muted hover:bg-farm-accent-soft')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[9px] text-farm-muted">Or type any amount — e.g. 0.375 for 3 of 8 hours.</p>
                   </div>
-                  <p className="mt-1 text-[9px] text-farm-muted">Or type any amount — e.g. 0.375 for 3 of 8 hours.</p>
-                </div>
+                ) : (
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-amount">Wage Amount (₱)</label>
+                    <input id="w-amount" value={wAmount} onChange={(e) => setWAmount(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="e.g. 550" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
+                    <p className="mt-1 text-[9px] text-farm-muted">Type the exact peso amount to pay — no days math needed.</p>
+                  </div>
+                )}
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-ded">Deduct Advance (₱)</label>
                   <input id="w-ded" value={wDed} onChange={(e) => setWDed(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold text-farm-danger" />
@@ -440,7 +469,7 @@ export default function PayrollScreen() {
                 <input id="w-notes" value={wNotes} onChange={(e) => setWNotes(e.target.value)} placeholder="Regular harvesting cycle pay" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
               <div className="space-y-1 rounded-xl border border-farm-accent bg-emerald-50/60 p-3 text-xs">
-                <div className="flex justify-between"><span>Gross (days × rate)</span><span className="tabular font-bold">{formatPeso(wGross)}</span></div>
+                <div className="flex justify-between"><span>Gross{wMode === 'amount' ? '' : ' (days × rate)'}</span><span className="tabular font-bold">{formatPeso(wGross)}</span></div>
                 <div className="flex justify-between text-farm-danger"><span>Deduct advance</span><span className="tabular font-bold">−{formatPeso(wDedNum)}</span></div>
                 <div className="flex justify-between border-t border-dashed border-farm-accent pt-1 font-black text-farm-green"><span>NET PAYOUT</span><span className="tabular">{formatPeso(wNet)}</span></div>
               </div>
