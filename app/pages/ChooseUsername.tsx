@@ -99,7 +99,7 @@ export default function ChooseUsername() {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-farm-muted">3–30 characters: letters, numbers, dot, or underscore. Must be unique across the farm.</p>
+          <p className="mt-3 text-[11px] text-farm-muted">3–30 characters, <strong className="font-bold text-farm-ink">lowercase</strong> letters, numbers, dot, or underscore. Must be unique across the farm.</p>
         </div>
       </Card>
     </div>

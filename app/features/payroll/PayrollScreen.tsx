@@ -409,6 +409,19 @@ export default function PayrollScreen() {
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-days">Days Worked</label>
                   <input id="w-days" value={wDays} onChange={(e) => setWDays(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
+                  {/* owner 2026-07-18: "some will work half day or even just 1hr due to personal reasons or
+                      emergency" — the field already accepted any decimal (server: p_days_worked numeric, no
+                      integer constraint), it just never said so. Quick-picks make partial days discoverable;
+                      typing a custom decimal (e.g. 0.125 for 1hr of an 8hr day) still works. */}
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {[['1', 'Full day'], ['0.5', 'Half day'], ['0.25', '2 hrs'], ['0.125', '1 hr']].map(([v, label]) => (
+                      <button key={v} type="button" onClick={() => setWDays(v)}
+                        className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold', wDays === v ? 'border-farm-green bg-farm-green text-white' : 'border-farm-accent-soft text-farm-muted hover:bg-farm-accent-soft')}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[9px] text-farm-muted">Or type any amount — e.g. 0.375 for 3 of 8 hours.</p>
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-ded">Deduct Advance (₱)</label>
