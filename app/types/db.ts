@@ -146,7 +146,8 @@ export type PermissionKey =
   | 'finance.account.manage' // P2-B2A: create/edit accounts + transfer between them
   | 'position.manage' // P1D: add/rename/deactivate the Farm Hand position picklist (co_owner/owner by default)
   | 'job_title.manage' // P1D: set another company member's descriptive job title (admin+ by default)
-  | 'membership.approve'; // P1C3: approve/reject pending sign-ups only — the lighter tier below membership.manage (admin by default)
+  | 'membership.approve' // P1C3: approve/reject pending sign-ups only — the lighter tier below membership.manage (admin by default)
+  | 'inventory.reports.read'; // P2-M3B: view the Stock Inventories "Purchase Summary" tab (admin+ default) — does not gate buying stock
 
 // ── Digital payments (P2-B2A / backlog B2, 20.24 + 22.10) ──
 // Thin registry keyed to a chart_of_accounts Asset code. NO stored balance anywhere —
@@ -279,6 +280,7 @@ export interface PosInvoice {
   tender_cash: number;
   change_amount: number;
   note: string | null;
+  customer_name?: string | null; // P2-M2G: free-text walk-in customer name, printed on the receipt
   customer_id?: string | null; // P2-M9A: optional customer attribution (credit sales)
   financial_account_id?: string | null; // P2-B2A: where the money landed (null = cash drawer)
   status: 'Paid' | 'Unpaid' | 'Voided' | 'PendingSync';

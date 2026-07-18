@@ -72,7 +72,9 @@ export default function PosScreen() {
 
   // checkout classification (prototype: Direct Cash Clearance | Pre-order Unpaid Delivery)
   const [saleKind, setSaleKind] = useState<SaleKind>('paid');
-  const [preDiscount, setPreDiscount] = useState(true);
+  // P2-M2G (owner 2026-07-18): the 10% discount toggle now applies to either tab, not preorder-only.
+  const [applyDiscount, setApplyDiscount] = useState(true);
+  const [customerName, setCustomerName] = useState('');
   const [preDelivery, setPreDelivery] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
   const [note, setNote] = useState('');
@@ -139,9 +141,12 @@ export default function PosScreen() {
   const subtotal = round2(basket.reduce((s, l) => s + lineAmount(l), 0));
   const retailTotal = round2(basket.reduce((s, l) => s + (l.weight_kg !== null && l.retail_per_kg != null ? lineTotal(l.weight_kg, l.retail_per_kg) : lineAmount(l)), 0));
   const savedAmt = round2(retailTotal - subtotal); // prototype "Farm Discount Saved"
-  const feeNum = preDelivery ? (parseFloat(deliveryFee) || 0) : 0;
-  const discountNum = saleKind === 'preorder' && preDiscount ? round2(subtotal * 0.1) : 0;
-  const grandTotal = saleKind === 'preorder' ? round2(subtotal - discountNum + feeNum) : subtotal;
+  // P2-M2G: delivery fee stays preorder-only (guarded here too, defensively, in case stale state from a
+  // cancelled preorder checkout carries over after switching to Direct Cash — the server also rejects
+  // this outright, but the client's own total preview must never show it for a 'paid' sale either).
+  const feeNum = saleKind === 'preorder' && preDelivery ? (parseFloat(deliveryFee) || 0) : 0;
+  const discountNum = applyDiscount ? round2(subtotal * 0.1) : 0;
+  const grandTotal = round2(subtotal - discountNum + feeNum);
   const cashNum = parseFloat(cash) || 0;
 
   async function commitSale() {
@@ -150,13 +155,14 @@ export default function PosScreen() {
     try {
       const result = await posApi.recordSale(companyId, branchId, basket, saleKind === 'paid' ? cashNum : 0, {
         kind: saleKind,
-        discountRate: saleKind === 'preorder' && preDiscount ? 0.1 : 0,
+        discountRate: applyDiscount ? 0.1 : 0,
         deliveryFee: feeNum,
         note: note.trim() || undefined,
         financialAccountId: saleKind === 'paid' && payAccountId ? payAccountId : null,
+        customerName: customerName.trim() || undefined,
       });
       setLastSale(result);
-      setBasket([]); setCash(''); setNote(''); setDeliveryFee(''); setPreDelivery(false); setPreDiscount(true); setSaleKind('paid'); setPayAccountId('');
+      setBasket([]); setCash(''); setNote(''); setCustomerName(''); setDeliveryFee(''); setPreDelivery(false); setApplyDiscount(true); setSaleKind('paid'); setPayAccountId('');
       setPane('receipt');
       if (result.provisional) triggerSync();
       reload();
@@ -433,6 +439,16 @@ export default function PosScreen() {
                 <span className="tabular text-3xl font-black text-farm-green">{formatPeso(grandTotal)}</span>
               </div>
 
+              {/* P2-M2G: customer name + discount are shared across both tabs (owner 2026-07-18) */}
+              <div className="mb-3">
+                <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted" htmlFor="pos-customer">Customer name (optional)</label>
+                <input id="pos-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Aling Sandra" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+              <label className="mb-3 flex min-h-10 cursor-pointer items-center justify-between rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 px-3 font-bold text-farm-ink">
+                <span className="flex items-center gap-2"><input type="checkbox" checked={applyDiscount} onChange={(e) => setApplyDiscount(e.target.checked)} className="h-4 w-4 accent-farm-green" /> Include 10% Discount</span>
+                {applyDiscount ? <span className="tabular text-farm-green">− {formatPeso(discountNum)}</span> : null}
+              </label>
+
               {saleKind === 'paid' ? (
                 <>
                   {payAccounts.length > 0 ? (
@@ -465,10 +481,6 @@ export default function PosScreen() {
                     No weighing or numpad needed here — for negotiated wholesale, add lines with <strong className="text-farm-green">Skip Weigh (Bulk Flat Price)</strong> and issue the receipt. Cash is collected later via <strong className="text-farm-green">Mark Paid</strong> in the journal.
                   </p>
                   <div className="rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 p-3 text-sm">
-                    <label className="flex min-h-10 cursor-pointer items-center justify-between font-bold text-farm-ink">
-                      <span className="flex items-center gap-2"><input type="checkbox" checked={preDiscount} onChange={(e) => setPreDiscount(e.target.checked)} className="h-4 w-4 accent-farm-green" /> Include 10% Discount</span>
-                      {preDiscount ? <span className="tabular text-farm-green">− {formatPeso(discountNum)}</span> : null}
-                    </label>
                     <label className="flex min-h-10 cursor-pointer items-center justify-between font-bold text-farm-ink">
                       <span className="flex items-center gap-2"><input type="checkbox" checked={preDelivery} onChange={(e) => {setPreDelivery(e.target.checked); if (!e.target.checked) setDeliveryFee('');}} className="h-4 w-4 accent-farm-green" /> Add Delivery Fee</span>
                       {preDelivery ? <span className="tabular text-farm-green">+ {formatPeso(feeNum)}</span> : null}
@@ -538,6 +550,7 @@ export default function PosScreen() {
                   {lastSale?.provisional ? ' · saved offline' : ''}
                 </p>
                 {lastSale?.invoice.posted_by ? <p className="text-[10px] text-farm-muted">Cashier: <span className="font-semibold text-farm-ink">{lastSale.invoice.posted_by}</span></p> : null}
+                {lastSale?.invoice.customer_name ? <p className="text-[10px] text-farm-muted">Customer: <span className="font-semibold text-farm-ink">{lastSale.invoice.customer_name}</span></p> : null}
                 <p className="mb-2 text-[10px] font-bold text-farm-green">
                   Permit Type: <span className="bg-farm-accent-soft px-1 text-[9px] uppercase tracking-wider">{lastSale?.invoice.status === 'Unpaid' ? 'Pre-Order delivery' : 'Retail PAID Receipt'}</span>
                 </p>
@@ -688,6 +701,9 @@ export default function PosScreen() {
                         {t.status !== 'Voided' && t.status !== 'PendingSync' && canVoid ? (
                           <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Void</button>
                         ) : null}
+                        <button onClick={() => {setLastSale({invoice: t, provisional: false}); setPane('receipt');}} className="rounded border border-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" aria-label={`Print slip #${t.invoice_number ?? ''}`}>
+                          <Printer className="h-3.5 w-3.5" aria-hidden />
+                        </button>
                         {t.status !== 'Voided' && !canVoid && !canSettle ? <Lock className="h-3.5 w-3.5 text-farm-accent" aria-hidden /> : null}
                       </span>
                     </td>

@@ -34,10 +34,11 @@ async function currentDisplayName(): Promise<string | null> {
 
 export interface SaleOptions {
   kind?: 'paid' | 'preorder';
-  discountRate?: 0 | 0.1; // server-constrained to {0, 0.10}
+  discountRate?: 0 | 0.1; // server-constrained to {0, 0.10} — P2-M2G: now allowed on either sale kind
   deliveryFee?: number;
   note?: string;
   financialAccountId?: string | null; // P2-B2A: where a PAID sale's money lands (null = cash drawer)
+  customerName?: string; // P2-M2G: free-text walk-in customer name, printed on the receipt
 }
 
 export interface SaleResult {
@@ -97,6 +98,7 @@ export const posApi = {
       tender_cash: kind === 'paid' ? tenderCash : 0,
       change_amount: kind === 'paid' ? round2(tenderCash - total) : 0,
       note: opts.note ?? null,
+      customer_name: opts.customerName?.trim() || null,
       financial_account_id: kind === 'paid' ? (opts.financialAccountId ?? null) : null,
       status: 'PendingSync', created_at: new Date().toISOString(),
     };
@@ -133,6 +135,7 @@ export const posApi = {
       p_tender_cash: tenderCash, p_idempotency_key: idem,
       p_sale_kind: kind, p_discount_rate: discountRate, p_delivery_fee: deliveryFee, p_customer_note: opts.note ?? null,
       p_financial_account_id: kind === 'paid' ? (opts.financialAccountId ?? null) : null,
+      p_customer_name: base.customer_name,
     };
 
     if (online()) {

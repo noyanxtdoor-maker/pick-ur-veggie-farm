@@ -209,13 +209,63 @@ begin
   raise notice 'PASS pos: void = balanced reversal (740 farm-priced), stock returned 6→10, reason mandatory, idempotent';
 end $$;
 
--- discount tamper: arbitrary rate rejected; discount/delivery on a PAID sale rejected
+-- discount tamper: arbitrary rate rejected (still, regardless of sale kind)
 do $$ declare v_fg uuid; begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
   v_fg := public.record_opening_finished_goods('a1111111-1111-1111-1111-111111111111','ca000000-0000-0000-0000-0000000000a1','FG-DISC', 5.0, 50.00, 'open-disc', 'x');
   perform public.pos_record_sale('a1111111-1111-1111-1111-111111111111',
     jsonb_build_array(jsonb_build_object('product_id','ca000000-0000-0000-0000-0000000000a1','finished_goods_batch_id', v_fg, 'weight_kg', 1.0)), 0, 'sale-disc', 'preorder', 0.50, 0, null);
   raise exception 'DEFECT pos: arbitrary discount rate accepted';
 exception when check_violation then raise notice 'PASS pos: discount is server-constrained (arbitrary rate rejected)'; end $$;
+
+-- P2-M2G: discount IS now allowed on a PAID (Direct Cash) sale — 2kg @ retail 150 → farm 270, 10% off → 243
+do $$ declare v_fg uuid; v_inv uuid; v_total numeric; v_cname text;
+begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_fg := public.record_opening_finished_goods('a1111111-1111-1111-1111-111111111111','ca000000-0000-0000-0000-0000000000a1','FG-PAIDDISC', 5.0, 50.00, 'open-paiddisc', 'x');
+  v_inv := public.pos_record_sale('a1111111-1111-1111-1111-111111111111',
+    jsonb_build_array(jsonb_build_object('product_id','ca000000-0000-0000-0000-0000000000a1','finished_goods_batch_id', v_fg, 'weight_kg', 2.0)),
+    300, 'sale-paiddisc', 'paid', 0.10, 0, null, null, 'Aling Sandra');
+  set local role postgres;
+  select total, customer_name into v_total, v_cname from public.invoices where id = v_inv;
+  if v_total <> 243.00 then raise exception 'DEFECT pos: paid-sale discount math wrong (got %, want 243 = 270 - 10%%)', v_total; end if;
+  if v_cname <> 'Aling Sandra' then raise exception 'DEFECT pos: customer_name not stored (got %)', v_cname; end if;
+  raise notice 'PASS pos: 10%% discount now applies to a Direct Cash sale (243 = 270 farm - 27), customer_name stored';
+end $$;
+
+-- P2-M2G: delivery fee stays PRE-ORDER-ONLY even though discount no longer is
+do $$ declare v_fg uuid; begin set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_fg := public.record_opening_finished_goods('a1111111-1111-1111-1111-111111111111','ca000000-0000-0000-0000-0000000000a1','FG-PAIDFEE', 5.0, 50.00, 'open-paidfee', 'x');
+  perform public.pos_record_sale('a1111111-1111-1111-1111-111111111111',
+    jsonb_build_array(jsonb_build_object('product_id','ca000000-0000-0000-0000-0000000000a1','finished_goods_batch_id', v_fg, 'weight_kg', 1.0)), 500, 'sale-paidfee', 'paid', 0, 20.00, null);
+  raise exception 'DEFECT pos: delivery fee accepted on a paid sale';
+exception when check_violation then raise notice 'PASS pos: delivery fee still rejected on a Direct Cash (paid) sale'; end $$;
+
+-- P2-M2G: customer_name on a pre-order too (both tabs, same param)
+do $$ declare v_fg uuid; v_inv uuid; v_cname text;
+begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_fg := public.record_opening_finished_goods('a1111111-1111-1111-1111-111111111111','ca000000-0000-0000-0000-0000000000a1','FG-PRECUST', 5.0, 50.00, 'open-precust', 'x');
+  v_inv := public.pos_record_sale('a1111111-1111-1111-1111-111111111111',
+    jsonb_build_array(jsonb_build_object('product_id','ca000000-0000-0000-0000-0000000000a1','finished_goods_batch_id', v_fg, 'weight_kg', 1.0)),
+    0, 'sale-precust', 'preorder', 0, 0, null, null, '  Mang Tomas  ');
+  set local role postgres;
+  select customer_name into v_cname from public.invoices where id = v_inv;
+  if v_cname <> 'Mang Tomas' then raise exception 'DEFECT pos: customer_name not trimmed/stored on preorder (got %)', v_cname; end if;
+  raise notice 'PASS pos: customer_name stored (trimmed) on a pre-order sale too';
+end $$;
+
+-- P2-M2G: blank customer_name stores as null, not an empty string
+do $$ declare v_fg uuid; v_inv uuid; n int;
+begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_fg := public.record_opening_finished_goods('a1111111-1111-1111-1111-111111111111','ca000000-0000-0000-0000-0000000000a1','FG-BLANKCUST', 5.0, 50.00, 'open-blankcust', 'x');
+  v_inv := public.pos_record_sale('a1111111-1111-1111-1111-111111111111',
+    jsonb_build_array(jsonb_build_object('product_id','ca000000-0000-0000-0000-0000000000a1','finished_goods_batch_id', v_fg, 'weight_kg', 1.0)), 500, 'sale-blankcust', 'paid', 0, 0, null, null, '   ');
+  set local role postgres;
+  select count(*) into n from public.invoices where id = v_inv and customer_name is null;
+  if n <> 1 then raise exception 'DEFECT pos: whitespace-only customer_name did not store as null'; end if;
+  raise notice 'PASS pos: whitespace-only customer_name stores as null, not an empty string';
+end $$;
 
 -- ══ M2E: bulk wholesale (mock "Skip Weigh") ═════════════════════════════════
 
