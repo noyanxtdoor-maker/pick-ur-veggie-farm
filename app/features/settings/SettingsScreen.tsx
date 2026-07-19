@@ -4,14 +4,15 @@
 // IndexedDB — Google-Drive sync, JSON export/import, factory reset — is deliberately backlog here (B7): in a
 // multi-tenant server world those are governed server operations, not a client button. No migration, no new
 // permission, no RLS surface: a device configuring its own look and labels.
-import {useState} from 'react';
-import {Palette, Check, Store, Cloud, Download, LogOut, MonitorCog, Sparkles} from 'lucide-react';
+import {useRef, useState} from 'react';
+import {Palette, Check, Store, Cloud, Download, LogOut, MonitorCog, Sparkles, Upload} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {usePermissions} from '../../core/permissions/permissions';
 import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {useToast} from '../../components/feedback';
+import {ConfirmDialog} from '../../components/overlay';
 import {THEMES, useTheme, usePref, type ThemeId} from '../../core/prefs/prefs';
-import {exportLocalData} from './export';
+import {exportLocalData, importLocalData, parseImportFile, type ExportPayload} from './export';
 
 const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> = {
   light: {name: 'Fresh Wood', desc: 'Default deep forest-green daylight palette', swatch: '#003e1c'},
@@ -75,6 +76,30 @@ export default function SettingsScreen() {
       const rows = await exportLocalData();
       notify(`Exported ${rows} records`);
     } catch (e) { notify(e instanceof Error ? e.message : 'Export failed', 'error'); } finally { setExporting(false); }
+  }
+
+  // Owner backlog item 2026-07-19: "load a backup file back in." Local-cache-only by design — see
+  // export.ts's module header for why a full server restore is a separate, larger, governance-gated ask.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [pendingImport, setPendingImport] = useState<ExportPayload | null>(null);
+
+  async function onImportFileChosen(file: File) {
+    try {
+      const payload = parseImportFile(await file.text());
+      setPendingImport(payload);
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not read that file', 'error'); }
+    if (importInputRef.current) importInputRef.current.value = '';
+  }
+
+  async function confirmImport() {
+    if (!pendingImport) return;
+    setImporting(true);
+    try {
+      const rows = await importLocalData(pendingImport);
+      notify(`Loaded ${rows} records into this device's local cache`);
+    } catch (e) { notify(e instanceof Error ? e.message : 'Import failed', 'error'); }
+    finally { setImporting(false); setPendingImport(null); }
   }
 
   return (
@@ -171,11 +196,34 @@ export default function SettingsScreen() {
               <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Cloud className="h-5 w-5" aria-hidden /> Data &amp; Backup</h3>
               <p className="mb-3 text-xs text-farm-muted">
                 Your data lives in the company cloud and syncs automatically. You can also download a JSON copy of this
-                device's records for your own safekeeping. (Governed cloud backup + restore is a planned follow-up.)
+                device's records for your own safekeeping, or load one back in.
               </p>
-              <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => void doExport()} disabled={exporting}><Download size={16} aria-hidden /> {exporting ? 'Exporting…' : 'Export my data (JSON)'}</Button>
+                <Button variant="secondary" onClick={() => importInputRef.current?.click()} disabled={importing}><Upload size={16} aria-hidden /> Load backup file</Button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(e) => {const f = e.target.files?.[0]; if (f) void onImportFileChosen(f);}}
+                />
+              </div>
+              <p className="mt-2 text-[10px] text-farm-muted">
+                Loading a backup only restores THIS device's local cache — not the company's cloud data. Useful for
+                offline troubleshooting; the next successful sync will overwrite it with the live server data again.
+              </p>
             </Card>
           ) : null}
+
+          <ConfirmDialog
+            open={pendingImport !== null}
+            title="Load this backup file?"
+            description={`This will overwrite matching records in ${terminalId || 'this device'}'s local cache (exported ${pendingImport?.exportedAt ? new Date(pendingImport.exportedAt).toLocaleString('en-PH') : 'unknown date'}). It does not change the company's cloud data — the next sync will refresh from the server again.`}
+            confirmLabel={importing ? 'Loading…' : 'Load backup'}
+            onCancel={() => setPendingImport(null)}
+            onConfirm={confirmImport}
+          />
 
           {/* VeggieGenius Copilot (CAP-VG1 step 1) — local LM Studio connection; pure client prefs, no DB. */}
           <CopilotCard />
