@@ -128,6 +128,7 @@ export type PermissionKey =
   | 'pos.sell'
   | 'pos.settle'
   | 'pos.void'
+  | 'pos.void.self' // P2N2.1: approve own void request below admin rank — admin+ already can via rank
   | 'cash.session'
   | 'inventory.purchase'
   | 'equipment.manage'

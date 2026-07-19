@@ -327,11 +327,14 @@ begin
 end $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
--- SAD2: separation of duties — same admin who filed cannot approve
+-- SAD2 (P2N2.1, 2026-07-19): admin+ self-approval is now ALLOWED by rank — owner report:
+-- "tried to void as an owner but it says you cannot approve your own void request... owner should
+-- be able to void... owner, co-owner, admin can approve their own void." Was a hard block before
+-- P2N2.1; now proves admin (rank 30) CAN self-approve.
 -- ════════════════════════════════════════════════════════════════════════════
 do $$
 declare w record; v_company uuid; v_branch uuid; v_product uuid; v_fg uuid; v_cust uuid;
-        v_order uuid; v_invoice uuid; v_req_id uuid;
+        v_order uuid; v_invoice uuid; v_req_id uuid; v_status text;
         v_retail numeric := 70; v_line numeric := 1.5; v_cogs numeric := 20;
 begin
   set local role postgres;
@@ -354,12 +357,96 @@ begin
     json_build_object('sub', w.admin1::text, 'role', 'authenticated')::text, true);
   set local role authenticated;
   v_req_id := public.request_void(v_invoice, 'admin1 filing for self-approval test');
+  perform public.approve_void_request(v_req_id);
+  set local role postgres;
+  select status into v_status from public.invoices where id = v_invoice;
+  if v_status <> 'Voided' then
+    raise exception 'SAD2 FAIL: admin self-approval did not actually void the invoice (status=%)', v_status;
+  end if;
+  raise notice 'SAD2 PASS: admin (rank 30) can approve their own void request (P2N2.1 rank exemption)';
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SAD5 (P2N2.1): below-admin rank with pos.void granted (owner override, not default) but WITHOUT
+-- pos.void.self still cannot self-approve — "employee and operator cannot unless given access."
+-- ════════════════════════════════════════════════════════════════════════════
+do $$
+declare w record; v_company uuid; v_branch uuid; v_role_operator uuid; v_perm_void uuid;
+        v_product uuid; v_fg uuid; v_cust uuid; v_order uuid; v_invoice uuid; v_req_id uuid;
+        v_retail numeric := 70; v_line numeric := 1.5; v_cogs numeric := 20;
+begin
+  set local role postgres;
+  select * into w from p2n2_world;
+  v_company := w.company_id; v_branch := w.branch_a;
+  select ubr.role_id into v_role_operator from public.user_branch_roles ubr where ubr.user_id = w.cashier1 and ubr.company_id = v_company;
+  select id into v_perm_void from public.permissions where permission_key = 'pos.void';
+  insert into public.role_permissions (company_id, role_id, permission_id) values (v_company, v_role_operator, v_perm_void)
+    on conflict do nothing;
+  v_product := public.uuidv7(); v_fg := public.uuidv7(); v_cust := public.uuidv7();
+  v_order := public.uuidv7(); v_invoice := public.uuidv7();
+  insert into public.products (id, company_id, product_code, name, retail_per_kg, status)
+    values (v_product, v_company, 'PROD-SAD5', 'Tomato', v_retail, 'Active');
+  insert into public.finished_goods_batches (id, company_id, product_id, branch_id, finished_goods_code, origin, unit, cost_per_unit)
+    values (v_fg, v_company, v_product, v_branch, 'FG-SAD5', 'field_harvest', 'kg', v_cogs);
+  insert into public.customers (id, company_id, name) values (v_cust, v_company, 'SAD5 Cust');
+  insert into public.sales_orders (id, company_id, branch_id, order_number, customer_id, sales_channel, status, subtotal, total_amount, idempotency_key, created_by)
+    values (v_order, v_company, v_branch, 400, v_cust, 'Retail Store', 'Completed', round(v_line*v_retail,2), round(v_line*v_retail,2), 'p2n2-sad5-'||v_order::text, w.cashier1);
+  insert into public.sales_order_items (company_id, sales_order_id, product_id, finished_goods_batch_id, quantity, unit_cost, unit_price, line_total)
+    values (v_company, v_order, v_product, v_fg, v_line, v_cogs, v_retail, round(v_line*v_retail,2));
+  insert into public.invoices (id, company_id, branch_id, sales_order_id, customer_id, invoice_number, invoice_type, total, tender_cash, change_amount, status, created_by, paid_at)
+    values (v_invoice, v_company, v_branch, v_order, v_cust, 400, 'cash', round(v_line*v_retail,2), round(v_line*v_retail,2), 0, 'Paid', w.cashier1, now());
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', w.cashier1::text, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_req_id := public.request_void(v_invoice, 'operator filing for below-rank self-approval test');
   begin
     perform public.approve_void_request(v_req_id);
-    raise exception 'SAD2 FAIL: self-approval of void request succeeded';
+    raise exception 'SAD5 FAIL: below-admin-rank self-approval succeeded without pos.void.self';
   exception when insufficient_privilege then
-    raise notice 'SAD2 PASS: separation of duties held (insufficient_privilege)';
+    raise notice 'SAD5 PASS: operator (rank 20) with pos.void but no pos.void.self still cannot self-approve';
   end;
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SAD6 (P2N2.1): the SAME below-admin actor, now also granted pos.void.self, CAN self-approve —
+-- proves the "given access" override actually works.
+-- ════════════════════════════════════════════════════════════════════════════
+do $$
+declare w record; v_company uuid; v_branch uuid; v_role_operator uuid; v_perm_void_self uuid;
+        v_product uuid; v_fg uuid; v_cust uuid; v_order uuid; v_invoice uuid; v_req_id uuid; v_status text;
+        v_retail numeric := 70; v_line numeric := 1.5; v_cogs numeric := 20;
+begin
+  set local role postgres;
+  select * into w from p2n2_world;
+  v_company := w.company_id; v_branch := w.branch_a;
+  select ubr.role_id into v_role_operator from public.user_branch_roles ubr where ubr.user_id = w.cashier1 and ubr.company_id = v_company;
+  select id into v_perm_void_self from public.permissions where permission_key = 'pos.void.self';
+  insert into public.role_permissions (company_id, role_id, permission_id) values (v_company, v_role_operator, v_perm_void_self)
+    on conflict do nothing;
+  v_product := public.uuidv7(); v_fg := public.uuidv7(); v_cust := public.uuidv7();
+  v_order := public.uuidv7(); v_invoice := public.uuidv7();
+  insert into public.products (id, company_id, product_code, name, retail_per_kg, status)
+    values (v_product, v_company, 'PROD-SAD6', 'Tomato', v_retail, 'Active');
+  insert into public.finished_goods_batches (id, company_id, product_id, branch_id, finished_goods_code, origin, unit, cost_per_unit)
+    values (v_fg, v_company, v_product, v_branch, 'FG-SAD6', 'field_harvest', 'kg', v_cogs);
+  insert into public.customers (id, company_id, name) values (v_cust, v_company, 'SAD6 Cust');
+  insert into public.sales_orders (id, company_id, branch_id, order_number, customer_id, sales_channel, status, subtotal, total_amount, idempotency_key, created_by)
+    values (v_order, v_company, v_branch, 401, v_cust, 'Retail Store', 'Completed', round(v_line*v_retail,2), round(v_line*v_retail,2), 'p2n2-sad6-'||v_order::text, w.cashier1);
+  insert into public.sales_order_items (company_id, sales_order_id, product_id, finished_goods_batch_id, quantity, unit_cost, unit_price, line_total)
+    values (v_company, v_order, v_product, v_fg, v_line, v_cogs, v_retail, round(v_line*v_retail,2));
+  insert into public.invoices (id, company_id, branch_id, sales_order_id, customer_id, invoice_number, invoice_type, total, tender_cash, change_amount, status, created_by, paid_at)
+    values (v_invoice, v_company, v_branch, v_order, v_cust, 401, 'cash', round(v_line*v_retail,2), round(v_line*v_retail,2), 0, 'Paid', w.cashier1, now());
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', w.cashier1::text, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_req_id := public.request_void(v_invoice, 'operator with pos.void.self self-approval test');
+  perform public.approve_void_request(v_req_id);
+  set local role postgres;
+  select status into v_status from public.invoices where id = v_invoice;
+  if v_status <> 'Voided' then
+    raise exception 'SAD6 FAIL: operator with pos.void.self self-approval did not actually void the invoice (status=%)', v_status;
+  end if;
+  raise notice 'SAD6 PASS: operator (rank 20) explicitly granted pos.void.self can self-approve';
 end $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
