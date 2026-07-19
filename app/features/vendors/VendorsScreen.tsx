@@ -263,7 +263,9 @@ function InvoiceDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
   );
 }
 
-// ─── Payment Record Dialog (T3.1) ────────────────────────────────────────────
+// ─── Payment Record Dialog (T3.1, invoice picker added 2026-07-19) ──────────
+interface OpenInvoice {id: string; invoice_number: string; invoice_date: string; outstanding: number;}
+
 function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {companyId: string; vendor: VendorAPStanding; branches: Branch[]; onClose: () => void; onSaved: () => void; wrap: Wrap}) {
   const [branchId, setBranchId] = useState<string | undefined>(branches[0]?.id);
   const [today] = useState(new Date().toISOString().slice(0, 10));
@@ -271,28 +273,38 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
   const [method, setMethod] = useState('Bank');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [openInvs, setOpenInvs] = useState<OpenInvoice[] | null>(null);
+  const [applied, setApplied] = useState<Record<string, string>>({}); // invoice id -> amount typed
+
+  useEffect(() => {
+    supabase.from('vendor_invoices').select('id, invoice_number, invoice_date, total, paid_amount')
+      .eq('company_id', companyId).eq('vendor_id', vendor.vendor_id).in('status', ['Approved', 'Partial']).order('invoice_date')
+      .then(({data}) => setOpenInvs((data ?? []).map((r) => ({id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, outstanding: Number(r.total) - Number(r.paid_amount)}))));
+  }, [companyId, vendor.vendor_id]);
+
+  const totalApplied = Object.values(applied).reduce((s, v) => s + (Number(v) || 0), 0);
+
+  // Convenience: distribute the entered amount oldest-invoice-first (still just fills the per-row inputs — the
+  // owner picks/edits before submitting, this isn't a hidden auto-allocation like the old behavior was).
+  const fillOldestFirst = () => {
+    if (!openInvs) return;
+    let remaining = Number(amount) || 0;
+    const next: Record<string, string> = {};
+    for (const inv of openInvs) {
+      if (remaining <= 0.005) break;
+      const take = Math.min(remaining, inv.outstanding);
+      if (take > 0) {next[inv.id] = take.toFixed(2); remaining -= take;}
+    }
+    setApplied(next);
+  };
+
   const onSubmit = wrap(async () => {
     if (!branchId) throw new Error('Select a branch for this payment.');
-    // First ship: allocate oldest-open-invoice-first, automatically, up to the entered amount.
-    // Multi-invoice allocation is exposed via the RPC already — manual per-invoice picking is backlog.
-    const {data: openInvs} = await supabase.from('vendor_invoices')
-      .select('id, total, paid_amount')
-      .eq('company_id', companyId)
-      .eq('vendor_id', vendor.vendor_id)
-      .in('status', ['Approved', 'Partial'])
-      .order('invoice_date');
-    if (!openInvs || openInvs.length === 0) throw new Error('No open invoices for this vendor');
-    let remaining = Number(amount);
-    const allocations: Array<{vendor_invoice_id: string; amount: number}> = [];
-    for (const inv of openInvs) {
-      const outstanding = Number(inv.total) - Number(inv.paid_amount);
-      if (outstanding <= 0) continue;
-      const take = Math.min(remaining, outstanding);
-      allocations.push({vendor_invoice_id: inv.id, amount: take});
-      remaining -= take;
-      if (remaining <= 0.005) break;
-    }
-    if (remaining > 0.005) throw new Error(`Amount exceeds total outstanding (₱${Number(amount).toFixed(2)} paid, ₱${remaining.toFixed(2)} unallocated)`);
+    const allocations = Object.entries(applied)
+      .map(([vendor_invoice_id, v]) => ({vendor_invoice_id, amount: Number(v) || 0}))
+      .filter((a) => a.amount > 0);
+    if (allocations.length === 0) throw new Error('Apply the payment to at least one invoice.');
+    if (Math.abs(totalApplied - Number(amount)) > 0.005) throw new Error(`Applied amount (₱${totalApplied.toFixed(2)}) must equal the payment amount (₱${Number(amount).toFixed(2)}).`);
     await vendorsApi.recordPayment(companyId, branchId, vendor.vendor_id, today, Number(amount), allocations, method, reference || null, notes || null);
     onSaved();
   }, 'Payment recorded');
@@ -300,9 +312,9 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
     <Dialog.Root open onOpenChange={(o) => {if (!o) onClose();}}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
           <Dialog.Title className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Record Payment — {vendor.name}</Dialog.Title>
-          <p className="mb-3 text-xs text-farm-muted">Outstanding AP for this vendor: <span className="font-bold text-farm-danger">{formatPeso(vendor.outstanding_ap)}</span>. The payment is allocated oldest-invoice-first.</p>
+          <p className="mb-3 text-xs text-farm-muted">Outstanding AP for this vendor: <span className="font-bold text-farm-danger">{formatPeso(vendor.outstanding_ap)}</span>. Pick which invoice(s) this payment settles.</p>
           <div className="space-y-2 text-sm">
             <label className="block"><span className="text-xs text-farm-muted">Branch</span><SelectField value={branchId} onChange={setBranchId} placeholder="Branch" options={branches.map((b) => ({value: b.id, label: b.name}))} /></label>
             <label className="block"><span className="text-xs text-farm-muted">Amount ₱ (required)</span><input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
@@ -314,9 +326,42 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
             <label className="block"><span className="text-xs text-farm-muted">Reference (check # / txn id)</span><input value={reference} onChange={(e) => setReference(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
             <label className="block"><span className="text-xs text-farm-muted">Notes</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
           </div>
+          <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between">
+              <h4 className="text-sm font-bold text-farm-ink">Apply to invoice(s)</h4>
+              <button type="button" onClick={fillOldestFirst} className="text-xs font-semibold text-farm-green hover:underline">Fill oldest-first</button>
+            </div>
+            {openInvs === null ? (
+              <Skeleton rows={2} />
+            ) : openInvs.length === 0 ? (
+              <p className="text-xs text-farm-muted">No open invoices for this vendor.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead><tr className="text-left text-farm-muted"><th className="px-1 py-1">Invoice</th><th className="px-1 py-1">Date</th><th className="px-1 py-1 text-right">Outstanding</th><th className="px-1 py-1 w-24 text-right">Apply ₱</th></tr></thead>
+                <tbody>
+                  {openInvs.map((inv) => (
+                    <tr key={inv.id} className="border-t border-farm-accent-soft/50">
+                      <td className="px-1 py-1 font-mono">{inv.invoice_number}</td>
+                      <td className="px-1 py-1">{inv.invoice_date}</td>
+                      <td className="px-1 py-1 text-right tabular-nums">{formatPeso(inv.outstanding)}</td>
+                      <td className="px-1 py-1">
+                        <input type="number" step="0.01" min="0" max={inv.outstanding}
+                          value={applied[inv.id] ?? ''}
+                          onChange={(e) => setApplied((a) => ({...a, [inv.id]: e.target.value}))}
+                          className="w-full rounded border border-farm-accent px-1 py-1 text-right tabular-nums" placeholder="0.00" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className={`mt-1 text-right text-xs font-bold ${Math.abs(totalApplied - Number(amount)) > 0.005 ? 'text-farm-danger' : 'text-farm-green'}`}>
+              Applied: {formatPeso(totalApplied)} / {formatPeso(Number(amount) || 0)}
+            </p>
+          </div>
           <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button className="flex-1" onClick={onSubmit} disabled={!branchId || !Number(amount) || Number(amount) <= 0}>Record Payment</Button>
+            <Button className="flex-1" onClick={onSubmit} disabled={!branchId || !Number(amount) || Number(amount) <= 0 || Math.abs(totalApplied - Number(amount)) > 0.005}>Record Payment</Button>
           </div>
           <Dialog.Close className="absolute right-3 top-3 rounded p-1 text-farm-muted hover:bg-farm-bg" aria-label="Close"><X className="h-4 w-4" /></Dialog.Close>
         </Dialog.Content>
