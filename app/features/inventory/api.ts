@@ -58,6 +58,7 @@ export interface PurchaseInput {
   vendorId?: string | null; // T3.2: set when sourceType='vendor' — server snapshots name/contact from the vendor master
   boughtBy?: string; // P2M3B.1: who physically made the purchase, distinct from who recorded it
   purchaseDate: string; // yyyy-mm-dd
+  baseUnit?: string; // P2U1: only applied when the item is first created — ignored on later purchases of the same item
 }
 
 export const inventoryApi = {
@@ -117,7 +118,8 @@ export const inventoryApi = {
         item = {
           id: uuidv7(), company_id: companyId, category_id: cat.id,
           item_code: `${key.toUpperCase()}-${uuidv7().slice(-8)}`, name: input.itemName.trim(),
-          inventory_type: input.isEquipment ? 'Equipment' : 'Consumable', base_unit: 'pcs',
+          inventory_type: input.isEquipment ? 'Equipment' : 'Consumable', base_unit: input.baseUnit?.trim() || 'pcs',
+          purchase_unit: null, unit_conversion_factor: null,
           reorder_level: 10, status: 'Active', created_at: now, updated_at: now,
         };
         await offlineDB.inventoryItems.put(item);
@@ -146,6 +148,7 @@ export const inventoryApi = {
       p_source_type: input.sourceType, p_source_name: input.sourceName.trim() || 'Local Supplier',
       p_source_contact: input.sourceContact?.trim() || null, p_purchase_date: input.purchaseDate,
       p_idempotency_key: idem, p_vendor_id: input.vendorId ?? null, p_bought_by: input.boughtBy?.trim() || null,
+      p_base_unit: input.baseUnit?.trim() || null,
     };
     if (online()) {
       const {error} = await supabase.rpc('inventory_record_purchase', payload);
@@ -169,6 +172,25 @@ export const inventoryApi = {
       return;
     }
     await enqueue({companyId, kind: 'inventory.setBoughtBy', request: {type: 'rpc', rpc: 'inventory_set_purchase_bought_by', payload}});
+  },
+
+  // P2U1: define/edit the Buy Stock unit-conversion calculator ("1 sack = 50 kg"). Never touches
+  // the stock ledger — purely a client-side convenience for entering a purchase quantity in whatever
+  // unit the owner actually counts in at the register.
+  async setUnitConversion(companyId: string, itemId: string, purchaseUnit: string, conversionFactor: number | null): Promise<void> {
+    if (conversionFactor !== null && conversionFactor <= 0) throw new Error('Conversion factor must be greater than zero.');
+    const payload = {p_item_id: itemId, p_purchase_unit: purchaseUnit.trim() || null, p_conversion_factor: conversionFactor};
+    if (MOCK_MODE) {
+      const row = await offlineDB.inventoryItems.get(itemId);
+      if (row) await offlineDB.inventoryItems.put({...row, purchase_unit: purchaseUnit.trim() || null, unit_conversion_factor: conversionFactor});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.rpc('inventory_set_unit_conversion', payload);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId, kind: 'inventory.setUnitConversion', request: {type: 'rpc', rpc: 'inventory_set_unit_conversion', payload}});
   },
 
   // ± adjustment; reason mandatory (20.09). Returns the new balance when known (mock/online).

@@ -317,7 +317,9 @@ export interface InventoryItem {
   item_code: string;
   name: string;
   inventory_type: 'Consumable' | 'Equipment';
-  base_unit: string; // 'pcs' (mock; unit conversion deferred)
+  base_unit: string; // the unit STOCK is tracked in (e.g. 'kg'); settable at creation (P2U1), immutable after
+  purchase_unit: string | null; // P2U1: the unit this item is normally BOUGHT in (e.g. 'sack'), for the Buy Stock calculator
+  unit_conversion_factor: number | null; // P2U1: how many base_units equal one purchase_unit (e.g. 50)
   reorder_level: number; // the mock's low-stock limit (per item; default 10)
   status: 'Active' | 'Inactive' | 'Archived';
   created_at: string;

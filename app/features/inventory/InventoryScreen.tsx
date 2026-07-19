@@ -93,6 +93,11 @@ export default function InventoryScreen() {
   const [buyVendorId, setBuyVendorId] = useState('');
   const [buyBoughtBy, setBuyBoughtBy] = useState('');
   const [buyAmount, setBuyAmount] = useState('');
+  const [buyUnit, setBuyUnit] = useState('pcs'); // P2U1: only applies when Item Description doesn't match an existing item
+  const [buyQtyInPurchaseUnit, setBuyQtyInPurchaseUnit] = useState(false); // P2U1: toggle Quantity's meaning when a conversion is defined
+  const [convOpen, setConvOpen] = useState(false); // P2U1: "set up a conversion" mini-form for the matched item
+  const [convUnit, setConvUnit] = useState('');
+  const [convFactor, setConvFactor] = useState('');
 
   // ── adjustment modal ──
   const [adjOpen, setAdjOpen] = useState(false);
@@ -155,11 +160,22 @@ export default function InventoryScreen() {
     return [...seen.values()].slice(0, 8);
   }, [receivings, itemById]);
 
+  // P2U1: does the current Item Description match an existing item in the selected category? If so,
+  // its base_unit is fixed (immutable after creation) and any conversion calculator it already has applies.
+  const buyMatchedItem = useMemo(() => {
+    const key = buyType === 'Equipment' ? 'equipment' : buyCategory;
+    const cat = categories.find((c) => c.category_key === key);
+    if (!cat || !buyDesc.trim()) return undefined;
+    return (items ?? []).find((i) => i.category_id === cat.id && i.name.toLowerCase() === buyDesc.trim().toLowerCase());
+  }, [items, categories, buyType, buyCategory, buyDesc]);
+  const buyEffectiveUnit = buyMatchedItem?.base_unit ?? buyUnit;
+
   const openBuy = (prefillCategoryKey?: string) => {
     setBuyDate(todayISO());
     setBuyType('Consumables');
     setBuyCategory(prefillCategoryKey ?? 'seeds');
     setBuyDesc(''); setBuyQty('1'); setBuySourceType('online'); setBuySourceName('Lazada'); setBuyContact(''); setBuyVendorId(''); setBuyAmount(''); setBuyBoughtBy('');
+    setBuyUnit('pcs'); setBuyQtyInPurchaseUnit(false); setConvOpen(false); setConvUnit(''); setConvFactor('');
     if (prefillCategoryKey) {
       const cat = categories.find((c) => c.category_key === prefillCategoryKey);
       const latest = receivings.find((r) => itemById.get(r.item_id)?.category_id === cat?.id);
@@ -178,16 +194,23 @@ export default function InventoryScreen() {
     if (!companyId || !branchId) return;
     if (buySourceType === 'vendor' && !buyVendorId) return notify('Choose a registered vendor.', 'error');
     const vendor = buySourceType === 'vendor' ? vendors.find((v) => v.id === buyVendorId) : undefined;
+    // P2U1: if the owner is entering the quantity in the item's purchase_unit (e.g. "2 sacks"), convert
+    // to base_unit terms (e.g. 100 kg) before it ever reaches the RPC — the server always receives a
+    // base_unit quantity, exactly as it always has; the conversion is entirely a client-side convenience.
+    const factor = buyMatchedItem?.unit_conversion_factor;
+    const enteredQty = parseFloat(buyQty);
+    const effectiveQty = buyQtyInPurchaseUnit && factor ? enteredQty * factor : enteredQty;
     const input: PurchaseInput = {
       categoryKey: buyType === 'Equipment' ? 'equipment' : buyCategory,
       itemName: buyDesc, isEquipment: buyType === 'Equipment',
-      quantity: parseFloat(buyQty), totalCost: parseFloat(buyAmount),
+      quantity: effectiveQty, totalCost: parseFloat(buyAmount),
       sourceType: buySourceType,
       sourceName: buySourceType === 'vendor' ? (vendor?.name ?? '') : buySourceName,
       sourceContact: buySourceType === 'vendor' ? (vendor?.contact ?? undefined) : buyContact,
       vendorId: buySourceType === 'vendor' ? buyVendorId : null,
       boughtBy: buyBoughtBy,
       purchaseDate: buyDate,
+      baseUnit: buyUnit,
     };
     if (!(input.quantity > 0) || !(input.totalCost > 0)) return notify('Amounts and counts must be larger than zero.', 'error');
     setBusy(true);
@@ -197,6 +220,17 @@ export default function InventoryScreen() {
       setBuyOpen(false);
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Purchase failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function submitConversion() {
+    if (!companyId || !buyMatchedItem || !convUnit.trim() || !(parseFloat(convFactor) > 0)) return;
+    setBusy(true);
+    try {
+      await inventoryApi.setUnitConversion(companyId, buyMatchedItem.id, convUnit.trim(), parseFloat(convFactor));
+      notify(`Saved: 1 ${convUnit.trim()} = ${convFactor} ${buyMatchedItem.base_unit}`);
+      setConvOpen(false);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not save conversion', 'error'); } finally { setBusy(false); }
   }
 
   async function submitAdjust() {
@@ -576,13 +610,21 @@ export default function InventoryScreen() {
                   )}
                 </div>
                 <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-qty">Quantity (pcs/units)</label>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-qty">
+                    Quantity ({buyMatchedItem?.unit_conversion_factor && buyQtyInPurchaseUnit ? buyMatchedItem.purchase_unit : buyEffectiveUnit})
+                  </label>
                   <input id="buy-qty" value={buyQty} onChange={(e) => setBuyQty(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="numeric" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+                  {buyMatchedItem?.unit_conversion_factor && buyMatchedItem.purchase_unit ? (
+                    <label className="mt-1 flex items-center gap-1.5 text-[10px] text-farm-muted">
+                      <input type="checkbox" checked={buyQtyInPurchaseUnit} onChange={(e) => setBuyQtyInPurchaseUnit(e.target.checked)} className="h-3.5 w-3.5 accent-farm-green" />
+                      Entering in {buyMatchedItem.purchase_unit} (1 {buyMatchedItem.purchase_unit} = {buyMatchedItem.unit_conversion_factor} {buyMatchedItem.base_unit})
+                    </label>
+                  ) : null}
                 </div>
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-desc">Item Description / Item Name</label>
-                <input id="buy-desc" value={buyDesc} onChange={(e) => setBuyDesc(e.target.value)} placeholder="e.g. F1 organic eggplant seeds pack or Submersible Pump" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                <input id="buy-desc" value={buyDesc} onChange={(e) => {setBuyDesc(e.target.value); setBuyQtyInPurchaseUnit(false);}} placeholder="e.g. F1 organic eggplant seeds pack or Submersible Pump" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
                 {suggestions.length > 0 && buyType === 'Consumables' ? (
                   <div className="mt-2">
                     <span className="block text-[9px] font-bold uppercase text-farm-muted">Frequent descriptions (tap to auto-fill):</span>
@@ -607,6 +649,36 @@ export default function InventoryScreen() {
                   </div>
                 ) : null}
               </div>
+              {/* P2U1 (owner 2026-07-19): base_unit used to be hardcoded to "pcs" for every item. A NEW
+                  item (no name match yet) lets the owner pick the real unit; an EXISTING item's unit is
+                  shown read-only (immutable after creation — reinterpreting past stock would misstate it)
+                  with an optional "1 purchase-unit = N base-units" calculator for the Quantity field above. */}
+              {!buyMatchedItem ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-unit">Unit (this item is bought/tracked in)</label>
+                  <input id="buy-unit" value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)} list="unit-presets" placeholder="e.g. kg, sack, box, roll" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                  <datalist id="unit-presets"><option value="pcs" /><option value="kg" /><option value="g" /><option value="L" /><option value="mL" /><option value="sack" /><option value="box" /><option value="bag" /><option value="roll" /><option value="bundle" /></datalist>
+                </div>
+              ) : buyMatchedItem.unit_conversion_factor ? null : (
+                <div className="rounded-lg border border-dashed border-farm-accent-soft p-3">
+                  {!convOpen ? (
+                    <button type="button" onClick={() => setConvOpen(true)} className="text-xs font-bold text-farm-green hover:underline">
+                      + Set up a unit conversion (e.g. "1 sack = 50 {buyMatchedItem.base_unit}")
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={convUnit} onChange={(e) => setConvUnit(e.target.value)} placeholder="Purchase unit, e.g. sack" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                        <input value={convFactor} onChange={(e) => setConvFactor(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder={`${buyMatchedItem.base_unit} per unit`} className="tabular min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="secondary" onClick={() => setConvOpen(false)} disabled={busy}>Cancel</Button>
+                        <Button onClick={() => void submitConversion()} disabled={busy || !convUnit.trim() || !(parseFloat(convFactor) > 0)}>Save conversion</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Purchase Location</label>

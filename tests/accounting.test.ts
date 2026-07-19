@@ -12,7 +12,7 @@ const BR = 'br-1';
 
 const cat = (id: string, key: string) => ({id, company_id: CO, category_key: key, name: key, status: 'Active' as const, created_at: '2026-01-01'});
 const item = (id: string, categoryId: string, type: 'Consumable' | 'Equipment' = 'Consumable') =>
-  ({id, company_id: CO, category_id: categoryId, item_code: id, name: id, inventory_type: type, base_unit: 'pcs', reorder_level: 10, status: 'Active' as const, created_at: '2026-01-01', updated_at: '2026-01-01'});
+  ({id, company_id: CO, category_id: categoryId, item_code: id, name: id, inventory_type: type, base_unit: 'pcs', purchase_unit: null, unit_conversion_factor: null, reorder_level: 10, status: 'Active' as const, created_at: '2026-01-01', updated_at: '2026-01-01'});
 const receiving = (over: Partial<PurchaseReceiving>): PurchaseReceiving => ({
   id: `r-${Math.random()}`, company_id: CO, branch_id: BR, item_id: 'i-seeds', quantity: 1, total_amount: 100,
   source_type: 'online', source_name: 'Lazada', source_contact: null, vendor_id: null, bought_by: null, received_date: '2026-03-15', created_at: '2026-03-15',

@@ -154,6 +154,44 @@ begin
   raise notice 'PASS inv: purchase = receiving+item+batch+movement, balance 10 from ledger, Dr RAW_MATERIALS 800/Cr CASH 800, idempotent, 7 categories seeded';
 end $$;
 
+-- P2U1: base_unit is genuinely choosable at item-creation (was hardcoded to 'pcs'), immutable after,
+-- and inventory_set_unit_conversion lets the owner define a purchase-unit calculator without ever
+-- touching the ledger's ("Fertilizer Sacks", first purchase in "sack" terms — 3 sacks @ 50kg each).
+do $$ declare v_item uuid; v_unit text; v_recv uuid; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  v_recv := public.inventory_record_purchase('a1111111-1111-1111-1111-111111111111','substrate','Fertilizer Sacks',false,150,4500.00,'physical','Agri-Supply Malolos','Aling Sandra','2026-07-02','idem-buy-unit1',null,null,'kg');
+  set local role postgres;
+  select item_id into v_item from public.purchase_receivings where id = v_recv;
+  select base_unit into v_unit from public.inventory_items where id = v_item;
+  if v_unit <> 'kg' then raise exception 'DEFECT p2u1: base_unit not set from p_base_unit (got %, want kg)', v_unit; end if;
+  -- re-purchasing the SAME item with a different p_base_unit does not retroactively change it (immutable after creation)
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  perform public.inventory_record_purchase('a1111111-1111-1111-1111-111111111111','substrate','Fertilizer Sacks',false,50,1500.00,'physical','Agri-Supply Malolos','Aling Sandra','2026-07-03','idem-buy-unit2',null,null,'sack');
+  set local role postgres;
+  select base_unit into v_unit from public.inventory_items where id = v_item;
+  if v_unit <> 'kg' then raise exception 'DEFECT p2u1: base_unit changed on a later purchase (got %, want still kg)', v_unit; end if;
+  raise notice 'PASS p2u1: base_unit set from p_base_unit at creation (kg), immutable on later purchases of the same item';
+  -- unit-conversion calculator metadata: inventory.purchase holder can define it; never touches the ledger
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  perform public.inventory_set_unit_conversion(v_item, 'sack', 50);
+  set local role postgres;
+  if (select purchase_unit from public.inventory_items where id = v_item) <> 'sack'
+     or (select unit_conversion_factor from public.inventory_items where id = v_item) <> 50 then
+    raise exception 'DEFECT p2u1: unit conversion metadata not saved';
+  end if;
+  if public.material_available(v_item,'a1111111-1111-1111-1111-111111111111') <> 200 then
+    raise exception 'DEFECT p2u1: setting unit conversion metadata altered the stock ledger (must not)';
+  end if;
+  raise notice 'PASS p2u1: unit conversion metadata (1 sack = 50 kg) saved; stock ledger (200 kg) unaffected';
+end $$;
+-- unit-conversion edit denied without inventory.purchase
+do $$ declare v_item uuid; begin
+  set local role postgres; select id into v_item from public.inventory_items where name='Fertilizer Sacks';
+  set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  perform public.inventory_set_unit_conversion(v_item, 'box', 12);
+  raise exception 'DEFECT p2u1: worker without inventory.purchase edited unit conversion';
+exception when insufficient_privilege then raise notice 'PASS p2u1: unit conversion edit denied without inventory.purchase'; end $$;
+
 -- FIFO: second (newer) batch @50; decrease 15 drains oldest batch (10@80) then 5@50 → shrinkage 1050, balance 15
 do $$ declare v_item uuid; v_bal numeric; n int; d numeric; c numeric; v_entry uuid;
 begin
