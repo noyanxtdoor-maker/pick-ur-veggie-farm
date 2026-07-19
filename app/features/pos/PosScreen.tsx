@@ -18,6 +18,7 @@ import {posApi, type SaleLineInput, type SaleResult} from './api';
 import {paymentsApi} from '../finance/api';
 import {customersApi} from '../customers/api';
 import {farmPerKg, formatPeso, lineTotal, round2} from './money';
+import {usePref} from '../../core/prefs/prefs';
 import type {Customer, FinancialAccount, FinishedGood, PosInvoice, Product, ProductRemovalRequest} from '../../types/db';
 
 type RightPane = 'slip' | 'checkout' | 'receipt' | 'settle';
@@ -36,6 +37,7 @@ export default function PosScreen() {
   // P1O: employee/operator (product.remove only, default) can request a removal but not add/edit-price;
   // product.manage always supersedes (instant removal, no approval needed).
   const canRequestRemove = has('product.remove') || canManageProducts;
+  const [receiptWidth] = usePref('receipt_width', '80'); // '58' | '80' — set in Settings, printed slip only
 
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   // Found live (owner report, 2026-07-19): the Historical Sales Journal below reads offlineDB.posInvoices
@@ -575,7 +577,7 @@ export default function PosScreen() {
             </Card>
           ) : (
             <Card className="animate-fade-in">
-              <div className="mx-auto max-w-sm font-mono text-sm" id="pos-slip">
+              <div className={`mx-auto max-w-sm font-mono text-sm receipt-${receiptWidth}mm`} id="pos-slip">
                 <p className="text-center text-base font-bold uppercase tracking-wide text-farm-green">Pick Ur Veggie Farm</p>
                 <p className="mb-3 text-center text-[10px] italic text-farm-muted">"Fresh from our harvest poly-tunnels to you"</p>
                 <p className="text-[10px] text-farm-muted">{new Date(lastSale?.invoice.created_at ?? Date.now()).toLocaleString('en-PH')}</p>

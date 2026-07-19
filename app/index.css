@@ -93,11 +93,20 @@ h1, h2, h3, h4 {
 }
 
 /* Print only the slip (prototype pattern). */
+/* Thermal receipt paper width (owner backlog item, 2026-07-19): the printed slip previously took
+   whatever width the print driver's default page gave it (Letter/A4), leaving a mostly-blank sheet
+   on a thermal receipt printer. The printer driver's own paper-size setting handles the PHYSICAL
+   page; this only needs to make the SLIP's content fit the two common thermal widths so it doesn't
+   overflow or leave dead space — device pref (Settings → Receipt Printer), read via usePref/getPref
+   the same way theme/station config already work. Default 80mm (the more common width). */
 @media print {
   body * { visibility: hidden; }
   #pos-slip, #pos-slip * { visibility: visible; }
-  #pos-slip { position: absolute; left: 0; top: 0; width: 100%; }
+  #pos-slip { position: absolute; left: 0; top: 0; width: 100%; max-width: none; }
+  #pos-slip.receipt-58mm { width: 58mm; font-size: 10px; }
+  #pos-slip.receipt-80mm { width: 80mm; font-size: 11px; }
 }
+@page { size: auto; margin: 4mm; }
 
 /* ════════════════════════════════════════════════════════════════════════════════
    Sync whole-screen animation (ported from Team B, owner directive 2026-07-16): the owner

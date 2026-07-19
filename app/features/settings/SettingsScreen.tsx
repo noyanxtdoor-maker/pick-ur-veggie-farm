@@ -66,6 +66,7 @@ export default function SettingsScreen() {
   const [theme, setTheme] = useTheme();
   const [farmName, setFarmName] = usePref('farm_display_name');
   const [terminalId, setTerminalId] = usePref('terminal_id', 'Terminal A — Main Gate');
+  const [receiptWidth, setReceiptWidth] = usePref('receipt_width', '80'); // '58' | '80' — thermal receipt paper width
   const [exporting, setExporting] = useState(false);
 
   async function doExport() {
@@ -142,6 +143,26 @@ export default function SettingsScreen() {
               </label>
             </div>
             <p className="mt-3 text-[10px] text-farm-muted">Changes save as you type. Leave the display name blank to fall back to the company name.</p>
+            <div className="mt-4 border-t border-farm-accent-soft pt-4">
+              <span className="mb-1.5 block text-[10px] font-bold uppercase text-farm-muted">Receipt paper width</span>
+              <div className="flex gap-2" role="radiogroup" aria-label="Receipt paper width">
+                {(['58', '80'] as const).map((w) => (
+                  <button
+                    key={w}
+                    role="radio"
+                    aria-checked={receiptWidth === w}
+                    onClick={() => setReceiptWidth(w)}
+                    className={cn(
+                      'min-h-10 flex-1 rounded-lg border text-sm font-semibold transition',
+                      receiptWidth === w ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent-soft text-farm-muted hover:border-farm-accent',
+                    )}
+                  >
+                    {w}mm
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[10px] text-farm-muted">Sizes the printed slip for a thermal receipt printer of this width. Set your printer driver's own paper size to match.</p>
+            </div>
           </Card>
 
           {/* Data & backup — owner-tier only (P1L port: company.manage gate, owner directive) */}
