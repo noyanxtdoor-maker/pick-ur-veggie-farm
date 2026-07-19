@@ -5,6 +5,8 @@ import {createBrowserRouter, Navigate} from 'react-router-dom';
 import {useSession} from '../auth/session';
 import {usePermissions} from '../permissions/permissions';
 import {onboardingApi} from '../../features/auth/onboarding';
+import {mfaApi} from '../../features/auth/mfa';
+import {MOCK_MODE} from '../mock/mock';
 import {AppShell, OrganizationLayout} from '../../components/layout/AppShell';
 import {Loading} from '../../components/feedback';
 import Login from '../../pages/Login';
@@ -12,6 +14,7 @@ import ResetPassword from '../../pages/ResetPassword';
 import ChooseUsername from '../../pages/ChooseUsername';
 import SetMpin from '../../pages/SetMpin';
 import SetupBiometric from '../../pages/SetupBiometric';
+import MfaChallenge from '../../pages/MfaChallenge';
 import Placeholder from '../../pages/Placeholder';
 import type {PermissionKey} from '../../types/db';
 
@@ -46,6 +49,29 @@ function RequirePermission({perm, children}: {perm: PermissionKey; children: Rea
   const {loading, has} = usePermissions();
   if (loading) return <Loading />;
   if (!has(perm)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+// TOTP 2FA gate (owner 2026-07-19). Primary sign-in (password/Google/passkey) only ever proves
+// identity — it leaves the session at AAL1. If the account has a verified TOTP factor enrolled
+// (Profile → Two-Factor), Supabase requires a second-factor challenge to reach AAL2 before the app
+// should trust the session for anything. Placed OUTSIDE RequireOnboarding (identity comes before
+// account setup) but inside RequireAuth. Fail-open on any check error — an MFA-service hiccup must
+// never lock out every user; the server still enforces AAL2 wherever it actually matters via RLS.
+function RequireMfaChallenge({children}: {children: ReactNode}) {
+  const {status} = useSession();
+  const [gate, setGate] = useState<'loading' | 'challenge' | 'ok'>('loading');
+  useEffect(() => {
+    let alive = true;
+    if (status !== 'authenticated' || MOCK_MODE) { setGate('ok'); return; }
+    setGate('loading');
+    mfaApi.needsChallenge()
+      .then((r) => { if (alive) setGate(r.needed ? 'challenge' : 'ok'); })
+      .catch(() => { if (alive) setGate('ok'); });
+    return () => { alive = false; };
+  }, [status]);
+  if (status === 'loading' || gate === 'loading') return <Loading label="Checking your account…" />;
+  if (gate === 'challenge') return <Navigate to="/auth/mfa-challenge" replace />;
   return <>{children}</>;
 }
 
@@ -89,13 +115,16 @@ export const router = createBrowserRouter([
   {path: '/onboarding/username', element: <RequireAuth><ChooseUsername /></RequireAuth>},
   {path: '/onboarding/mpin', element: <RequireAuth><SetMpin /></RequireAuth>},
   {path: '/onboarding/biometric', element: <RequireAuth><SetupBiometric /></RequireAuth>},
+  {path: '/auth/mfa-challenge', element: <RequireAuth><MfaChallenge /></RequireAuth>},
   {
     path: '/',
     element: (
       <RequireAuth>
-        <RequireOnboarding>
-          <AppShell />
-        </RequireOnboarding>
+        <RequireMfaChallenge>
+          <RequireOnboarding>
+            <AppShell />
+          </RequireOnboarding>
+        </RequireMfaChallenge>
       </RequireAuth>
     ),
     children: [

@@ -5,7 +5,7 @@
 // Email changes via supabase.auth.updateUser (triggers email-confirmation to the NEW address).
 // No permission key needed — this is SELF-service (the caller edits their own identity, always).
 import {useEffect, useState} from 'react';
-import {UserCircle, AtSign, KeyRound, Save, ShieldCheck, Fingerprint, Trash2} from 'lucide-react';
+import {UserCircle, AtSign, KeyRound, Save, ShieldCheck, Fingerprint, Trash2, Smartphone} from 'lucide-react';
 import {useSession} from '../../core/auth/session';
 import {supabase} from '../../core/supabase/client';
 import {offlineDB} from '../../core/offline/db';
@@ -13,6 +13,7 @@ import {MOCK_MODE} from '../../core/mock/mock';
 import {Button, Card, PageHeader} from '../../components/ui';
 import {useToast} from '../../components/feedback';
 import {mpinApi, biometricApi, type PasskeyListItem} from '../auth/onboarding';
+import {mfaApi, type TotpFactor, type TotpEnrollment} from '../auth/mfa';
 
 // P1L's server RPC (update_own_username) force-lowercases and validates ^[a-z0-9_.]{3,30}$ — this client
 // check mirrors that exactly (was ^[a-zA-Z0-9_.]$ before, letting uppercase pass validation here only to
@@ -349,6 +350,121 @@ function BiometricCard() {
   );
 }
 
+// Two-factor authentication (owner 2026-07-19: "settle the 2 factor login... if not build it"). TOTP
+// was already ON at the Supabase project level (owner-confirmed 2026-07-13) but had no in-app
+// enrollment screen — the toggle existed with no way for a user to actually turn it on for
+// themselves. Mirrors BiometricCard's shape (list/add/remove, MOCK_MODE early return), but adds a
+// mid-enrollment step BiometricCard doesn't need: TOTP requires the user to prove they captured the
+// QR code correctly (scan it, then type back a live code) before the factor counts as active —
+// unlike a passkey ceremony, which the OS confirms in one round trip.
+function TwoFactorCard() {
+  const {notify} = useToast();
+  const [factor, setFactor] = useState<TotpFactor | null | undefined>(undefined);
+  const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function refresh() {
+    try { const factors = await mfaApi.listVerifiedFactors(); setFactor(factors[0] ?? null); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'Could not load your two-factor status'); }
+  }
+
+  useEffect(() => { void refresh(); }, []);
+
+  async function startEnroll() {
+    setBusy(true); setErr(null);
+    try { setEnrollment(await mfaApi.enroll()); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'Could not start enrollment'); }
+    setBusy(false);
+  }
+
+  async function verifyEnroll() {
+    if (!enrollment) return;
+    setBusy(true); setErr(null);
+    const res = await mfaApi.verifyEnrollment(enrollment.factorId, code);
+    setBusy(false);
+    if (res.error) { setErr('Incorrect code — try again.'); setCode(''); return; }
+    notify('Two-factor authentication enabled');
+    setEnrollment(null); setCode('');
+    void refresh();
+  }
+
+  async function cancelEnroll() {
+    if (!enrollment) return;
+    setBusy(true);
+    await mfaApi.cancelEnrollment(enrollment.factorId);
+    setBusy(false);
+    setEnrollment(null); setCode(''); setErr(null);
+  }
+
+  async function disable() {
+    if (!factor) return;
+    setBusy(true); setErr(null);
+    const res = await mfaApi.unenroll(factor.id);
+    setBusy(false);
+    if (res.error) { setErr(res.error); return; }
+    notify('Two-factor authentication disabled');
+    void refresh();
+  }
+
+  if (MOCK_MODE) {
+    return (
+      <Card>
+        <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Smartphone className="h-5 w-5" aria-hidden /> Two-Factor Authentication</h3>
+        <p className="text-xs text-farm-muted">Demo mode has no two-factor flow.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Smartphone className="h-5 w-5" aria-hidden /> Two-Factor Authentication</h3>
+      <p className="mb-3 text-xs text-farm-muted">Require a code from an authenticator app (Google Authenticator, Authy, etc.) in addition to your password.</p>
+      {err ? <p className="mb-2 text-xs font-semibold text-red-700" role="alert">{err}</p> : null}
+
+      {enrollment ? (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-farm-accent-soft bg-farm-bg p-3 text-center">
+            <img src={enrollment.qrCode} alt="Scan this QR code with your authenticator app" className="mx-auto h-40 w-40" />
+            <p className="mt-2 text-[10px] text-farm-muted">Can't scan? Enter this key manually:</p>
+            <p className="select-all break-all font-mono text-xs text-farm-ink">{enrollment.secret}</p>
+          </div>
+          <div>
+            <label htmlFor="tf-code" className="mb-1 block text-xs font-bold text-farm-ink">Enter the 6-digit code from the app</label>
+            <input
+              id="tf-code" inputMode="numeric" maxLength={6} value={code}
+              onChange={(e) => { setErr(null); setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); }}
+              className="w-full rounded-lg border border-farm-accent bg-farm-card px-3 py-2 text-center font-mono text-lg tracking-widest text-farm-ink"
+              placeholder="000000"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => void verifyEnroll()} disabled={busy || code.length !== 6}>Verify &amp; enable</Button>
+            <Button variant="secondary" onClick={() => void cancelEnroll()} disabled={busy}>Cancel</Button>
+          </div>
+        </div>
+      ) : factor === undefined ? (
+        <p className="text-xs text-farm-muted">Loading…</p>
+      ) : factor ? (
+        <div className="flex items-center justify-between rounded-lg border border-farm-accent-soft bg-farm-bg px-3 py-2">
+          <div>
+            <p className="text-xs font-bold text-farm-green">Two-factor authentication is ON</p>
+            <p className="text-[10px] text-farm-muted">Enabled {new Date(factor.createdAt).toLocaleDateString()}</p>
+          </div>
+          <button type="button" onClick={() => void disable()} disabled={busy} className="text-red-700 hover:text-red-900" aria-label="Disable two-factor authentication">
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : (
+        <Button variant="secondary" onClick={() => void startEnroll()} disabled={busy}>
+          {busy ? 'Starting…' : 'Enable Two-Factor Authentication'}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 export default function ProfileScreen() {
   const {user} = useSession();
   return (
@@ -366,6 +482,7 @@ export default function ProfileScreen() {
           <PasswordCard />
           <MpinCard />
           <BiometricCard />
+          <TwoFactorCard />
           <Card>
             <h3 className="mb-2 text-base font-bold text-farm-muted">Session</h3>
             <p className="text-xs text-farm-muted">
