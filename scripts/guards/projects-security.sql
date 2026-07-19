@@ -12,11 +12,13 @@ set local app.p1a_skip_signup_trigger = '1';
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','0a000000-0000-0000-0000-00000000000a','authenticated','authenticated','ownerA@t.local'),
   ('00000000-0000-0000-0000-000000000000','0b000000-0000-0000-0000-00000000000b','authenticated','authenticated','ownerB@t.local'),
-  ('00000000-0000-0000-0000-000000000000','0c000000-0000-0000-0000-00000000000c','authenticated','authenticated','workerA2@t.local');
+  ('00000000-0000-0000-0000-000000000000','0c000000-0000-0000-0000-00000000000c','authenticated','authenticated','workerA2@t.local'),
+  ('00000000-0000-0000-0000-000000000000','0d000000-0000-0000-0000-00000000000d','authenticated','authenticated','workerA1@t.local');
 insert into public.users (id, auth_user_id, display_name) values
   ('10000000-0000-0000-0000-00000000000a','0a000000-0000-0000-0000-00000000000a','Owner A'),
   ('10000000-0000-0000-0000-00000000000b','0b000000-0000-0000-0000-00000000000b','Owner B'),
-  ('10000000-0000-0000-0000-00000000000c','0c000000-0000-0000-0000-00000000000c','Worker A2');
+  ('10000000-0000-0000-0000-00000000000c','0c000000-0000-0000-0000-00000000000c','Worker A2'),
+  ('10000000-0000-0000-0000-00000000000d','0d000000-0000-0000-0000-00000000000d','Worker A1');
 insert into public.companies (id, company_code, name) values
   ('11111111-1111-1111-1111-111111111111','CO-A','Company A'),
   ('22222222-2222-2222-2222-222222222222','CO-B','Company B');
@@ -37,7 +39,10 @@ insert into public.role_permissions (company_id, role_id, permission_id)
 insert into public.user_branch_roles (user_id, company_id, branch_id, role_id) values
   ('10000000-0000-0000-0000-00000000000a','11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000a'),
   ('10000000-0000-0000-0000-00000000000b','22222222-2222-2222-2222-222222222222','b1111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000b'),
-  ('10000000-0000-0000-0000-00000000000c','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','20000000-0000-0000-0000-00000000000c');
+  ('10000000-0000-0000-0000-00000000000c','11111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','20000000-0000-0000-0000-00000000000c'),
+  -- P2M7A.1: same project.read-only role as worker A2, but a member of A1 — isolates "branch member,
+  -- no project.manage" from "not a branch member at all" for the Restricted-visibility assertions below.
+  ('10000000-0000-0000-0000-00000000000d','11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','20000000-0000-0000-0000-00000000000c');
 
 -- ── HAPPY: owner A creates a project in A1 + a task; toggles it done ──
 do $$ declare v_proj uuid; v_task uuid; n int;
@@ -97,6 +102,43 @@ do $$ declare np int; nt int; begin set local role authenticated; set local requ
   select count(*) into nt from public.project_tasks pt join public.projects p on p.id=pt.project_id where p.branch_id='a1111111-1111-1111-1111-111111111111';
   if np < 1 or nt < 1 then raise exception 'DEFECT proj: owner A cannot see the A1 project/task (% / %)', np, nt; end if;
   raise notice 'PASS proj: owner A (member of A1) sees the A1 project + task';
+end $$;
+
+-- ── P2M7A.1: Restricted visibility ──
+-- Owner A (project.manage) creates a Restricted project in A1; worker D (project.read only, but a
+-- real member of A1 — same branch) must not see it, but owner A must.
+do $$ declare v_rproj uuid; n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  insert into public.projects (company_id, branch_id, name, status, visibility, created_by)
+    values ('11111111-1111-1111-1111-111111111111','a1111111-1111-1111-1111-111111111111','Investor site visit','In Progress','Restricted','10000000-0000-0000-0000-00000000000a')
+    returning id into v_rproj;
+  set local role authenticated; set local request.jwt.claims='{"sub":"0d000000-0000-0000-0000-00000000000d"}';
+  select count(*) into n from public.projects where id = v_rproj;
+  if n <> 0 then raise exception 'DEFECT proj: project.read-only A1 member saw a Restricted A1 project'; end if;
+  raise notice 'PASS proj: Restricted project hidden from a project.read-only member of the SAME branch';
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  select count(*) into n from public.projects where id = v_rproj;
+  if n <> 1 then raise exception 'DEFECT proj: project.manage holder cannot see their own Restricted project'; end if;
+  raise notice 'PASS proj: Restricted project visible to a project.manage holder';
+end $$;
+
+-- Restricted visibility extends to the task rows scoped through that parent project.
+do $$ declare v_rproj uuid; v_rtask uuid; n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0a000000-0000-0000-0000-00000000000a"}';
+  select id into v_rproj from public.projects where name = 'Investor site visit';
+  insert into public.project_tasks (company_id, project_id, text) values ('11111111-1111-1111-1111-111111111111', v_rproj, 'prep deck') returning id into v_rtask;
+  set local role authenticated; set local request.jwt.claims='{"sub":"0d000000-0000-0000-0000-00000000000d"}';
+  select count(*) into n from public.project_tasks where id = v_rtask;
+  if n <> 0 then raise exception 'DEFECT proj: project.read-only A1 member saw a Restricted project''s task'; end if;
+  raise notice 'PASS proj: Restricted project''s tasks hidden from a project.read-only member (via parent)';
+end $$;
+
+-- Regression: a Public project in A1 stays visible to the project.read-only A1 member.
+do $$ declare n int; begin
+  set local role authenticated; set local request.jwt.claims='{"sub":"0d000000-0000-0000-0000-00000000000d"}';
+  select count(*) into n from public.projects where branch_id='a1111111-1111-1111-1111-111111111111' and visibility='Public';
+  if n < 1 then raise exception 'DEFECT proj: project.read-only A1 member cannot see the Public A1 project (regression)'; end if;
+  raise notice 'PASS proj: Public project stays visible to a project.read-only member (regression, unchanged)';
 end $$;
 
 rollback;
