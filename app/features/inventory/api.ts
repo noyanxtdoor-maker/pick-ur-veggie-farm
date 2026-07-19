@@ -56,6 +56,7 @@ export interface PurchaseInput {
   sourceName: string;
   sourceContact?: string;
   vendorId?: string | null; // T3.2: set when sourceType='vendor' — server snapshots name/contact from the vendor master
+  boughtBy?: string; // P2M3B.1: who physically made the purchase, distinct from who recorded it
   purchaseDate: string; // yyyy-mm-dd
 }
 
@@ -126,6 +127,7 @@ export const inventoryApi = {
         quantity: input.quantity, total_amount: round2(input.totalCost),
         source_type: input.sourceType, source_name: input.sourceName.trim() || 'Local Supplier',
         source_contact: input.sourceContact?.trim() || null, vendor_id: input.vendorId ?? null,
+        bought_by: input.boughtBy?.trim() || null,
         received_date: input.purchaseDate, created_at: now,
       });
       await mockBumpStock(companyId, item.id, branchId, input.quantity);
@@ -143,7 +145,7 @@ export const inventoryApi = {
       p_is_equipment: input.isEquipment, p_quantity: input.quantity, p_total_cost: round2(input.totalCost),
       p_source_type: input.sourceType, p_source_name: input.sourceName.trim() || 'Local Supplier',
       p_source_contact: input.sourceContact?.trim() || null, p_purchase_date: input.purchaseDate,
-      p_idempotency_key: idem, p_vendor_id: input.vendorId ?? null,
+      p_idempotency_key: idem, p_vendor_id: input.vendorId ?? null, p_bought_by: input.boughtBy?.trim() || null,
     };
     if (online()) {
       const {error} = await supabase.rpc('inventory_record_purchase', payload);
@@ -151,6 +153,22 @@ export const inventoryApi = {
       return;
     }
     await enqueue({companyId, kind: 'inventory.purchase', request: {type: 'rpc', rpc: 'inventory_record_purchase', payload}});
+  },
+
+  // P2M3B.1: edit who physically made a past purchase (owner: "make that column editable").
+  async setBoughtBy(companyId: string, receivingId: string, boughtBy: string): Promise<void> {
+    const payload = {p_receiving_id: receivingId, p_bought_by: boughtBy.trim() || null};
+    if (MOCK_MODE) {
+      const row = await offlineDB.purchaseReceivings.get(receivingId);
+      if (row) await offlineDB.purchaseReceivings.put({...row, bought_by: boughtBy.trim() || null});
+      return;
+    }
+    if (online()) {
+      const {error} = await supabase.rpc('inventory_set_purchase_bought_by', payload);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    await enqueue({companyId, kind: 'inventory.setBoughtBy', request: {type: 'rpc', rpc: 'inventory_set_purchase_bought_by', payload}});
   },
 
   // ± adjustment; reason mandatory (20.09). Returns the new balance when known (mock/online).

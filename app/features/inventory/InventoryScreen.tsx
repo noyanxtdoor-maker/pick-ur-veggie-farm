@@ -91,6 +91,7 @@ export default function InventoryScreen() {
   const [buySourceName, setBuySourceName] = useState('Lazada');
   const [buyContact, setBuyContact] = useState('');
   const [buyVendorId, setBuyVendorId] = useState('');
+  const [buyBoughtBy, setBuyBoughtBy] = useState('');
   const [buyAmount, setBuyAmount] = useState('');
 
   // ── adjustment modal ──
@@ -158,7 +159,7 @@ export default function InventoryScreen() {
     setBuyDate(todayISO());
     setBuyType('Consumables');
     setBuyCategory(prefillCategoryKey ?? 'seeds');
-    setBuyDesc(''); setBuyQty('1'); setBuySourceType('online'); setBuySourceName('Lazada'); setBuyContact(''); setBuyVendorId(''); setBuyAmount('');
+    setBuyDesc(''); setBuyQty('1'); setBuySourceType('online'); setBuySourceName('Lazada'); setBuyContact(''); setBuyVendorId(''); setBuyAmount(''); setBuyBoughtBy('');
     if (prefillCategoryKey) {
       const cat = categories.find((c) => c.category_key === prefillCategoryKey);
       const latest = receivings.find((r) => itemById.get(r.item_id)?.category_id === cat?.id);
@@ -185,6 +186,7 @@ export default function InventoryScreen() {
       sourceName: buySourceType === 'vendor' ? (vendor?.name ?? '') : buySourceName,
       sourceContact: buySourceType === 'vendor' ? (vendor?.contact ?? undefined) : buyContact,
       vendorId: buySourceType === 'vendor' ? buyVendorId : null,
+      boughtBy: buyBoughtBy,
       purchaseDate: buyDate,
     };
     if (!(input.quantity > 0) || !(input.totalCost > 0)) return notify('Amounts and counts must be larger than zero.', 'error');
@@ -370,6 +372,14 @@ export default function InventoryScreen() {
               </div>
             )}
           </Card>
+          {companyId && summary.count > 0 ? (
+            <PurchaseLedger
+              rows={filterByPeriod(receivings, sumFrom, sumTo)}
+              itemById={itemById}
+              companyId={companyId}
+              onBoughtByChange={(id, val) => setReceivings((prev) => prev.map((r) => (r.id === id ? {...r, bought_by: val || null} : r)))}
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -638,6 +648,14 @@ export default function InventoryScreen() {
                   <input id="buy-amt" value={buyAmount} onChange={(e) => setBuyAmount(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0.00" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
                 </div>
               </div>
+              {/* P2M3B.1 (owner 2026-07-19): the person who RECORDS a purchase (this account) isn't
+                  always who physically made it — the owner may delegate buying to someone with no
+                  system account, then log it themselves afterward. Optional so it doesn't block a
+                  recorder who IS the buyer. */}
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-boughtby">Bought By (optional)</label>
+                <input id="buy-boughtby" value={buyBoughtBy} onChange={(e) => setBuyBoughtBy(e.target.value)} placeholder="e.g. Mang Jun (field hand)" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
               <Button variant="secondary" onClick={() => setBuyOpen(false)} disabled={busy}>Cancel</Button>
@@ -776,5 +794,77 @@ function SummaryTable({title, rows, showQty = true}: {title: string; rows: Array
         ))}
       </div>
     </div>
+  );
+}
+
+// P2M3B.1 (owner 2026-07-19): "bring back the purchase summary and add a column of who bought it,
+// make that column editable... we want a history of everything and an easy navigation to audit
+// manually." A raw, chronological, per-transaction ledger — distinct from the aggregate tables
+// above — with an inline-editable Bought By column (separate from received_by, the system account
+// that logged it; the owner may delegate buying to someone with no system account at all).
+function PurchaseLedger({
+  rows, itemById, companyId, onBoughtByChange,
+}: {
+  rows: PurchaseReceiving[];
+  itemById: Map<string, InventoryItem>;
+  companyId: string;
+  onBoughtByChange: (id: string, val: string) => void;
+}) {
+  return (
+    <Card>
+      <h4 className="mb-1 text-xs font-black uppercase tracking-wider text-farm-muted">Purchase history (this period)</h4>
+      <p className="mb-3 text-[11px] text-farm-muted">Every purchase, oldest details first — for manual audit. Bought By is free text; edit it any time.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-xs">
+          <thead>
+            <tr className="border-b border-farm-accent-soft text-[10px] font-black uppercase tracking-wider text-farm-muted">
+              <th className="py-2 pr-3">Date</th>
+              <th className="py-2 pr-3">Item</th>
+              <th className="py-2 pr-3">Source</th>
+              <th className="py-2 pr-3 text-right">Amount</th>
+              <th className="py-2">Bought By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-b border-farm-accent-soft/60">
+                <td className="py-2 pr-3 font-mono text-farm-ink">{r.received_date}</td>
+                <td className="py-2 pr-3 font-semibold text-farm-ink">{itemById.get(r.item_id)?.name ?? '—'}</td>
+                <td className="py-2 pr-3 text-farm-muted">{r.source_name}</td>
+                <td className="tabular py-2 pr-3 text-right font-bold text-farm-green">{formatPeso(r.total_amount)}</td>
+                <td className="py-2">
+                  <BoughtByCell companyId={companyId} receivingId={r.id} value={r.bought_by ?? ''} onSaved={(v) => onBoughtByChange(r.id, v)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function BoughtByCell({companyId, receivingId, value, onSaved}: {companyId: string; receivingId: string; value: string; onSaved: (v: string) => void}) {
+  const {notify} = useToast();
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setDraft(value), [value]);
+  async function save() {
+    if (draft === value) return;
+    setBusy(true);
+    try {
+      await inventoryApi.setBoughtBy(companyId, receivingId, draft);
+      onSaved(draft.trim());
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not save', 'error');
+      setDraft(value);
+    } finally { setBusy(false); }
+  }
+  return (
+    <input
+      value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => void save()}
+      disabled={busy} placeholder="—" aria-label="Bought by"
+      className="min-h-9 w-full rounded-lg border border-transparent bg-transparent px-2 text-xs text-farm-ink hover:border-farm-accent-soft focus:border-farm-accent focus:bg-farm-bg focus:outline-none"
+    />
   );
 }

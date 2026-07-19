@@ -336,6 +336,7 @@ export interface PurchaseReceiving {
   source_name: string;
   source_contact: string | null;
   vendor_id: string | null; // T3.2: set when source_type='vendor' — links back to the vendor master
+  bought_by: string | null; // P2M3B.1: who physically made the purchase, distinct from received_by (who recorded it)
   received_date: string; // date
   created_at: string;
 }
