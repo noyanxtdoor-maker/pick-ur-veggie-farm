@@ -1301,8 +1301,24 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   the buyer selected, confirmed the resulting invoice appears on that customer's statement
   (`₱135.00`, `Paid`) — proving the shared linkage path fires correctly for both sale kinds, not
   just the pre-order path that was already covered. tsc/vitest(94/94)/build clean for all four.
-  **Migrations for (1)–(3) are local-only — not yet pushed to production.** Remaining ~20 items on
-  the owner's mega-list (receipt paper sizes, app icons, mobile font sizing, vendor-bill-to-specific-
-  invoice, server-synced settings, real unit conversion, backup re-import, deeper accounting
-  reports, and more) are still queued; see the owner's original message for the full list and the
-  Team-B handoff-documentation follow-up (3 missing handoffs + 2 stale-note fixes) still pending.
+  **Applied to production 2026-07-19** — git pushed (`5cdb826`), app deployed to Vercel production
+  (confirmed live: login page renders on `pick-ur-veggie-farm.vercel.app`). The 4 pending migrations
+  (P2O.1 anon-RPC lockdown, P2N2.1 void self-approve rank, P2M3B.1 bought-by, P1K.1 realtime
+  publication) were run by the **owner directly** via the Supabase Dashboard SQL Editor — this
+  session's standing credential-handling constraint means the assistant does not handle a production
+  DB password or service-role key even when offered, and `supabase link`/`db push` cannot reach this
+  project's real account from the current CLI login (see the git-ignored
+  `supabase/.temp.STALE-LINK-TO-REPO-B-DO-NOT-USE/` marker — it resolves to Repo B's project
+  instead). Owner reported all 4 ran with "success, no rows returned" — the correct and only
+  possible outcome for all four (each is pure DDL — `revoke`/`grant`/`alter table add column`/
+  `alter publication add table`/`create or replace function` — plus one idempotent
+  `insert ... on conflict do nothing`; none contain a top-level `select`, and Postgres aborts the
+  whole script on the first error rather than partially applying one, so a clean run is a strong
+  correctness signal here, not just an absence-of-error report). No further read-only DB
+  verification was possible this same way (same credential constraint), so this reasoning is the
+  full extent of production verification performed for this push.
+  Remaining ~20 items on the owner's mega-list (receipt paper sizes, app icons, mobile font sizing,
+  vendor-bill-to-specific-invoice, server-synced settings, real unit conversion, backup re-import,
+  deeper accounting reports, and more) are still queued; see the owner's original message for the
+  full list and the Team-B handoff-documentation follow-up (3 missing handoffs + 2 stale-note fixes)
+  still pending.
