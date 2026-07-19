@@ -1369,3 +1369,30 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   unit conversion, backup re-import, deeper accounting reports, profit-by-category, purchase-order
   approval, expiration+stock-transfers, equipment depreciation, payroll build-out, Buy Stock receipt
   photo).
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (continued further): 2 more items shipped**
+  (commits `e8f798c`, `fdcc50d`; git pushed, app deployed to Vercel production). **(1) Server-synced
+  tax rate** — audited what "move tax, currency, and backup settings to the server" actually needed
+  first: `base_currency_code` is already server-stored and immutable by design (M2); backup/export is
+  a client-triggered action against already-server data, not a drifting preference — neither needed
+  moving. Tax rate was the real gap: it didn't exist anywhere, device or server. Added
+  `companies.tax_rate`, editable via the exact same column-grant + RLS shape `companies.name` already
+  uses (no new RPC). **Scope note: this stores the rate; wiring it into POS tax calculation is a
+  separate, larger ask** not part of "move settings to the server" and wasn't built. New migration
+  `supabase/migrations/20260719160000_p2s1_company_tax_rate.sql` — **local-only, not yet applied to
+  production** (2 migrations now queued for the owner: this one and P2M7A.1's Restricted-visibility
+  fix). Guard: 2 new assertions in `org-security.sql`. **(2) Backup file re-import** — the export
+  module's own header already flagged import as deliberately deferred ("higher risk"). Built the safe
+  subset: Dexie is a read-through cache of Supabase, not the source of truth, so loading a backup file
+  back into it is genuinely safe (upserts table-by-table, skips unknown/renamed tables; the next
+  successful sync overwrites it with live server data regardless). **A full restore-to-SERVER (re-
+  inserting historical rows into Supabase) was explicitly NOT built** — it would touch money-path
+  append-only/balanced-posting invariants (C7 financial integrity) and needs its own governance
+  decision, not a quiet client import; flagging this boundary rather than guessing which the owner
+  meant. 4 new unit tests. tsc/vitest(98/98)/build clean throughout.
+  **Remaining scope check-in:** what's left (real unit conversion, deeper accounting reports,
+  profit-by-category, purchase-order approval, expiration-tracking + stock transfers, equipment
+  depreciation, the full payroll build-out — attendance/shifts/leave/overtime/approval/multi-payout/
+  payslips — and Buy Stock's receipt-photo offline-blob queue) are each a standalone feature roughly
+  the size of everything shipped in this pass combined, not quick additions. Continuing through them
+  one at a time with the same migration+guard+app+verify rigor, but flagging here that this is a
+  multi-session scope, not a single-sitting one.
