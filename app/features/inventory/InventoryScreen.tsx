@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {inventoryApi, type PurchaseInput} from './api';
+import {inventoryApi, type PurchaseInput, type PurchaseOrderRequest} from './api';
 import {purchaseSummary, filterByPeriod} from './purchaseSummary';
 import {membershipsApi} from '../organization/memberships/memberships';
 import {vendorsApi, type Vendor} from '../vendors/api';
@@ -29,7 +29,7 @@ const ONLINE_SOURCES = ['Lazada', 'Shopee', 'TikTok'];
 // its own key(s), mirroring OperationsLayout.tsx's established pattern.
 type InvTab = 'consumables' | 'equipment' | 'purchases' | 'usage';
 const TAB_DEFS: Array<{key: InvTab; label: string; icon: typeof ShoppingBag; perms: readonly PermissionKey[]}> = [
-  {key: 'consumables', label: 'Consumables & Seed Stocks', icon: ShoppingBag, perms: ['inventory.purchase', 'inventory.adjust']},
+  {key: 'consumables', label: 'Consumables & Seed Stocks', icon: ShoppingBag, perms: ['inventory.purchase', 'inventory.adjust', 'purchase_order.request']},
   {key: 'equipment', label: 'Heavy Equipment & Spades', icon: Hammer, perms: ['equipment.manage']},
   {key: 'purchases', label: 'Purchase Summary', icon: ReceiptText, perms: ['inventory.reports.read']},
   {key: 'usage', label: 'Usage History', icon: History, perms: ['inventory.adjust']},
@@ -44,6 +44,7 @@ export default function InventoryScreen() {
   const canEquip = has('equipment.manage');
   const canViewReports = has('inventory.reports.read');
   const canReadVendors = has('vendor.read');
+  const canRequestPO = has('purchase_order.request'); // P2PO1: request-only tier (employee default) — inventory.purchase holders can also request, but see the approval queue instead
   const visibleTabs = TAB_DEFS.filter((t) => t.perms.some(has));
 
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
@@ -67,6 +68,21 @@ export default function InventoryScreen() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [busy, setBusy] = useState(false);
 
+  // ── P2PO1: purchase-order requests. canPurchase sees the company-wide Pending approval queue plus
+  //    a separate Approved "ready to buy" queue; a request-only holder (canRequestPO, no canPurchase)
+  //    sees just their own requests/status. ──
+  const [poRequests, setPoRequests] = useState<PurchaseOrderRequest[] | null>(null);
+  const [poApproved, setPoApproved] = useState<PurchaseOrderRequest[] | null>(null);
+  const [poOpen, setPoOpen] = useState(false);
+  const [poItemId, setPoItemId] = useState('');
+  const [poQty, setPoQty] = useState('1');
+  const [poEstCost, setPoEstCost] = useState('');
+  const [poVendorId, setPoVendorId] = useState('');
+  const [poNotes, setPoNotes] = useState('');
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [buyFulfillsRequestId, setBuyFulfillsRequestId] = useState<string | null>(null);
+
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     inventoryApi.fetchCategories(companyId).then(setCategories).catch(() => setCategories([]));
@@ -77,7 +93,13 @@ export default function InventoryScreen() {
     inventoryApi.fetchMovements(companyId, branchId).then(setMovements).catch(() => setMovements([]));
     membershipsApi.fetch(companyId).then((rows) => setActorNames(new Map(rows.map((m) => [m.user_id, m.userName])))).catch(() => setActorNames(new Map()));
     if (canReadVendors) vendorsApi.list(companyId).then((rows) => setVendors(rows.filter((v) => v.status === 'Active'))).catch(() => setVendors([]));
-  }, [companyId, branchId, canReadVendors]);
+    if (canPurchase) {
+      inventoryApi.listPendingPurchaseOrderRequests().then(setPoRequests).catch(() => setPoRequests([]));
+      inventoryApi.listApprovedPurchaseOrderRequests().then(setPoApproved).catch(() => setPoApproved([]));
+    } else if (canRequestPO) {
+      inventoryApi.listMyPurchaseOrderRequests(companyId).then(setPoRequests).catch(() => setPoRequests([]));
+    }
+  }, [companyId, branchId, canReadVendors, canPurchase, canRequestPO]);
   useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap) re-fetches this screen
 
   // ── purchase modal ──
@@ -170,13 +192,22 @@ export default function InventoryScreen() {
   }, [items, categories, buyType, buyCategory, buyDesc]);
   const buyEffectiveUnit = buyMatchedItem?.base_unit ?? buyUnit;
 
-  const openBuy = (prefillCategoryKey?: string) => {
+  const openBuy = (prefillCategoryKey?: string, fulfillRequest?: PurchaseOrderRequest) => {
     setBuyDate(todayISO());
     setBuyType('Consumables');
     setBuyCategory(prefillCategoryKey ?? 'seeds');
     setBuyDesc(''); setBuyQty('1'); setBuySourceType('online'); setBuySourceName('Lazada'); setBuyContact(''); setBuyVendorId(''); setBuyAmount(''); setBuyBoughtBy('');
     setBuyUnit('pcs'); setBuyQtyInPurchaseUnit(false); setConvOpen(false); setConvUnit(''); setConvFactor('');
-    if (prefillCategoryKey) {
+    setBuyFulfillsRequestId(fulfillRequest?.id ?? null);
+    if (fulfillRequest) {
+      // P2PO1: pre-fill from the Approved request being fulfilled — quantity/cost are still editable,
+      // since what actually arrives can differ from the estimate; the RPC only requires the item match.
+      const item = itemById.get(fulfillRequest.item_id);
+      setBuyDesc(item?.name ?? fulfillRequest.item_name);
+      setBuyQty(String(fulfillRequest.quantity));
+      setBuyAmount(String(round2(fulfillRequest.quantity * fulfillRequest.estimated_unit_cost)));
+      if (fulfillRequest.vendor_id) { setBuySourceType('vendor'); setBuyVendorId(fulfillRequest.vendor_id); }
+    } else if (prefillCategoryKey) {
       const cat = categories.find((c) => c.category_key === prefillCategoryKey);
       const latest = receivings.find((r) => itemById.get(r.item_id)?.category_id === cat?.id);
       if (latest) {
@@ -211,6 +242,7 @@ export default function InventoryScreen() {
       boughtBy: buyBoughtBy,
       purchaseDate: buyDate,
       baseUnit: buyUnit,
+      purchaseOrderRequestId: buyFulfillsRequestId,
     };
     if (!(input.quantity > 0) || !(input.totalCost > 0)) return notify('Amounts and counts must be larger than zero.', 'error');
     setBusy(true);
@@ -231,6 +263,49 @@ export default function InventoryScreen() {
       setConvOpen(false);
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not save conversion', 'error'); } finally { setBusy(false); }
+  }
+
+  // ── P2PO1 handlers ──
+  function openPoRequest() {
+    setPoItemId((items ?? [])[0]?.id ?? '');
+    setPoQty('1'); setPoEstCost(''); setPoVendorId(''); setPoNotes('');
+    setPoOpen(true);
+  }
+
+  async function submitPoRequest() {
+    if (!branchId) return;
+    const qty = parseFloat(poQty);
+    const cost = parseFloat(poEstCost);
+    if (!poItemId) return notify('Choose a material.', 'error');
+    if (!(qty > 0)) return notify('Quantity must be greater than zero.', 'error');
+    if (isNaN(cost) || cost < 0) return notify('Estimated unit cost cannot be negative.', 'error');
+    setBusy(true);
+    try {
+      await inventoryApi.requestPurchaseOrder(branchId, poItemId, qty, cost, poVendorId || null, poNotes.trim() || null);
+      notify('Purchase request sent for approval');
+      setPoOpen(false);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Request failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function approvePo(id: string) {
+    setBusy(true);
+    try {
+      await inventoryApi.approvePurchaseOrderRequest(id);
+      notify('Purchase request approved — ready to buy');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Approval failed', 'error'); } finally { setBusy(false); }
+  }
+
+  async function submitRejectPo() {
+    if (!rejectingId || !rejectReason.trim()) return;
+    setBusy(true);
+    try {
+      await inventoryApi.rejectPurchaseOrderRequest(rejectingId, rejectReason);
+      notify('Purchase request rejected');
+      setRejectingId(null); setRejectReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Rejection failed', 'error'); } finally { setBusy(false); }
   }
 
   async function submitAdjust() {
@@ -425,6 +500,72 @@ export default function InventoryScreen() {
               <span><span className="block uppercase">Restock Warnings Active</span>
               <span className="font-semibold text-red-900">One or more materials are at or below their alert limit. Procure seeds, nutrients, or packaging quickly.</span></span>
             </p>
+          ) : null}
+
+          {canPurchase || canRequestPO ? (
+            <Card>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-wider text-farm-muted">
+                  {canPurchase ? 'Purchase Requests — Approval Queue' : 'My Purchase Requests'}
+                </h3>
+                {canRequestPO ? <Button variant="secondary" onClick={openPoRequest}><Plus size={16} aria-hidden /> Request Purchase</Button> : null}
+              </div>
+              {poRequests === null ? (
+                <Skeleton rows={1} />
+              ) : poRequests.length === 0 ? (
+                <p className="text-xs text-farm-muted">{canPurchase ? 'No pending purchase requests.' : 'You have no purchase requests on file.'}</p>
+              ) : (
+                <div className="space-y-2">
+                  {poRequests.map((r) => (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-farm-accent-soft p-3 text-sm">
+                      <div>
+                        <p className="font-bold text-farm-ink">{r.item_name} — {r.quantity} {itemById.get(r.item_id)?.base_unit ?? ''} <span className="font-normal text-farm-muted">@ ~{formatPeso(r.estimated_unit_cost)}/unit</span></p>
+                        <p className="text-[11px] text-farm-muted">
+                          {r.branch_name}{r.vendor_name ? ` · ${r.vendor_name}` : ''}{r.requester_name ? ` · requested by ${r.requester_name}` : ''}{r.notes ? ` · "${r.notes}"` : ''}
+                        </p>
+                        {r.status && r.status !== 'Pending' ? (
+                          <p className="text-[11px] text-farm-muted">
+                            <span className={cn('font-bold', r.status === 'Rejected' ? 'text-farm-danger' : 'text-farm-green')}>{r.status}</span>
+                            {r.decider_name ? ` by ${r.decider_name}` : ''}{r.decision_notes ? ` — "${r.decision_notes}"` : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                      {canPurchase ? (
+                        <div className="flex gap-2">
+                          <Button onClick={() => void approvePo(r.id)} disabled={busy}>Approve</Button>
+                          <Button variant="secondary" onClick={() => {setRejectingId(r.id); setRejectReason('');}} disabled={busy}>Reject</Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : null}
+
+          {canPurchase ? (
+            <Card>
+              <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-farm-muted">Approved Purchases — Ready to Buy</h3>
+              {poApproved === null ? (
+                <Skeleton rows={1} />
+              ) : poApproved.length === 0 ? (
+                <p className="text-xs text-farm-muted">Nothing approved and waiting on a purchase yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {poApproved.map((r) => (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-farm-accent-soft p-3 text-sm">
+                      <div>
+                        <p className="font-bold text-farm-ink">{r.item_name} — {r.quantity} {itemById.get(r.item_id)?.base_unit ?? ''} <span className="font-normal text-farm-muted">@ ~{formatPeso(r.estimated_unit_cost)}/unit</span></p>
+                        <p className="text-[11px] text-farm-muted">
+                          {r.branch_name}{r.vendor_name ? ` · ${r.vendor_name}` : ''}{r.requester_name ? ` · requested by ${r.requester_name}` : ''}{r.notes ? ` · "${r.notes}"` : ''}
+                        </p>
+                      </div>
+                      <Button onClick={() => openBuy(catById.get(itemById.get(r.item_id)?.category_id ?? '')?.category_key, r)}><Plus size={16} aria-hidden /> Buy Now</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           ) : null}
 
           {items === null ? (
@@ -796,6 +937,67 @@ export default function InventoryScreen() {
               <Button variant="secondary" onClick={() => setAdjOpen(false)} disabled={busy}>Cancel Audit</Button>
               <Button className="flex-1" onClick={() => void submitAdjust()} disabled={busy || !adjItemId || !adjReason.trim() || !adjQty}>
                 {busy ? 'Committing…' : 'COMMIT AUDIT CORRECTION'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* P2PO1: Request Purchase modal */}
+      <Dialog.Root open={poOpen} onOpenChange={setPoOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center justify-center gap-1.5 text-lg font-bold text-farm-green"><Plus className="h-5 w-5" aria-hidden /> Request a Purchase</Dialog.Title>
+            <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Sends a request to whoever holds buying authority — nothing is bought until they approve it.</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Material</label>
+                <SelectField value={poItemId} onChange={setPoItemId} options={(items ?? []).map((i) => ({value: i.id, label: `${i.name} — ${i.available} ${i.base_unit} on hand`}))} placeholder="Choose material…" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="po-qty">Quantity</label>
+                  <input id="po-qty" value={poQty} onChange={(e) => setPoQty(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="po-cost">Est. Unit Cost ₱</label>
+                  <input id="po-cost" value={poEstCost} onChange={(e) => setPoEstCost(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+                </div>
+              </div>
+              {canReadVendors && vendors.length > 0 ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Vendor (optional)</label>
+                  <SelectField value={poVendorId} onChange={setPoVendorId} options={vendors.map((v) => ({value: v.id, label: v.name}))} placeholder="No preferred vendor" />
+                </div>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="po-notes">Notes (optional)</label>
+                <textarea id="po-notes" value={poNotes} onChange={(e) => setPoNotes(e.target.value)} placeholder="e.g. Running low, need before the weekend." className="h-20 w-full rounded-xl border border-farm-accent-soft bg-farm-bg p-3 text-sm focus:outline-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setPoOpen(false)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitPoRequest()} disabled={busy || !poItemId || !(parseFloat(poQty) > 0) || poEstCost === ''}>
+                {busy ? 'Sending…' : 'SEND REQUEST'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* P2PO1: Reject-with-reason modal */}
+      <Dialog.Root open={rejectingId !== null} onOpenChange={(o) => {if (!o) setRejectingId(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-bold text-farm-danger">Reject Purchase Request</Dialog.Title>
+            <p className="mb-3 mt-1 text-xs text-farm-muted">A reason is required — the requester will see it.</p>
+            <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. Too much for now, buy a smaller batch." className="h-20 w-full rounded-xl border border-farm-accent-soft bg-farm-bg p-3 text-sm focus:outline-none" />
+            <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setRejectingId(null)} disabled={busy}>Cancel</Button>
+              <Button variant="danger" className="flex-1" onClick={() => void submitRejectPo()} disabled={busy || !rejectReason.trim()}>
+                {busy ? 'Rejecting…' : 'Reject Request'}
               </Button>
             </div>
           </Dialog.Content>

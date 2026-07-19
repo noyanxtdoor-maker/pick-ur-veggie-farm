@@ -1446,3 +1446,50 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   approval, expiration-tracking + stock transfers, equipment depreciation, the full payroll build-out,
   and Buy Stock's receipt-photo offline-blob queue — each still standalone-feature-sized, continuing
   one at a time.
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (continued): Purchase-order request/approval
+  workflow shipped** (new migration; git pushed; app deployed to Vercel production; migration queued
+  for the owner, same credential-handling constraint as the 3 already-queued). Read the owning spec
+  first (`docs/20_Supabase_Master_Database_Schema/20.12_Purchase_Receiving_System.md`) — it describes
+  a full enterprise pipeline (multi-line orders, quality inspection, partial-delivery reconciliation,
+  tiered value-based approval) that `Phase_2_M3_Inventory_Module_Spec.md` (line 36) explicitly calls
+  "enterprise depth the mock lacks" and lists as a deferred additive, with `purchase_receivings.
+  purchase_order_id` reserved nullable for it. Built the single-item request→approve/reject layer the
+  owner actually asked for, not the full 20.12 system — deliberately did NOT claim the reserved
+  `purchase_order_id` column (a future full-spec `purchase_orders` table would need it; this migration
+  adds its own `purchase_order_request_id` link instead, so a later full build isn't boxed in).
+  New `purchase_order.request` permission key (employee default — the one tier with no purchase
+  authority at all today; operator/admin+ already have `inventory.purchase` and use that via an
+  OR-gate to also file requests). `purchase_order_requests` table + 6 RPCs (`request_purchase_order`,
+  `list_pending_purchase_order_requests`, `list_approved_purchase_order_requests`, `list_my_purchase_
+  order_requests`, `approve_purchase_order_request`, `reject_purchase_order_request`) mirroring P1O/
+  P2N2's established approval-workflow idiom exactly (decider != requester, reason required to reject,
+  no double-decision). Approving only authorizes — it never touches stock or posts a journal entry;
+  `inventory_record_purchase` gained a 15th optional arg (`p_purchase_order_request_id`, same append-
+  only evolution pattern as P2U1/T3.2) that links the eventual real purchase back to the request and
+  marks it Fulfilled, without forcing actual received qty/cost to match the estimate (matches 20.12's
+  own "Quantity ordered" vs "Quantity received" distinction). `InventoryScreen.tsx`'s Consumables tab
+  gained a "Purchase Requests — Approval Queue" card (Approve/Reject, `inventory.purchase`-gated) and
+  a separate "Approved Purchases — Ready to Buy" card whose "Buy Now" button pre-fills the existing
+  Buy Stock dialog (item, quantity, estimated cost, vendor) and threads the linking id through so the
+  RPC marks the request Fulfilled on submit — quantity/cost stay editable, since what's actually
+  bought can differ from the estimate. **A real bug caught by the guard battery on a fresh reset, not
+  invented**: `seed_standard_roles()` is redefined via `create or replace function` in every migration
+  that touches it, and copying an OLDER version (P1O's) as a starting point silently reverted P2M3B's
+  later `inventory.reports.read` grant for admin — `inventory-security.sql`'s own guard caught it
+  immediately ("admin lacks inventory.reports.read by default"), fixed by diffing against the true
+  latest version instead. New migration `supabase/migrations/20260719190000_p2po1_purchase_order_
+  request_approval.sql` — **local-only, not yet applied to production** (4 migrations now queued for
+  the owner: P2M7A.1 Projects visibility, P2S1 tax rate, P2U1 unit conversion, P2PO1 purchase-order
+  approval). New guard `p2po1-purchase-order-security.sql` (19 assertions: request/approve/reject
+  happy paths, approval-never-moves-stock, fulfillment-Approved-only + item-match gates, self-decide
+  denial even after gaining the decide key via override, double-decision, cross-tenant isolation,
+  grant shape) — wired into `package.json` and `ci.yml`. Full battery re-verified clean after a fresh
+  reset: 32 guards, 98 unit tests, tsc, build, static+drift. **LIVE browser E2E against the real local
+  Postgres, fresh company, two distinct real users** (a fresh owner filed + a second admin decided,
+  proving separation of duties isn't just SQL-fixture theater): owner requested 5 units of a real
+  item — self-approval correctly rejected live, request stayed Pending; a second admin approved it
+  server-side — the request moved from the Approval Queue into Ready to Buy in the owner's own UI on
+  reload; clicking Buy Now correctly pre-filled quantity/description/estimated cost into the real Buy
+  Stock dialog; submitting completed the purchase — stock rose 10→15 pcs, expense value ₱500→₱800,
+  and a direct DB check confirmed the request's `fulfilled_receiving_id` matches the exact new
+  receiving row, not just "some" row.

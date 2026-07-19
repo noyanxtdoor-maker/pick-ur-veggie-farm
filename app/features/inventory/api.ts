@@ -59,6 +59,29 @@ export interface PurchaseInput {
   boughtBy?: string; // P2M3B.1: who physically made the purchase, distinct from who recorded it
   purchaseDate: string; // yyyy-mm-dd
   baseUnit?: string; // P2U1: only applied when the item is first created — ignored on later purchases of the same item
+  purchaseOrderRequestId?: string | null; // P2PO1: fulfills an Approved purchase-order request; must resolve to the same item
+}
+
+// P2PO1: a queued stock-purchase request. Real-mode only — a request→approve/reject workflow is a
+// governed authorization flow, not something the offline demo mock needs to replicate.
+export interface PurchaseOrderRequest {
+  id: string;
+  branch_id: string;
+  branch_name: string;
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  estimated_unit_cost: number;
+  vendor_id: string | null;
+  vendor_name: string | null;
+  requested_by?: string;
+  requester_name?: string;
+  status?: 'Pending' | 'Approved' | 'Rejected' | 'Fulfilled';
+  decided_by?: string | null;
+  decider_name?: string | null;
+  decision_notes?: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export const inventoryApi = {
@@ -149,6 +172,7 @@ export const inventoryApi = {
       p_source_contact: input.sourceContact?.trim() || null, p_purchase_date: input.purchaseDate,
       p_idempotency_key: idem, p_vendor_id: input.vendorId ?? null, p_bought_by: input.boughtBy?.trim() || null,
       p_base_unit: input.baseUnit?.trim() || null,
+      p_purchase_order_request_id: input.purchaseOrderRequestId ?? null,
     };
     if (online()) {
       const {error} = await supabase.rpc('inventory_record_purchase', payload);
@@ -301,5 +325,54 @@ export const inventoryApi = {
       if (total <= Number(it.reorder_level)) low++;
     }
     return low;
+  },
+
+  // P2PO1: queue a stock-purchase request for approval. purchase_order.request OR inventory.purchase
+  // required server-side. Real-mode only (see PurchaseOrderRequest comment).
+  async requestPurchaseOrder(branchId: string, itemId: string, quantity: number, estimatedUnitCost: number, vendorId: string | null = null, notes: string | null = null): Promise<string> {
+    if (quantity <= 0) throw new Error('Quantity must be greater than zero.');
+    if (estimatedUnitCost < 0) throw new Error('Estimated unit cost cannot be negative.');
+    if (MOCK_MODE) throw new Error('Purchase-order requests are not available in demo mode.');
+    const {data, error} = await supabase.rpc('request_purchase_order', {
+      p_branch_id: branchId, p_item_id: itemId, p_quantity: quantity, p_estimated_unit_cost: estimatedUnitCost,
+      p_vendor_id: vendorId, p_notes: notes,
+    });
+    if (error) throw new Error(error.message);
+    return data as string;
+  },
+
+  // inventory.purchase-gated approval queue.
+  async listPendingPurchaseOrderRequests(): Promise<PurchaseOrderRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_pending_purchase_order_requests');
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as PurchaseOrderRequest[]).map((r) => ({...r, quantity: Number(r.quantity), estimated_unit_cost: Number(r.estimated_unit_cost)}));
+  },
+
+  // inventory.purchase-gated "ready to buy" queue — Approved, not yet Fulfilled.
+  async listApprovedPurchaseOrderRequests(): Promise<PurchaseOrderRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_approved_purchase_order_requests');
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as PurchaseOrderRequest[]).map((r) => ({...r, quantity: Number(r.quantity), estimated_unit_cost: Number(r.estimated_unit_cost)}));
+  },
+
+  // Self-view: the caller's own requests, any status.
+  async listMyPurchaseOrderRequests(companyId: string): Promise<PurchaseOrderRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_my_purchase_order_requests', {p_company: companyId});
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as PurchaseOrderRequest[]).map((r) => ({...r, quantity: Number(r.quantity), estimated_unit_cost: Number(r.estimated_unit_cost)}));
+  },
+
+  async approvePurchaseOrderRequest(requestId: string, notes: string | null = null): Promise<void> {
+    const {error} = await supabase.rpc('approve_purchase_order_request', {p_request_id: requestId, p_notes: notes});
+    if (error) throw new Error(error.message);
+  },
+
+  async rejectPurchaseOrderRequest(requestId: string, notes: string): Promise<void> {
+    if (!notes.trim()) throw new Error('A reason is required.');
+    const {error} = await supabase.rpc('reject_purchase_order_request', {p_request_id: requestId, p_notes: notes.trim()});
+    if (error) throw new Error(error.message);
   },
 };

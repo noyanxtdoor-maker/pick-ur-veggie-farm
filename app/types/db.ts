@@ -151,7 +151,8 @@ export type PermissionKey =
   | 'membership.approve' // P1C3: approve/reject pending sign-ups only — the lighter tier below membership.manage (admin by default)
   | 'inventory.reports.read' // P2-M3B: view the Stock Inventories "Purchase Summary" tab (admin+ default) — does not gate buying stock
   | 'vendor.read' // T3.1: view vendors, cost schedules, and AP standing
-  | 'vendor.manage'; // T3.1: create/edit vendors, cost schedules, and post AP invoices/payments
+  | 'vendor.manage' // T3.1: create/edit vendors, cost schedules, and post AP invoices/payments
+  | 'purchase_order.request'; // P2PO1: request a stock purchase for approval — employee default; inventory.purchase holders decide
 
 // ── Digital payments (P2-B2A / backlog B2, 20.24 + 22.10) ──
 // Thin registry keyed to a chart_of_accounts Asset code. NO stored balance anywhere —

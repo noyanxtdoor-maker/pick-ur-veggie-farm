@@ -177,6 +177,9 @@ jobs:
       - name: P1K realtime publication coverage (every client-subscribed table is actually published)
         run: npm run guard:p1k
 
+      - name: P2PO1 purchase-order request/approval security tests (request-vs-decide split, approval never moves stock, fulfillment item-match + Approved-only gate, double-decision, self-decide denial, cross-tenant isolation)
+        run: npm run guard:p2po1
+
       - name: Schema-drift guard
         run: npm run guard:drift
 
