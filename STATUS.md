@@ -1616,3 +1616,46 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   row, `status = 'Half Day'`); a direct query against `audit_events` confirmed both the original insert
   (`Present`) and the correction (`Half Day`) were captured as separate audit entries against the same
   entity id, proving the generic audit trigger fired on both the insert and the upsert-update path.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): payroll leave/absence request
+  tracking shipped — slice 2 of 6** (one migration; git pushed; app deployed to Vercel production;
+  migration queued for the owner — now the 8th). **Authority**: docs/21_Human_Resources_Payroll_
+  Architecture/21.08_Leave_and_Absence_Management.md — its full enterprise spec also covers calendar/
+  scheduling integration (blocking work-schedule assignment during approved leave), supporting-
+  document uploads, and a payroll paid/unpaid-deduction connection. **All three explicitly deferred**,
+  same honesty pattern as every prior slice: scheduling integration is a real cross-module feature
+  (P2M6* has its own independent shift model), document uploads need file-storage infrastructure this
+  app has never built, and the payroll connection needs a real answer to how `wage_payments.pay_period`
+  (free text) maps to a date range — the same open question P2PR1 already flagged for attendance.
+  New `leave_requests` table (`leave_type` one of 21.08's named examples; Pending -> Approved/Rejected)
+  with a NEW data-integrity rule beyond what 21.08 specifies: an employee cannot hold two overlapping
+  Pending/Approved requests. `payroll_request_leave()` — `payroll.manage` (file on any employee) OR the
+  linked employee filing their own, the same zero-permission self-service idiom P2PR1's `list_attendance`
+  already proved for reads, now proved for a WRITE. `payroll_decide_leave_request()` deliberately does
+  **not** copy P1O/P2N2/P2PO1's literal "requester != decider" rule — that would wrongly block a
+  manager from filing AND approving a *different* employee's leave in one pass (normal single-manager
+  HR admin work). The real conflict is the **beneficiary** deciding their own leave, so this checks the
+  decider's own linked `employee_id` against the request's `employee_id` instead — blocks "I approve my
+  own leave," allows "I file and approve someone else's leave." Reject requires a reason (established
+  idiom). Reuses `payroll.manage`/`payroll.read` — no new permission key (C1 §4). New migration
+  `supabase/migrations/20260720110000_p2pr2_payroll_leave.sql`. New guard `p2pr2-payroll-leave-
+  security.sql` (16 assertions: manager files for an employee + self-file with zero permission,
+  overlapping-request denial, invalid-type denial, end-before-start denial, no-permission-and-not-self
+  denial, **self-approval-by-beneficiary denied even though a DIFFERENT manager filed the request**, a
+  different manager approving succeeds, double-decision denial, reject-without-reason denial then
+  succeeds with one, broad list vs. force-restricted self-view — proven the self-view ignores a client-
+  supplied `employee_id` and can't leak another employee's rows, cross-tenant denial, grant shape) —
+  wired into `package.json`/`ci.yml`. Full battery re-verified clean after a fresh reset: **37 guard
+  files, 0 defects**, 98 unit tests, `tsc`, `vite build`, static+drift guards. **LIVE browser E2E
+  against the real local Postgres, fresh company, two distinct real users** (an owner and a linked
+  worker with zero payroll permission — separation of duties genuinely exercised, not SQL-fixture
+  theater): owner filed a Vacation request on the linked worker's behalf from the new Leave tab — it
+  appeared in the Pending queue and in Leave History; owner approved it — the queue emptied and History
+  showed "Approved" with "Decided By: e2eowner2" (confirmed identical via a direct DB query); signed out,
+  signed back in as the linked worker (no payroll.read, no payroll.manage) — the "My Payroll" self view
+  now shows a new "My Leave Requests" card with a "Request Leave" button; the worker self-filed a Sick
+  request with zero payroll permission — it appeared immediately in their own list as Pending, alongside
+  the earlier Approved Vacation; a direct DB query confirmed both rows' `requested_by` correctly
+  attributes each request to the actual filer (owner for the Vacation row, the worker themselves for the
+  Sick row, not silently attributed to whoever happened to submit the HTTP request), and confirmed 3
+  separate `audit_events` rows (2 inserts + 1 approval update) — the generic audit trigger firing
+  correctly on every write path, including the self-service one.

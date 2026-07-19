@@ -5,7 +5,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {CalendarCheck, HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {CalendarCheck, CalendarX, HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {payrollApi, type AttendanceRecord} from './api';
+import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
 import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
@@ -44,7 +44,7 @@ export default function PayrollScreen() {
 
   // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
   // how they check an employee's history instead of clicking into their own nonexistent pay record).
-  const [tab, setTab] = useState<'roster' | 'history' | 'attendance'>('roster');
+  const [tab, setTab] = useState<'roster' | 'history' | 'attendance' | 'leave'>('roster');
   const [histEmpId, setHistEmpId] = useState('');
   const [histWages, setHistWages] = useState<WagePayment[]>([]);
   const [histAdvances, setHistAdvances] = useState<CashAdvance[]>([]);
@@ -53,10 +53,14 @@ export default function PayrollScreen() {
   const [attnDate, setAttnDate] = useState(new Date().toISOString().slice(0, 10));
   const [attendance, setAttendance] = useState<AttendanceRecord[] | null>(null);
 
+  // ── P2PR2: leave requests ──
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[] | null>(null);
+
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
     payrollApi.fetchEmployees(companyId).then(setEmployees).catch(() => setEmployees([]));
     payrollApi.fetchPositions(companyId).then(setPositions).catch(() => setPositions([]));
+    payrollApi.listLeaveRequests(companyId, null, null, null).then(setLeaveRequests).catch(() => setLeaveRequests([]));
     if (branchId) {
       payrollApi.fetchAdvances(companyId, branchId).then(setAdvances).catch(() => setAdvances([]));
       payrollApi.fetchWages(companyId, branchId).then(setWages).catch(() => setWages([]));
@@ -198,6 +202,41 @@ export default function PayrollScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not record attendance', 'error'); } finally { setBusy(false); }
   }
 
+  // ── P2PR2: leave requests — file (manager, on behalf of any employee) ──
+  const [leaveFileOpen, setLeaveFileOpen] = useState(false);
+  const [lfEmpId, setLfEmpId] = useState('');
+  const [lfType, setLfType] = useState<LeaveType>('Vacation');
+  const [lfStart, setLfStart] = useState('');
+  const [lfEnd, setLfEnd] = useState('');
+  const [lfReason, setLfReason] = useState('');
+  const LEAVE_TYPES: LeaveType[] = ['Vacation', 'Sick', 'Emergency', 'Maternity', 'Paternity', 'Unpaid', 'Other'];
+
+  async function submitLeaveRequest() {
+    if (!branchId || !lfEmpId || !lfStart || !lfEnd) return;
+    setBusy(true);
+    try {
+      await payrollApi.requestLeave(branchId, lfEmpId, lfType, lfStart, lfEnd, lfReason.trim() || null);
+      notify('Leave request filed');
+      setLeaveFileOpen(false); setLfEmpId(''); setLfType('Vacation'); setLfStart(''); setLfEnd(''); setLfReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not file leave request', 'error'); } finally { setBusy(false); }
+  }
+
+  // ── P2PR2: leave requests — decide (approve, or reject with a required reason) ──
+  const [decidingLeave, setDecidingLeave] = useState<{id: string; approve: boolean} | null>(null);
+  const [decideReason, setDecideReason] = useState('');
+
+  async function submitLeaveDecision() {
+    if (!decidingLeave) return;
+    setBusy(true);
+    try {
+      await payrollApi.decideLeaveRequest(decidingLeave.id, decidingLeave.approve, decideReason.trim() || null);
+      notify(decidingLeave.approve ? 'Leave request approved' : 'Leave request rejected');
+      setDecidingLeave(null); setDecideReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not decide leave request', 'error'); } finally { setBusy(false); }
+  }
+
   async function submitWage() {
     if (!companyId || !branchId || !wageEmp) return;
     setBusy(true);
@@ -227,12 +266,14 @@ export default function PayrollScreen() {
               {canManagePositions ? <Button variant="secondary" onClick={() => setPosManageOpen(true)}><ListChecks size={18} aria-hidden /> Positions</Button> : null}
               {canManage ? <Button onClick={() => {setHName(''); setHPos(activePositions[0]?.id ?? ''); setHRate('550'); setHireOpen(true);}}><UserPlus size={18} aria-hidden /> Hire Worker</Button> : null}
             </div>
+          ) : tab === 'leave' && canManage ? (
+            <Button onClick={() => {setLfEmpId(''); setLfType('Vacation'); setLfStart(''); setLfEnd(''); setLfReason(''); setLeaveFileOpen(true);}}><CalendarX size={18} aria-hidden /> File Leave Request</Button>
           ) : undefined
         }
       />
 
       <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
-        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
+        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
             className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
             <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -325,6 +366,62 @@ export default function PayrollScreen() {
                         <td className="py-2 font-bold text-farm-ink">{a.employee_name}</td>
                         <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', a.status === 'Absent' ? 'bg-red-50 text-farm-danger' : a.status === 'Half Day' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{a.status}</span></td>
                         <td className="py-2 text-farm-muted">{a.notes ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === 'leave' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><CalendarX className="h-5 w-5" aria-hidden /> Pending Leave Requests</h3>
+            {leaveRequests === null ? (
+              <Skeleton rows={3} />
+            ) : leaveRequests.filter((l) => l.status === 'Pending').length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No pending leave requests.</p>
+            ) : (
+              <ul className="divide-y divide-farm-accent-soft">
+                {leaveRequests.filter((l) => l.status === 'Pending').map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <div>
+                      <p className="font-bold text-farm-green">{l.employee_name} <span className="rounded-full bg-farm-accent-soft px-2 py-0.5 text-[10px] font-bold text-farm-green">{l.leave_type}</span></p>
+                      <p className="text-xs text-farm-muted">{l.start_date} → {l.end_date}{l.reason ? ` — ${l.reason}` : ''}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setDecidingLeave({id: l.id, approve: true})} className="rounded-lg bg-farm-green px-3 py-1.5 text-xs font-bold text-white hover:bg-farm-green-700">Approve</button>
+                      <button onClick={() => setDecidingLeave({id: l.id, approve: false})} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-farm-danger hover:bg-red-100">Reject</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-base font-extrabold text-farm-green">Leave History</h3>
+            {leaveRequests === null || leaveRequests.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No leave requests filed yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-farm-accent-soft text-left font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Worker</th><th className="pb-2">Type</th><th className="pb-2">Dates</th><th className="pb-2">Status</th><th className="pb-2">Decided By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft font-semibold">
+                    {[...leaveRequests].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((l) => (
+                      <tr key={l.id}>
+                        <td className="py-2 font-bold text-farm-ink">{l.employee_name}</td>
+                        <td className="py-2">{l.leave_type}</td>
+                        <td className="py-2 font-mono">{l.start_date} → {l.end_date}</td>
+                        <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', l.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : l.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{l.status}</span></td>
+                        <td className="py-2 text-farm-muted">{l.decider_name ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -600,17 +697,96 @@ export default function PayrollScreen() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* File Leave Request modal (P2PR2) */}
+      <Dialog.Root open={leaveFileOpen} onOpenChange={setLeaveFileOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="text-xl font-bold text-farm-green">File Leave Request</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-5 text-xs text-farm-muted">Files on the worker&apos;s behalf. An overlapping Pending or Approved request for the same worker is not allowed.</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Worker</label>
+                <SelectField value={lfEmpId} onChange={setLfEmpId} placeholder="Pick a worker" options={(employees ?? []).filter((e) => e.status === 'Active').map((e) => ({value: e.id, label: e.name}))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Leave Type</label>
+                <SelectField value={lfType} onChange={(v) => setLfType(v as LeaveType)} options={LEAVE_TYPES.map((t) => ({value: t, label: t}))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="lf-start">Start Date</label>
+                  <input id="lf-start" type="date" value={lfStart} onChange={(e) => setLfStart(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="lf-end">End Date</label>
+                  <input id="lf-end" type="date" value={lfEnd} onChange={(e) => setLfEnd(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="lf-reason">Reason (optional)</label>
+                <input id="lf-reason" value={lfReason} onChange={(e) => setLfReason(e.target.value)} placeholder="e.g. family event" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setLeaveFileOpen(false)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitLeaveRequest()} disabled={busy || !lfEmpId || !lfStart || !lfEnd}>{busy ? 'Filing…' : 'File Request'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Decide leave request modal — approve (note optional) or reject (reason required) */}
+      <Dialog.Root open={decidingLeave !== null} onOpenChange={(o) => {if (!o) {setDecidingLeave(null); setDecideReason('');}}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green">
+              <CalendarX className="h-5 w-5" aria-hidden /> {decidingLeave?.approve ? 'Approve' : 'Reject'} Leave Request
+            </Dialog.Title>
+            <p className="mb-4 mt-1 text-xs text-farm-muted">{decidingLeave?.approve ? 'A payroll manager other than the beneficiary must decide — this is enforced server-side.' : 'A reason is required to reject.'}</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="decide-reason">{decidingLeave?.approve ? 'Note (optional)' : 'Reason'}</label>
+                <input id="decide-reason" value={decideReason} onChange={(e) => setDecideReason(e.target.value)} placeholder={decidingLeave?.approve ? 'e.g. cover arranged' : 'e.g. short-staffed that week'} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => {setDecidingLeave(null); setDecideReason('');}} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitLeaveDecision()} disabled={busy || (decidingLeave?.approve === false && !decideReason.trim())}>
+                {busy ? 'Saving…' : decidingLeave?.approve ? 'Approve' : 'Reject'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
 
 // ── M5C "My Payroll" — read-only self view for users WITHOUT payroll.read. The server's RLS is the gate:
 // fetches return only the employee row linked to this user (and their advances/wages), or nothing at all.
+// P2PR2 extends this with self-service leave filing — the one write a plain linked worker can make
+// with zero payroll permission (payroll_request_leave's self path), matching 21.08's "employee submits
+// a leave request" and the guard's own HAPPY2 self-service assertion.
 function MyPayroll({companyId}: {companyId?: string}) {
+  const {notify} = useToast();
   const [me, setMe] = useState<Employee | null | undefined>(undefined); // undefined=loading, null=not linked
   const [advances, setAdvances] = useState<CashAdvance[]>([]);
   const [wages, setWages] = useState<WagePayment[]>([]);
   const [myPositionLabel, setMyPositionLabel] = useState<string>('—');
+  const [myLeave, setMyLeave] = useState<LeaveRequest[]>([]);
+
+  const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
+  useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
+
+  const reloadMyLeave = useCallback(() => {
+    if (companyId) payrollApi.listLeaveRequests(companyId, null, null, null).then(setMyLeave).catch(() => setMyLeave([]));
+  }, [companyId]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -624,9 +800,31 @@ function MyPayroll({companyId}: {companyId?: string}) {
           const positions = await payrollApi.fetchPositions(companyId).catch(() => []);
           setMyPositionLabel(positions.find((p) => p.id === mine.position_id)?.label ?? '—');
         }
+        reloadMyLeave();
       }
     }).catch(() => setMe(null));
-  }, [companyId]);
+  }, [companyId, reloadMyLeave]);
+
+  // ── self-service leave filing ──
+  const [reqOpen, setReqOpen] = useState(false);
+  const [reqBranchId, setReqBranchId] = useState('');
+  const [reqType, setReqType] = useState<LeaveType>('Vacation');
+  const [reqStart, setReqStart] = useState('');
+  const [reqEnd, setReqEnd] = useState('');
+  const [reqReason, setReqReason] = useState('');
+  const [reqBusy, setReqBusy] = useState(false);
+  const LEAVE_TYPES: LeaveType[] = ['Vacation', 'Sick', 'Emergency', 'Maternity', 'Paternity', 'Unpaid', 'Other'];
+
+  async function submitMyLeaveRequest() {
+    if (!me || !reqBranchId || !reqStart || !reqEnd) return;
+    setReqBusy(true);
+    try {
+      await payrollApi.requestLeave(reqBranchId, me.id, reqType, reqStart, reqEnd, reqReason.trim() || null);
+      notify('Leave request filed');
+      setReqOpen(false); setReqType('Vacation'); setReqStart(''); setReqEnd(''); setReqReason('');
+      reloadMyLeave();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not file leave request', 'error'); } finally { setReqBusy(false); }
+  }
 
   return (
     <div className="space-y-6">
@@ -651,9 +849,76 @@ function MyPayroll({companyId}: {companyId?: string}) {
               <p className={cn('tabular text-xl font-black', me.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(me.advance_balance)}</p>
             </div>
           </Card>
+
+          <Card>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-farm-green"><CalendarX className="h-4 w-4" aria-hidden /> My Leave Requests</h3>
+              <Button onClick={() => {setReqBranchId(branches?.[0]?.id ?? ''); setReqType('Vacation'); setReqStart(''); setReqEnd(''); setReqReason(''); setReqOpen(true);}}>Request Leave</Button>
+            </div>
+            {myLeave.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No leave requests filed yet.</p>
+            ) : (
+              <ul className="divide-y divide-farm-accent-soft text-sm">
+                {myLeave.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                    <div>
+                      <span className="font-bold text-farm-green">{l.leave_type}</span>{' '}
+                      <span className="font-mono text-xs text-farm-muted">{l.start_date} → {l.end_date}</span>
+                    </div>
+                    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', l.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : l.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{l.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           <EmployeeHistoryTables wages={wages} advances={advances} wageTitle="My Wage History" advanceTitle="My Cash Advances" />
         </>
       )}
+
+      {/* Self-service leave request modal */}
+      <Dialog.Root open={reqOpen} onOpenChange={setReqOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="text-xl font-bold text-farm-green">Request Leave</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-5 text-xs text-farm-muted">Files under your own name — a payroll manager (not you) will decide it.</p>
+            <div className="space-y-4 text-sm">
+              {(branches?.length ?? 0) > 1 ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Branch</label>
+                  <SelectField value={reqBranchId} onChange={setReqBranchId} options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} />
+                </div>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Leave Type</label>
+                <SelectField value={reqType} onChange={(v) => setReqType(v as LeaveType)} options={LEAVE_TYPES.map((t) => ({value: t, label: t}))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-lf-start">Start Date</label>
+                  <input id="my-lf-start" type="date" value={reqStart} onChange={(e) => setReqStart(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-lf-end">End Date</label>
+                  <input id="my-lf-end" type="date" value={reqEnd} onChange={(e) => setReqEnd(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-lf-reason">Reason (optional)</label>
+                <input id="my-lf-reason" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="e.g. family event" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setReqOpen(false)} disabled={reqBusy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitMyLeaveRequest()} disabled={reqBusy || !reqBranchId || !reqStart || !reqEnd}>{reqBusy ? 'Filing…' : 'File Request'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

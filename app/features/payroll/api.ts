@@ -39,6 +39,26 @@ export interface AttendanceRecord {
   notes: string | null;
 }
 
+// P2PR2: employee leave/absence requests. Real-mode only, same reasoning as AttendanceRecord.
+export type LeaveType = 'Vacation' | 'Sick' | 'Emergency' | 'Maternity' | 'Paternity' | 'Unpaid' | 'Other';
+export type LeaveStatus = 'Pending' | 'Approved' | 'Rejected';
+export interface LeaveRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  branch_id: string;
+  branch_name: string;
+  leave_type: LeaveType;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  status: LeaveStatus;
+  decided_by: string | null;
+  decider_name: string | null;
+  decision_reason: string | null;
+  created_at: string;
+}
+
 export const payrollApi = {
   async fetchPositions(companyId: string): Promise<Position[]> {
     if (MOCK_MODE) return offlineDB.positions.where('company_id').equals(companyId).toArray();
@@ -241,5 +261,32 @@ export const payrollApi = {
     const {data, error} = await supabase.rpc('list_attendance', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_from: from, p_to: to});
     if (error) throw new Error(error.message);
     return (data ?? []) as AttendanceRecord[];
+  },
+
+  // P2PR2: file a Pending leave request. payroll.manage (any employee) OR the linked employee filing
+  // their own (zero-permission self-service).
+  async requestLeave(branchId: string, employeeId: string, leaveType: LeaveType, startDate: string, endDate: string, reason: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Leave tracking is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_request_leave', {
+      p_branch_id: branchId, p_employee_id: employeeId, p_leave_type: leaveType, p_start_date: startDate, p_end_date: endDate, p_reason: reason,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  // P2PR2: approve or reject a Pending leave request. payroll.manage-gated; the decider cannot be
+  // the request's own beneficiary (self-approval denied). Rejecting requires a reason.
+  async decideLeaveRequest(requestId: string, approve: boolean, reason: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Leave tracking is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_decide_leave_request', {p_request_id: requestId, p_approve: approve, p_reason: reason});
+    if (error) throw new Error(error.message);
+  },
+
+  // Read leave requests (optionally filtered). payroll.read (+branch-member if a branch is given)
+  // sees broadly; otherwise the caller's own linked employee record is force-substituted server-side.
+  async listLeaveRequests(companyId: string, branchId: string | null = null, employeeId: string | null = null, status: LeaveStatus | null = null): Promise<LeaveRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_leave_requests', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_status: status});
+    if (error) throw new Error(error.message);
+    return (data ?? []) as LeaveRequest[];
   },
 };
