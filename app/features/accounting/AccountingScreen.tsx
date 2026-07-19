@@ -501,7 +501,7 @@ export default function AccountingScreen() {
         </Card>
       ) : null}
 
-      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> Cost Schedule and Vendor/Customer ledgers are reserved for a later milestone (spec §2) — not built yet.</p>
+      <p className="flex items-center gap-2 text-xs text-farm-muted"><BookOpen size={14} aria-hidden /> Cost Schedule and the vendor AP ledger live on the Vendors &amp; AP screen; the per-customer AR ledger is the "View statement" action on the Customers &amp; Credit screen.</p>
     </div>
   );
 }

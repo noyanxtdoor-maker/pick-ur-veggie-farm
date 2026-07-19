@@ -88,6 +88,15 @@ export const vendorsApi = {
     await enqueue({companyId, kind: 'vendor.upsert', request: {type: 'rpc', rpc: 'vendor_upsert', payload}});
   },
 
+  // The write side (upsertCostSchedule below) has existed since the T3.1 port; this read was the
+  // missing half — nothing ever listed existing rate-card rows, so the report/UI had nothing to show.
+  async listCostSchedule(companyId: string): Promise<CostScheduleRow[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.from('cost_schedule').select('*').eq('company_id', companyId).order('effective_from', {ascending: false});
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as CostScheduleRow[]).map((r) => ({...r, unit_cost: Number(r.unit_cost)}));
+  },
+
   async upsertCostSchedule(companyId: string, id: string | null, vendorId: string, productId: string,
                             unitCost: number, effectiveFrom: string,
                             effectiveTo: string | null = null, notes: string | null = null): Promise<void> {

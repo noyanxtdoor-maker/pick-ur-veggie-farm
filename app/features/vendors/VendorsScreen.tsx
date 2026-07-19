@@ -8,7 +8,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {FileText, Pencil, Plus, Truck, Wallet, X} from 'lucide-react';
+import {FileText, Pencil, Plus, Tag, Truck, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {supabase} from '../../core/supabase/client';
@@ -17,8 +17,9 @@ import {Button, Card, PageHeader} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso} from '../pos/money';
-import {vendorsApi, type Vendor, type VendorAPStanding} from './api';
-import type {Branch} from '../../types/db';
+import {posApi} from '../pos/api';
+import {vendorsApi, type CostScheduleRow, type Vendor, type VendorAPStanding} from './api';
+import type {Branch, Product} from '../../types/db';
 
 export default function VendorsScreen() {
   const {companyId, has} = usePermissions();
@@ -31,15 +32,20 @@ export default function VendorsScreen() {
 
   const [vendors, setVendors] = useState<Vendor[] | null>(null);
   const [standing, setStanding] = useState<VendorAPStanding[] | null>(null);
+  const [costSchedule, setCostSchedule] = useState<CostScheduleRow[] | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Vendor | null>(null);
   const [invoiceFor, setInvoiceFor] = useState<Vendor | null>(null);
   const [paymentFor, setPaymentFor] = useState<VendorAPStanding | null>(null);
+  const [addingRate, setAddingRate] = useState(false);
 
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
     vendorsApi.list(companyId).then(setVendors).catch(() => setVendors([]));
     vendorsApi.standing(companyId).then(setStanding).catch(() => setStanding([]));
+    vendorsApi.listCostSchedule(companyId).then(setCostSchedule).catch(() => setCostSchedule([]));
+    posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
   }, [companyId, canRead]);
   useEffect(reload, [reload]);
 
@@ -131,9 +137,53 @@ export default function VendorsScreen() {
         )}
       </Card>
 
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-farm-green">Cost Schedule</h3>
+          <div className="flex items-center gap-2">
+            {costSchedule === null ? null : <span className="text-xs text-farm-muted">{costSchedule.length} rate{costSchedule.length === 1 ? '' : 's'}</span>}
+            {canManage ? <Button variant="secondary" onClick={() => setAddingRate(true)}><Plus className="mr-1.5 h-4 w-4" aria-hidden /> Add rate</Button> : null}
+          </div>
+        </div>
+        <p className="mb-2 text-xs text-farm-muted">Per-vendor × per-product negotiated unit costs. The most recent active rate per pair pre-fills line cost when recording a vendor invoice.</p>
+        {costSchedule === null || vendors === null || products === null ? (
+          <Skeleton rows={2} />
+        ) : costSchedule.length === 0 ? (
+          <EmptyState title="No rates yet" hint={canManage ? 'Add one with "Add rate" to build the rate card.' : 'None recorded.'} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-farm-accent-soft text-left text-xs uppercase text-farm-muted">
+                  <th className="px-2 py-2">Vendor</th>
+                  <th className="px-2 py-2">Product</th>
+                  <th className="px-2 py-2 text-right">Unit Cost</th>
+                  <th className="px-2 py-2">Effective From</th>
+                  <th className="px-2 py-2">Effective To</th>
+                  <th className="px-2 py-2">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costSchedule.map((r) => (
+                  <tr key={r.id} className="border-b border-farm-accent-soft/50 last:border-0">
+                    <td className="px-2 py-2 font-semibold text-farm-ink">{vendors.find((v) => v.id === r.vendor_id)?.name ?? '—'}</td>
+                    <td className="px-2 py-2">{products.find((p) => p.id === r.product_id)?.name ?? '—'}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatPeso(r.unit_cost)}</td>
+                    <td className="px-2 py-2 text-xs">{r.effective_from}</td>
+                    <td className="px-2 py-2 text-xs">{r.effective_to ?? <span className="font-semibold text-farm-green">Active</span>}</td>
+                    <td className="px-2 py-2 text-xs text-farm-muted">{r.notes ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
       {editing && companyId ? <VendorEditDialog companyId={companyId} vendor={editing} onClose={() => setEditing(null)} onSaved={() => {setEditing(null); reload(); notify('Vendor saved');}} wrap={wrap} /> : null}
       {invoiceFor && companyId ? <InvoiceDialog companyId={companyId} vendor={invoiceFor} branches={branches ?? []} onClose={() => setInvoiceFor(null)} onSaved={() => {setInvoiceFor(null); reload(); notify('Vendor invoice recorded');}} wrap={wrap} /> : null}
       {paymentFor && companyId ? <PaymentDialog companyId={companyId} vendor={paymentFor} branches={branches ?? []} onClose={() => setPaymentFor(null)} onSaved={() => {setPaymentFor(null); reload(); notify('Vendor payment recorded');}} wrap={wrap} /> : null}
+      {addingRate && companyId ? <CostScheduleDialog companyId={companyId} vendors={vendors ?? []} products={products ?? []} onClose={() => setAddingRate(false)} onSaved={() => {setAddingRate(false); reload(); notify('Cost schedule rate saved');}} wrap={wrap} /> : null}
     </div>
   );
 }
@@ -362,6 +412,45 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
           <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
             <Button className="flex-1" onClick={onSubmit} disabled={!branchId || !Number(amount) || Number(amount) <= 0 || Math.abs(totalApplied - Number(amount)) > 0.005}>Record Payment</Button>
+          </div>
+          <Dialog.Close className="absolute right-3 top-3 rounded p-1 text-farm-muted hover:bg-farm-bg" aria-label="Close"><X className="h-4 w-4" /></Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+// ─── Cost Schedule Add-Rate Dialog ───────────────────────────────────────────
+function CostScheduleDialog({companyId, vendors, products, onClose, onSaved, wrap}: {companyId: string; vendors: Vendor[]; products: Product[]; onClose: () => void; onSaved: () => void; wrap: Wrap}) {
+  const [vendorId, setVendorId] = useState<string | undefined>(vendors[0]?.id);
+  const [productId, setProductId] = useState<string | undefined>(products[0]?.id);
+  const [unitCost, setUnitCost] = useState('0');
+  const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState('');
+  const onSubmit = wrap(async () => {
+    if (!vendorId) throw new Error('Select a vendor.');
+    if (!productId) throw new Error('Select a product.');
+    if (!(Number(unitCost) > 0)) throw new Error('Unit cost must be greater than zero.');
+    await vendorsApi.upsertCostSchedule(companyId, null, vendorId, productId, Number(unitCost), effectiveFrom, null, notes || null);
+    onSaved();
+  }, 'Rate saved');
+  return (
+    <Dialog.Root open onOpenChange={(o) => {if (!o) onClose();}}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+          <Dialog.Title className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><Tag className="h-5 w-5" aria-hidden /> Add Cost Schedule Rate</Dialog.Title>
+          <p className="mb-3 text-xs text-farm-muted">Setting a new rate for a vendor × product pair automatically closes out the prior active rate for that pair.</p>
+          <div className="space-y-2 text-sm">
+            <label className="block"><span className="text-xs text-farm-muted">Vendor (required)</span><SelectField value={vendorId} onChange={setVendorId} placeholder="Vendor" options={vendors.map((v) => ({value: v.id, label: v.name}))} /></label>
+            <label className="block"><span className="text-xs text-farm-muted">Product (required)</span><SelectField value={productId} onChange={setProductId} placeholder="Product" options={products.map((p) => ({value: p.id, label: p.name}))} /></label>
+            <label className="block"><span className="text-xs text-farm-muted">Unit Cost ₱ (required)</span><input type="number" step="0.01" min="0" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
+            <label className="block"><span className="text-xs text-farm-muted">Effective From</span><input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
+            <label className="block"><span className="text-xs text-farm-muted">Notes</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
+          </div>
+          <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button className="flex-1" onClick={onSubmit} disabled={!vendorId || !productId || !(Number(unitCost) > 0)}>Save Rate</Button>
           </div>
           <Dialog.Close className="absolute right-3 top-3 rounded p-1 text-farm-muted hover:bg-farm-bg" aria-label="Close"><X className="h-4 w-4" /></Dialog.Close>
         </Dialog.Content>

@@ -1418,3 +1418,31 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   defined the sack conversion, bought "2 sacks" — direct DB query confirmed the ledger recorded
   exactly 100kg (₱2,500/100 = ₱25/kg unit cost) and total stock summed to 103kg (3+100). Full
   31-guard battery + drift clean after a fresh reset.
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (continued): Cost Schedule report shipped,
+  2 items closed by audit, not build** (app-only, no migration; git pushed, app deployed to Vercel
+  production). Audited "deeper accounting reports / profit-by-category" before building anything —
+  `AccountingScreen.tsx`'s "Management Reports" tab already fully renders both an expense/revenue
+  breakdown by GL account (`accountBreakdown()`) and a Statement of Changes in Equity
+  (`equityRollforward()`), confirmed by reading the component tree, not the module's own stale header
+  comment which still called them "deferred." Same audit-first check on "per-customer ledger" —
+  `CustomersScreen.tsx`'s existing "View statement" dialog (`customersApi.fetchStatement`) already is
+  a full per-customer AR ledger (invoice lines + running outstanding). Neither needed new code.
+  **Cost Schedule was the one genuine gap**: T3.1's `upsertCostSchedule` RPC wrapper existed but had
+  no read side and no UI — nothing ever listed existing vendor×product rate-card rows. Added
+  `vendorsApi.listCostSchedule()` (plain `select` + RLS, matches T3.1's existing `cost_schedule_select`
+  policy — no new RPC needed) and a Cost Schedule card + "Add rate" dialog to `VendorsScreen.tsx`
+  (vendor/product `SelectField`s sourced from the existing vendor list and `posApi.fetchProducts()`,
+  wired to the pre-existing, already guard-covered `cost_schedule_upsert`). Corrected the stale
+  placeholder at `AccountingScreen.tsx:504` that claimed Cost Schedule and vendor/customer ledgers
+  "aren't built yet" — it sat directly below content that already contradicted its own claim; now
+  points to where each actually lives (Vendors & AP screen; Customers & Credit's View statement).
+  No new migration or guard needed — `cost_schedule` table/RPCs were already covered by T3.1's 9/9
+  `t3-1-vendors-and-ledger-security` guard. tsc/vitest(98/98)/build clean. **LIVE browser E2E** against
+  the real local Postgres (fresh vendor + fresh product, both local-dev-only rows removed after
+  verification): created a vendor, added a ₱45.50 rate for it against a test product via the new
+  dialog — UI immediately listed vendor name, product name, unit cost, effective-from, "Active" —
+  confirmed identical values via a direct `cost_schedule` query. Confirmed the corrected Accounting
+  placeholder text renders. **Remaining scope, unchanged from the check-in above:** purchase-order
+  approval, expiration-tracking + stock transfers, equipment depreciation, the full payroll build-out,
+  and Buy Stock's receipt-photo offline-blob queue — each still standalone-feature-sized, continuing
+  one at a time.
