@@ -134,7 +134,7 @@ the flow was not exercised.
 | Credit-limit enforcement in sale · delivery-settle tender/change edits | Not started (Blocked) | Money path — owner review/sign-off gate (same review). |
 | Supabase project + HTTPS hosting | **Done** | Moved to §2 elsewhere in this doc; `aqhxhamdwmhcwxmebqbo` live, `pick-ur-veggie-farm.vercel.app` deployed 2026-07-12. |
 | Google Play packaging (AAB/assetlinks) | Not started | Owner infra decision (Play Developer account, signing key) — Launch Runbook §3.6, gated on hosting (now unblocked). |
-| MFA enrollment (ODR-003) | **Owner-reported Done 2026-07-13** | TOTP enabled at the project level (Supabase dashboard). App-side enrollment UI for individual users not yet built — Launch Runbook §1.5. |
+| MFA enrollment (ODR-003) | **Built 2026-07-19, local-verified — not yet pushed to production** | TOTP enabled at the project level since 2026-07-13. App-side enrollment UI now exists (Profile → Two-Factor Authentication) + a post-sign-in AAL2 challenge gate in the router. Pure client wiring against supabase-js's `auth.mfa` API — no migration, GoTrue owns its own tables. Live-verified locally: full round trip (enroll with a real computed TOTP code → sign out → sign in → correctly redirected to challenge → valid code accepted → landed on dashboard → disable reverts cleanly). `supabase/config.toml`'s `[auth.mfa.totp]` flipped to match production. Nothing to migrate for the production push — only the app deploy. |
 | B2A cross-vendor lock review | Not started | Needs an external reviewer — Launch Runbook §3.1. |
 | Backups beyond free-tier | Not started | Owner plan decision — Launch Runbook §3.7 / B7 §12. |
 | DR restore drill | **Done 2026-07-17** | `docs/dr-restore-drill-2026-07-17.md` — local stack confirmed a faithful restore target for production; schema/data both verified byte-for-byte against a live read. Paid backup RETENTION plan is still a separate owner decision (row above) — this drill only proves the restore mechanism works, not that Supabase is retaining backups beyond the free tier's window. |
@@ -1222,3 +1222,42 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   first vendor invoice fail outright until `vendor_invoice_record`/`vendor_payment_record` were made to
   self-seed it. Both fixes locked in with new guard assertions beyond Team B's originals. Full battery
   after the final stage: 29 guards / 0 failures, 94 unit tests, tsc clean, build clean.
+- **2026-07-19 — Owner mega-directive batch: POS wholesale-buyer picker, anon-RPC lockdown, mobile UI
+  confirmation, sync-queue Discard fix, TOTP 2FA** (commits `17e48e0`, `5e0fd11`, `0036e17`, `b68ccae`).
+  **(1) POS Pre-order tab gains a "Registered wholesale buyer" picker**, reusing the existing Customers
+  & Credit module (not a new vendor table) via the same non-money-mutating `pos_assign_invoice_customer`
+  attribution RPC the Customers screen already uses — separates "Buy Stock vendor" (who we buy from)
+  from "Pre-order buyer" (who buys from us to resell) per owner request. Live-verified: linked a Pre-order
+  sale to a registered customer, confirmed the invoice attached and Outstanding AR updated correctly.
+  **(2) P2O.1 — closed the anon-callable `uuidv7()` id generator** flagged in the earlier open-items
+  audit. Root cause was subtler than expected: the function had a `PUBLIC`-pseudo-role grant (from its
+  original `CREATE FUNCTION`), not a per-role `anon` grant — `revoke ... from anon` alone was a silent
+  no-op (the mirror-image of the P1M.1 bug). First fix attempt (`revoke from public` with no re-grant)
+  broke 10 unrelated guard files that legitimately need direct `authenticated`/`service_role` EXECUTE
+  (fixture setup, real `service_role` audit-log writes) — corrected to `revoke from public` + explicit
+  re-grant to `authenticated, service_role` only, matching the grant shape every other governed function
+  in this schema uses. Verified against the full local guard battery (31/31 green) before and after.
+  **Not yet pushed to production — needs the owner to run the 2-line SQL themselves** (credential
+  handling stays off-limits regardless of authorization); SQL is in `supabase/migrations/20260719100000_p2o1_anon_rpc_lockdown.sql`.
+  **(3) Confirmed already-live, no new work needed:** the mobile top-bar hamburger/profile buttons (fixed
+  in an earlier same-day commit, `354570e`), the sync-queue pending/blocked indicator (built 2026-07-16,
+  confirmed present at every breakpoint), and the employee-tier Dashboard financial restriction (also
+  `354570e`). **(4) Sync Issues dialog fix** — the owner's screenshot showed two "stuck" blocked outbox
+  items; both were legitimate, correct rejections (an optimistic-concurrency conflict and an RLS denial),
+  not bugs, but the dialog only ever offered "Retry now," which for a conflict item is mathematically
+  guaranteed to fail forever (the frozen `baseUpdatedAt` can never match again). Added a `reason: 'conflict'`
+  tag (`repository.ts`/`queue.ts`) and a `discardBlocked()` action; conflict items now show "re-open and
+  re-apply" guidance + Discard instead of a Retry that could never work. Live-verified both branches by
+  injecting synthetic Blocked rows and confirming the dialog renders/behaves correctly for each, and that
+  Discard actually removes an item. **(5) TOTP two-factor authentication** — project-level TOTP was
+  already on (owner-confirmed 2026-07-13) but had no in-app enrollment or challenge flow. Built
+  `app/features/auth/mfa.ts` (pure client wrapper over supabase-js's `auth.mfa` API — no migration needed,
+  GoTrue owns its own tables), a Two-Factor Authentication card in Profile (QR + manual-entry secret +
+  verify step, mirrors BiometricCard's shape), and a router gate (`RequireMfaChallenge`, checks
+  `getAuthenticatorAssuranceLevel()`, fails open on error) that redirects an AAL1 session with a verified
+  factor to a new `/auth/mfa-challenge` screen before it can reach the app. Live-verified the full round
+  trip locally (enabled local `[auth.mfa.totp]` to match production, computed real TOTP codes via RFC 6238
+  using Node's built-in `crypto` to complete both the enrollment-verify step and a live post-sign-in
+  challenge): enroll → sign out → sign in → correctly redirected to challenge → valid code accepted →
+  landed on dashboard → disable cleanly reverts. **Not yet pushed to production** — no migration needed,
+  just the app deploy. tsc/vitest(94/94)/build all clean throughout.
