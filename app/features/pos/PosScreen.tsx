@@ -16,8 +16,9 @@ import {SelectField} from '../../components/overlay';
 import {Numpad} from './Numpad';
 import {posApi, type SaleLineInput, type SaleResult} from './api';
 import {paymentsApi} from '../finance/api';
+import {customersApi} from '../customers/api';
 import {farmPerKg, formatPeso, lineTotal, round2} from './money';
-import type {FinancialAccount, FinishedGood, PosInvoice, Product, ProductRemovalRequest} from '../../types/db';
+import type {Customer, FinancialAccount, FinishedGood, PosInvoice, Product, ProductRemovalRequest} from '../../types/db';
 
 type RightPane = 'slip' | 'checkout' | 'receipt' | 'settle';
 type SaleKind = 'paid' | 'preorder';
@@ -55,13 +56,21 @@ export default function PosScreen() {
   const [payAccounts, setPayAccounts] = useState<FinancialAccount[]>([]);
   const [payAccountId, setPayAccountId] = useState(''); // '' = cash drawer
   const [pendingRemovals, setPendingRemovals] = useState<ProductRemovalRequest[]>([]);
+  // Owner directive (2026-07-19): the "Buy Stock vendor" (who we buy raw materials from, Vendors & AP)
+  // is a different relationship from a Pre-order buyer (a wholesaler/retailer who buys FROM us to
+  // resell) — the latter is exactly what the Customers & Credit module already tracks (AR, credit
+  // limit, statement of account). Reusing it here, not building a second "vendor" concept.
+  const canPickCustomer = has('customer.read');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [preorderCustomerId, setPreorderCustomerId] = useState('');
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
     posApi.fetchStock(companyId, branchId).then(setStock).catch(() => setStock([]));
     paymentsApi.fetchPickerAccounts(companyId, branchId).then(setPayAccounts).catch(() => setPayAccounts([]));
     if (canManageProducts) posApi.fetchPendingRemovals().then(setPendingRemovals).catch(() => setPendingRemovals([]));
-  }, [companyId, branchId, canManageProducts]);
+    if (canPickCustomer) customersApi.fetchCustomers(companyId).then((rows) => setCustomers(rows.filter((c) => c.status === 'Active'))).catch(() => setCustomers([]));
+  }, [companyId, branchId, canManageProducts, canPickCustomer]);
   useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const [selected, setSelected] = useState<Product | null>(null);
@@ -168,8 +177,14 @@ export default function PosScreen() {
         financialAccountId: saleKind === 'paid' && payAccountId ? payAccountId : null,
         customerName: customerName.trim() || undefined,
       });
+      // Attribution only (posts no journal, changes no amount — same non-money-mutating RPC the
+      // Customers screen already uses) — links a Pre-order sale to a registered wholesale buyer so
+      // their AR standing and statement of account pick it up, without touching the sale RPC itself.
+      if (saleKind === 'preorder' && preorderCustomerId && !result.provisional) {
+        await customersApi.assignInvoice(companyId, result.invoice.id, preorderCustomerId).catch((e) => notify(e instanceof Error ? e.message : 'Could not link customer to this sale', 'error'));
+      }
       setLastSale(result);
-      setBasket([]); setCash(''); setNote(''); setCustomerName(''); setDeliveryFee(''); setPreDelivery(false); setApplyDiscount(true); setSaleKind('paid'); setPayAccountId('');
+      setBasket([]); setCash(''); setNote(''); setCustomerName(''); setPreorderCustomerId(''); setDeliveryFee(''); setPreDelivery(false); setApplyDiscount(true); setSaleKind('paid'); setPayAccountId('');
       setPane('receipt');
       if (result.provisional) triggerSync();
       reload();
@@ -487,6 +502,13 @@ export default function PosScreen() {
                   <p className="rounded-lg border border-farm-accent-soft bg-farm-bg p-2 text-[11px] font-semibold text-farm-muted">
                     No weighing or numpad needed here — for negotiated wholesale, add lines with <strong className="text-farm-green">Skip Weigh (Bulk Flat Price)</strong> and issue the receipt. Cash is collected later via <strong className="text-farm-green">Mark Paid</strong> in the journal.
                   </p>
+                  {canPickCustomer && customers.length > 0 ? (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted">Registered wholesale buyer (optional)</label>
+                      <SelectField value={preorderCustomerId} onChange={setPreorderCustomerId} placeholder="Not linked — walk-in / one-off" options={customers.map((c) => ({value: c.id, label: c.name}))} />
+                      <p className="mt-1 text-[10px] text-farm-muted">Different from a Buy Stock vendor — this tracks a repeat buyer who resells your produce, so their outstanding balance shows up in Customers &amp; Credit.</p>
+                    </div>
+                  ) : null}
                   <div className="rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 p-3 text-sm">
                     <label className="flex min-h-10 cursor-pointer items-center justify-between font-bold text-farm-ink">
                       <span className="flex items-center gap-2"><input type="checkbox" checked={preDelivery} onChange={(e) => {setPreDelivery(e.target.checked); if (!e.target.checked) setDeliveryFee('');}} className="h-4 w-4 accent-farm-green" /> Add Delivery Fee</span>
