@@ -6,7 +6,7 @@ import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {Link} from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, X} from 'lucide-react';
+import {Bell, BellOff, Calendar as CalIcon, ChevronLeft, ChevronRight, FolderKanban, Plus, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -15,6 +15,8 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {schedulingApi, type EventInput} from './api';
+import {useEventReminders, requestReminderPermission, reminderPermissionDenied} from './reminders';
+import {usePref} from '../../core/prefs/prefs';
 import {projectsApi} from '../projects/api';
 import {projectsOnDay, projectDueOn, projectPct} from './projectOverlay';
 import {DayView} from './DayView';
@@ -67,6 +69,15 @@ export default function SchedulesScreen() {
   // events from users without schedule.read_private — this is a view filter on top, never the gate.
   const [tierFilter, setTierFilter] = useState<'all' | 'General' | 'Management'>('all');
   const visibleEvents = useMemo(() => events.filter((e) => tierFilter === 'all' || (e.visibility ?? 'General') === tierFilter), [events, tierFilter]);
+  useEventReminders(visibleEvents);
+  const [remindersEnabled, setRemindersEnabled] = usePref('reminders_enabled', '0');
+  async function toggleReminders() {
+    if (remindersEnabled === '1') { setRemindersEnabled('0'); return; }
+    const granted = await requestReminderPermission();
+    if (!granted) { notify(reminderPermissionDenied() ? 'Notifications are blocked for this site — allow them in your browser settings.' : 'Notification permission was not granted.', 'error'); return; }
+    setRemindersEnabled('1');
+    notify('Reminders on — you\'ll get a notification 15 min before events with a set time, while this tab is open.');
+  }
 
   const eventsByDay = useMemo(() => {
     const m = new Map<string, CalendarEvent[]>();
@@ -184,6 +195,9 @@ export default function SchedulesScreen() {
         action={
           <div className="flex items-center gap-2">
             <div className="w-40"><SelectField value={branchId} onChange={setBranchId} placeholder="Branch" options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} /></div>
+            <Button variant="secondary" onClick={() => void toggleReminders()} title={remindersEnabled === '1' ? 'Reminders on — tap to turn off' : 'Get a notification 15 min before timed events'}>
+              {remindersEnabled === '1' ? <Bell size={18} aria-hidden /> : <BellOff size={18} aria-hidden />}
+            </Button>
             {canManage ? <Button onClick={openCreate}><Plus size={18} aria-hidden /> New Event</Button> : null}
           </div>
         }
