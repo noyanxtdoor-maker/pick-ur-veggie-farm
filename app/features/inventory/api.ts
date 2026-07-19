@@ -60,6 +60,21 @@ export interface PurchaseInput {
   purchaseDate: string; // yyyy-mm-dd
   baseUnit?: string; // P2U1: only applied when the item is first created — ignored on later purchases of the same item
   purchaseOrderRequestId?: string | null; // P2PO1: fulfills an Approved purchase-order request; must resolve to the same item
+  expirationDate?: string | null; // P2ET1: best-before date for the new batch (yyyy-mm-dd)
+}
+
+// P2ET1: a batch expiring within N days (or already past due) that still holds stock. Real-mode only —
+// batch-level expiration tracking has no mock/offline equivalent (the mock doesn't model batches at all).
+export interface ExpiringBatch {
+  id: string;
+  branch_id: string;
+  branch_name: string;
+  item_id: string;
+  item_name: string;
+  expiration_date: string;
+  remaining: number;
+  unit_cost: number;
+  is_expired: boolean;
 }
 
 // P2PO1: a queued stock-purchase request. Real-mode only — a request→approve/reject workflow is a
@@ -173,6 +188,7 @@ export const inventoryApi = {
       p_idempotency_key: idem, p_vendor_id: input.vendorId ?? null, p_bought_by: input.boughtBy?.trim() || null,
       p_base_unit: input.baseUnit?.trim() || null,
       p_purchase_order_request_id: input.purchaseOrderRequestId ?? null,
+      p_expiration_date: input.expirationDate || null,
     };
     if (online()) {
       const {error} = await supabase.rpc('inventory_record_purchase', payload);
@@ -374,5 +390,38 @@ export const inventoryApi = {
     if (!notes.trim()) throw new Error('A reason is required.');
     const {error} = await supabase.rpc('reject_purchase_order_request', {p_request_id: requestId, p_notes: notes.trim()});
     if (error) throw new Error(error.message);
+  },
+
+  // P2ET1: batches expiring within daysAhead (default 30) or already past due, still holding stock.
+  async listExpiringBatches(companyId: string, daysAhead = 30): Promise<ExpiringBatch[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_expiring_batches', {p_company: companyId, p_days_ahead: daysAhead});
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as ExpiringBatch[]).map((b) => ({...b, remaining: Number(b.remaining), unit_cost: Number(b.unit_cost)}));
+  },
+
+  async setBatchExpiration(batchId: string, expirationDate: string | null): Promise<void> {
+    const {error} = await supabase.rpc('inventory_set_batch_expiration', {p_batch_id: batchId, p_expiration_date: expirationDate});
+    if (error) throw new Error(error.message);
+  },
+
+  // Removes a specific batch's remaining stock (expired/damaged), posting the loss to SHRINKAGE at
+  // that batch's own FIFO cost.
+  async writeoffBatch(batchId: string, reason: string): Promise<void> {
+    if (!reason.trim()) throw new Error('A reason is required.');
+    const {error} = await supabase.rpc('inventory_writeoff_batch', {p_batch_id: batchId, p_reason: reason.trim()});
+    if (error) throw new Error(error.message);
+  },
+
+  // Moves quantity of an item from one branch to another within the same company. FIFO-drains the
+  // source, creates matching destination batches preserving unit_cost/received_at/expiration_date.
+  async transferStock(itemId: string, fromBranchId: string, toBranchId: string, quantity: number, notes: string | null = null): Promise<string> {
+    if (quantity <= 0) throw new Error('Quantity must be greater than zero.');
+    if (fromBranchId === toBranchId) throw new Error('Source and destination branch must differ.');
+    const {data, error} = await supabase.rpc('inventory_transfer_stock', {
+      p_item_id: itemId, p_from_branch_id: fromBranchId, p_to_branch_id: toBranchId, p_quantity: quantity, p_notes: notes,
+    });
+    if (error) throw new Error(error.message);
+    return data as string;
   },
 };

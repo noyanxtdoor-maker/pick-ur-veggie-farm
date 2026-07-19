@@ -1493,3 +1493,48 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   Stock dialog; submitting completed the purchase — stock rose 10→15 pcs, expense value ₱500→₱800,
   and a direct DB check confirmed the request's `fulfilled_receiving_id` matches the exact new
   receiving row, not just "some" row.
+- **2026-07-19/20 — Owner mega-directive, top-to-bottom pass (continued): expiration-date tracking +
+  branch stock transfers shipped together** (one migration; git pushed; app deployed to Vercel
+  production; migration queued for the owner — now the 5th). Both confirmed genuinely missing in the
+  earlier audit and both explicitly named in `Phase_2_M3_Inventory_Module_Spec.md` line 36's deferred-
+  additive list ("expiration tracking, branch transfers"). Reused `inventory.adjust` for both new
+  writes rather than a new permission key — that key already means "change stock counts for reasons
+  other than a purchase or sale," which transfers and write-offs both are (C1 §4: no new complexity
+  without a real access-boundary need). **Expiration**: `material_batches` gains a nullable
+  `expiration_date`, settable at purchase time (`inventory_record_purchase`'s 16th optional arg, same
+  append-only evolution pattern as P2PO1) or corrected later (`inventory_set_batch_expiration`). A new
+  `list_expiring_batches()` read powers an "Expiring & Expired Stock" card on the Consumables tab; a
+  new `inventory_writeoff_batch()` removes ONE specific batch's remaining stock and posts the loss to
+  SHRINKAGE at that batch's own FIFO cost — same economics as the existing adjustment-shrinkage path,
+  just targeted at a named aged batch instead of a FIFO sweep across all of an item's stock. **Branch
+  transfers**: new `inventory_transfer_stock()` FIFO-drains the source branch's batches and creates a
+  matching batch at the destination per source batch drained, preserving that batch's own unit_cost,
+  received_at, AND expiration_date — so FIFO age and any tracked best-before date carry over correctly
+  instead of resetting to "just received" at the new branch. No GL entry (an internal relocation
+  between two branches of the same company is not a purchase, sale, or loss). `inventory_movements`'
+  `movement_type` CHECK widened to allow `TransferOut`/`TransferIn`; `material_available()` and
+  `material_batch_available()` updated to treat them correctly. New "Transfer Between Branches" button
+  + dialog on the Consumables tab (only shown when the company has 2+ branches). **A real bug caught
+  by the guard battery on a fresh reset, not invented — the second in two days from the exact same
+  root cause**: this migration's `inventory_record_purchase` evolution again needed the old-signature
+  `DROP FUNCTION` first (arg count changed again, 15→16) — caught immediately by the guard's own
+  fulfillment-path assertion failing with "is not unique" before the fix, exactly like P2PO1's
+  overload collision the day before. New migration `supabase/migrations/20260719200000_p2et1_
+  expiration_and_stock_transfers.sql`. New guard `p2et1-expiration-transfers-security.sql` (21
+  assertions: expiration set/correct/list, write-off zeroes stock + posts Shrinkage + marks Expired,
+  transfer drains source AND credits destination — both sides checked, not just one — preserves FIFO
+  cost/age/expiration, cross-branch and cross-company denial in both directions, double-decision-style
+  zero-stock write-off denial, no-inventory.adjust denial on all four new/changed functions, cross-
+  tenant isolation, a dedicated regression assertion proving the original pre-P2ET1 14-arg purchase
+  call shape still resolves identically, grant shape) — wired into `package.json`/`ci.yml`. Full
+  battery re-verified clean after a fresh reset: 34 guards, 98 unit tests, tsc, build, static+drift.
+  **LIVE browser E2E against the real local Postgres, fresh two-branch company**: bought 10 units of a
+  test item with a 2026-07-25 expiration date — correctly appeared in the new Expiring & Expired Stock
+  card; transferred 4 units to the second branch — source dropped 10→6, destination rose 0→4 (both
+  sides independently confirmed against the DB, not just the UI), the new destination batch confirmed
+  via direct query to carry the exact same `unit_cost` and `received_at` as the source batch it came
+  from; wrote off the remaining 6-unit batch — it disappeared from the alert list, total stock read 0,
+  and a direct DB check confirmed the batch flipped to `Expired` status while the OTHER branch's batch
+  (unrelated to the write-off) stayed `Available`, and a SHRINKAGE journal line posted for exactly
+  ₱300.00 (6 units × the batch's own ₱50 unit cost, not the item's average or the original purchase
+  price).

@@ -180,6 +180,9 @@ jobs:
       - name: P2PO1 purchase-order request/approval security tests (request-vs-decide split, approval never moves stock, fulfillment item-match + Approved-only gate, double-decision, self-decide denial, cross-tenant isolation)
         run: npm run guard:p2po1
 
+      - name: P2ET1 expiration-tracking + branch stock-transfer security tests (write-off at batch cost, transfer drains/credits both sides + preserves FIFO cost/age, cross-branch/cross-company denial, 14-arg regression)
+        run: npm run guard:p2et1
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

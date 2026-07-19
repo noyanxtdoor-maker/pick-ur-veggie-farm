@@ -6,7 +6,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {AlertTriangle, ClipboardList, FileText, Hammer, History, Minus, Package, Plus, ReceiptText, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
+import {AlertTriangle, ArrowRightLeft, ClipboardList, FileText, Hammer, History, Minus, Package, Plus, ReceiptText, RefreshCw, ShieldAlert, ShoppingBag, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {inventoryApi, type PurchaseInput, type PurchaseOrderRequest} from './api';
+import {inventoryApi, type ExpiringBatch, type PurchaseInput, type PurchaseOrderRequest} from './api';
 import {purchaseSummary, filterByPeriod} from './purchaseSummary';
 import {membershipsApi} from '../organization/memberships/memberships';
 import {vendorsApi, type Vendor} from '../vendors/api';
@@ -82,6 +82,17 @@ export default function InventoryScreen() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [buyFulfillsRequestId, setBuyFulfillsRequestId] = useState<string | null>(null);
+  const [buyExpDate, setBuyExpDate] = useState(''); // P2ET1: optional, only meaningful for Consumables
+
+  // ── P2ET1: expiring/expired batches + write-off + branch transfer ──
+  const [expiringBatches, setExpiringBatches] = useState<ExpiringBatch[] | null>(null);
+  const [writingOffId, setWritingOffId] = useState<string | null>(null);
+  const [writeoffReason, setWriteoffReason] = useState('');
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [xferItemId, setXferItemId] = useState('');
+  const [xferToBranchId, setXferToBranchId] = useState('');
+  const [xferQty, setXferQty] = useState('1');
+  const [xferNotes, setXferNotes] = useState('');
 
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
@@ -99,7 +110,8 @@ export default function InventoryScreen() {
     } else if (canRequestPO) {
       inventoryApi.listMyPurchaseOrderRequests(companyId).then(setPoRequests).catch(() => setPoRequests([]));
     }
-  }, [companyId, branchId, canReadVendors, canPurchase, canRequestPO]);
+    if (canAdjust) inventoryApi.listExpiringBatches(companyId, 30).then(setExpiringBatches).catch(() => setExpiringBatches([]));
+  }, [companyId, branchId, canReadVendors, canPurchase, canRequestPO, canAdjust]);
   useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap) re-fetches this screen
 
   // ── purchase modal ──
@@ -199,6 +211,7 @@ export default function InventoryScreen() {
     setBuyDesc(''); setBuyQty('1'); setBuySourceType('online'); setBuySourceName('Lazada'); setBuyContact(''); setBuyVendorId(''); setBuyAmount(''); setBuyBoughtBy('');
     setBuyUnit('pcs'); setBuyQtyInPurchaseUnit(false); setConvOpen(false); setConvUnit(''); setConvFactor('');
     setBuyFulfillsRequestId(fulfillRequest?.id ?? null);
+    setBuyExpDate('');
     if (fulfillRequest) {
       // P2PO1: pre-fill from the Approved request being fulfilled — quantity/cost are still editable,
       // since what actually arrives can differ from the estimate; the RPC only requires the item match.
@@ -243,6 +256,7 @@ export default function InventoryScreen() {
       purchaseDate: buyDate,
       baseUnit: buyUnit,
       purchaseOrderRequestId: buyFulfillsRequestId,
+      expirationDate: buyType === 'Equipment' ? null : (buyExpDate || null),
     };
     if (!(input.quantity > 0) || !(input.totalCost > 0)) return notify('Amounts and counts must be larger than zero.', 'error');
     setBusy(true);
@@ -306,6 +320,38 @@ export default function InventoryScreen() {
       setRejectingId(null); setRejectReason('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Rejection failed', 'error'); } finally { setBusy(false); }
+  }
+
+  // ── P2ET1 handlers ──
+  async function submitWriteoff() {
+    if (!writingOffId || !writeoffReason.trim()) return;
+    setBusy(true);
+    try {
+      await inventoryApi.writeoffBatch(writingOffId, writeoffReason);
+      notify('Batch written off — loss posted to Shrinkage');
+      setWritingOffId(null); setWriteoffReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Write-off failed', 'error'); } finally { setBusy(false); }
+  }
+
+  function openTransfer() {
+    setXferItemId((items ?? [])[0]?.id ?? '');
+    setXferToBranchId((branches ?? []).find((b) => b.id !== branchId)?.id ?? '');
+    setXferQty('1'); setXferNotes('');
+    setTransferOpen(true);
+  }
+
+  async function submitTransfer() {
+    if (!branchId || !xferItemId || !xferToBranchId) return;
+    const qty = parseFloat(xferQty);
+    if (!(qty > 0)) return notify('Quantity must be greater than zero.', 'error');
+    setBusy(true);
+    try {
+      await inventoryApi.transferStock(xferItemId, branchId, xferToBranchId, qty, xferNotes.trim() || null);
+      notify('Stock transferred');
+      setTransferOpen(false);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Transfer failed', 'error'); } finally { setBusy(false); }
   }
 
   async function submitAdjust() {
@@ -394,6 +440,11 @@ export default function InventoryScreen() {
         {canAdjust ? (
           <Button variant="secondary" onClick={() => {setAdjItemId((items ?? [])[0]?.id ?? ''); setAdjQty(''); setAdjReason(''); setAdjOpen(true);}}>
             <RefreshCw size={18} aria-hidden /> Manual Stock Adjustment
+          </Button>
+        ) : null}
+        {canAdjust && (branches ?? []).length > 1 ? (
+          <Button variant="secondary" onClick={openTransfer}>
+            <ArrowRightLeft size={18} aria-hidden /> Transfer Between Branches
           </Button>
         ) : null}
       </div>
@@ -561,6 +612,31 @@ export default function InventoryScreen() {
                         </p>
                       </div>
                       <Button onClick={() => openBuy(catById.get(itemById.get(r.item_id)?.category_id ?? '')?.category_key, r)}><Plus size={16} aria-hidden /> Buy Now</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : null}
+
+          {canAdjust ? (
+            <Card>
+              <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-farm-muted">Expiring &amp; Expired Stock</h3>
+              {expiringBatches === null ? (
+                <Skeleton rows={1} />
+              ) : expiringBatches.length === 0 ? (
+                <p className="text-xs text-farm-muted">Nothing expiring in the next 30 days.</p>
+              ) : (
+                <div className="space-y-2">
+                  {expiringBatches.map((b) => (
+                    <div key={b.id} className={cn('flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm', b.is_expired ? 'border-red-300 bg-red-50' : 'border-farm-accent-soft')}>
+                      <div>
+                        <p className="font-bold text-farm-ink">{b.item_name} — {b.remaining} {itemById.get(b.item_id)?.base_unit ?? ''}</p>
+                        <p className="text-[11px] text-farm-muted">
+                          {b.branch_name} · {b.is_expired ? <span className="font-bold text-farm-danger">Expired {b.expiration_date}</span> : <>Expires {b.expiration_date}</>}
+                        </p>
+                      </div>
+                      <Button variant="danger" onClick={() => {setWritingOffId(b.id); setWriteoffReason(b.is_expired ? 'Expired' : '');}}>Write Off</Button>
                     </div>
                   ))}
                 </div>
@@ -869,6 +945,12 @@ export default function InventoryScreen() {
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-boughtby">Bought By (optional)</label>
                 <input id="buy-boughtby" value={buyBoughtBy} onChange={(e) => setBuyBoughtBy(e.target.value)} placeholder="e.g. Mang Jun (field hand)" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
+              {buyType === 'Consumables' ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="buy-expdate">Expiration / Best-Before Date (optional)</label>
+                  <input id="buy-expdate" type="date" value={buyExpDate} onChange={(e) => setBuyExpDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+              ) : null}
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
               <Button variant="secondary" onClick={() => setBuyOpen(false)} disabled={busy}>Cancel</Button>
@@ -998,6 +1080,59 @@ export default function InventoryScreen() {
               <Button variant="secondary" onClick={() => setRejectingId(null)} disabled={busy}>Cancel</Button>
               <Button variant="danger" className="flex-1" onClick={() => void submitRejectPo()} disabled={busy || !rejectReason.trim()}>
                 {busy ? 'Rejecting…' : 'Reject Request'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* P2ET1: Write-off reason modal */}
+      <Dialog.Root open={writingOffId !== null} onOpenChange={(o) => {if (!o) setWritingOffId(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-bold text-farm-danger">Write Off Batch</Dialog.Title>
+            <p className="mb-3 mt-1 text-xs text-farm-muted">Removes this batch's remaining stock and posts the loss to Shrinkage at its own cost. A reason is required.</p>
+            <textarea value={writeoffReason} onChange={(e) => setWriteoffReason(e.target.value)} placeholder="e.g. Expired, spoiled in storage." className="h-20 w-full rounded-xl border border-farm-accent-soft bg-farm-bg p-3 text-sm focus:outline-none" />
+            <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setWritingOffId(null)} disabled={busy}>Cancel</Button>
+              <Button variant="danger" className="flex-1" onClick={() => void submitWriteoff()} disabled={busy || !writeoffReason.trim()}>
+                {busy ? 'Writing off…' : 'Write Off'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* P2ET1: Transfer Between Branches modal */}
+      <Dialog.Root open={transferOpen} onOpenChange={setTransferOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center justify-center gap-1.5 text-lg font-bold text-farm-green"><ArrowRightLeft className="h-5 w-5" aria-hidden /> Transfer Stock Between Branches</Dialog.Title>
+            <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Moves stock out of {(branches ?? []).find((b) => b.id === branchId)?.name ?? 'this branch'} into another branch — no purchase, no loss, just a relocation.</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Material</label>
+                <SelectField value={xferItemId} onChange={setXferItemId} options={(items ?? []).map((i) => ({value: i.id, label: `${i.name} — ${i.available} ${i.base_unit} on hand`}))} placeholder="Choose material…" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Destination Branch</label>
+                <SelectField value={xferToBranchId} onChange={setXferToBranchId} options={(branches ?? []).filter((b) => b.id !== branchId).map((b) => ({value: b.id, label: b.name}))} placeholder="Choose branch…" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="xfer-qty">Quantity</label>
+                <input id="xfer-qty" value={xferQty} onChange={(e) => setXferQty(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="xfer-notes">Notes (optional)</label>
+                <textarea id="xfer-notes" value={xferNotes} onChange={(e) => setXferNotes(e.target.value)} placeholder="e.g. Restocking the new branch." className="h-16 w-full rounded-xl border border-farm-accent-soft bg-farm-bg p-3 text-sm focus:outline-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitTransfer()} disabled={busy || !xferItemId || !xferToBranchId || !(parseFloat(xferQty) > 0)}>
+                {busy ? 'Transferring…' : 'TRANSFER STOCK'}
               </Button>
             </div>
           </Dialog.Content>
