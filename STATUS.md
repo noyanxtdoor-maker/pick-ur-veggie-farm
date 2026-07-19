@@ -1571,3 +1571,48 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   "Est. Book Value" column immediately showed exactly ₱6,000.00 (half of purchase cost, matching the
   6-of-12-months elapsed), confirmed identical via a direct `equipment_book_value()` query against the
   server, not just trusting the UI's own client-side estimate.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): payroll attendance/shift
+  tracking shipped — slice 1 of the 6-part payroll backlog item** (one migration; git pushed; app
+  deployed to Vercel production; migration queued for the owner — now the 7th). **Scope decision,
+  stated up front in the migration and repeated here so it isn't silently rounded up**: the task-list
+  item covers attendance/shifts, leave, overtime, an approval workflow, multiple payout methods, and a
+  formatted payslip — SIX sub-items. Only attendance/shifts shipped in this pass; the other five remain
+  fully unbuilt and unscoped, tracked as separate follow-on work (task #139 stays open rather than
+  being marked Done). New `attendance_records` table — one row per `(employee_id, work_date)` via a
+  unique index, `status in ('Present','Half Day','Absent')` (a day-fraction model matching how a
+  supervisor actually marks field-labor crews, not a minute-precise time clock), nullable
+  `clock_in`/`clock_out` for crews that do track times, reuses the existing generic `inventory_audit()`
+  trigger (already proven on `equipment_assets`) for a free audit trail — no manual audit insert
+  needed. New `payroll_record_attendance()` — `payroll.manage`-gated, upserts via
+  `on conflict (company_id, employee_id, work_date) do update` so correcting a mis-mark updates the
+  same row instead of creating a duplicate. New `list_attendance()` — dual access shape matching every
+  other payroll read in this app: managers with `payroll.read` see the branch, and a worker with no
+  payroll access at all still sees their own rows if their employee record is linked to their app
+  account (same self-service pattern as M5C's "My Payroll"). Explicit non-decision recorded here: an
+  attendance-driven auto-prefill of the existing Disburse Wage dialog's "Days Worked" field was
+  considered and deliberately deferred — `wage_payments.pay_period` is free text with no structured
+  date range today, so "days worked in this pay period" can't be derived without first deciding how pay
+  periods map to dates, which is a separate design question from attendance tracking itself. **Two real
+  gaps in the existing permission/grant model found by the guard battery on a fresh reset, not
+  invented**: (1) `admin` does not get `payroll.manage` by default in `seed_standard_roles()` (only
+  `owner`/`co_owner` get every active permission) — a guard fixture assuming an admin could write
+  attendance failed until the test tenant's admin was granted the key via a direct
+  `user_permission_overrides` row, same as a real owner would do through the Roles tab; (2)
+  `authenticated` has no direct INSERT grant on `employees` (writes are RPC-only) — the guard's fixture
+  employee row had to be inserted as `postgres`, matching the established pattern used for every other
+  fixture table in this app that has no open write grant. Neither is a bug in this migration; both are
+  now documented facts about the existing model. New migration `supabase/migrations/
+  20260720100000_p2pr1_payroll_attendance.sql`. New guard `p2pr1-payroll-attendance-security.sql` (12
+  assertions: record + audit, correct-via-upsert stays 1 row, `list_attendance` joins the employee
+  name, linked-employee self-view with zero `payroll.read`, clock_out-before-clock_in denial, invalid-
+  status denial, cross-company `employee_id` denial, no-`payroll.manage` denial, no-`payroll.read`-and-
+  not-linked denial, cross-tenant denial, grant shape) — wired into `package.json`/`ci.yml`. Full
+  battery re-verified clean after a fresh reset: **36 guard files, 0 defects**, 98 unit tests, `tsc`,
+  `vite build`, static+drift guards. **LIVE browser E2E against the real local Postgres, fresh company**:
+  hired a real worker (Maria Santos) via the Roster tab, switched to the new Attendance tab, marked her
+  Present for today — the Recent Attendance list updated immediately with one row; clicked Half Day for
+  the SAME date to simulate a supervisor's correction — the button state moved to Half Day and the list
+  still showed exactly one row (confirmed independently via a direct DB query: one `attendance_records`
+  row, `status = 'Half Day'`); a direct query against `audit_events` confirmed both the original insert
+  (`Present`) and the correction (`Half Day`) were captured as separate audit entries against the same
+  entity id, proving the generic audit trigger fired on both the insert and the upsert-update path.

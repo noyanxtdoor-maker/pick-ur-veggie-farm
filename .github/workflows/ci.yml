@@ -186,6 +186,9 @@ jobs:
       - name: P2ED1 equipment depreciation security tests (straight-line book value math, salvage/useful-life bounds, cross-tenant denial)
         run: npm run guard:p2ed1
 
+      - name: P2PR1 payroll attendance security tests (upsert-not-duplicate, clock-time ordering, self-view, cross-tenant denial)
+        run: npm run guard:p2pr1
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

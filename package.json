@@ -56,6 +56,7 @@
     "guard:p2po1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2po1-purchase-order-security.sql",
     "guard:p2et1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2et1-expiration-transfers-security.sql",
     "guard:p2ed1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2ed1-equipment-depreciation-security.sql",
+    "guard:p2pr1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2pr1-payroll-attendance-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {

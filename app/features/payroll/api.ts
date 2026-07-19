@@ -26,6 +26,19 @@ export interface HireInput {
   dailyRate: number;
 }
 
+// P2PR1: one row per (employee, work_date). Real-mode only — a governed attendance record has no
+// mock/offline equivalent (the mock doesn't model per-day attendance at all).
+export interface AttendanceRecord {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  work_date: string;
+  status: 'Present' | 'Half Day' | 'Absent';
+  clock_in: string | null;
+  clock_out: string | null;
+  notes: string | null;
+}
+
 export const payrollApi = {
   async fetchPositions(companyId: string): Promise<Position[]> {
     if (MOCK_MODE) return offlineDB.positions.where('company_id').equals(companyId).toArray();
@@ -210,5 +223,23 @@ export const payrollApi = {
       return;
     }
     await enqueue({companyId, kind: 'payroll.wage', request: {type: 'rpc', rpc: 'payroll_disburse_wage', payload}});
+  },
+
+  // P2PR1: record or correct one employee's attendance for one work_date (upsert). payroll.manage-gated.
+  async recordAttendance(branchId: string, employeeId: string, workDate: string, status: AttendanceRecord['status'], notes: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Attendance tracking is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_record_attendance', {
+      p_branch_id: branchId, p_employee_id: employeeId, p_work_date: workDate, p_status: status, p_notes: notes,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  // Read attendance for a branch (optionally one employee / date range). payroll.read+branch-member,
+  // or an employee viewing their own linked record.
+  async listAttendance(companyId: string, branchId: string, employeeId: string | null = null, from: string | null = null, to: string | null = null): Promise<AttendanceRecord[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_attendance', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_from: from, p_to: to});
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AttendanceRecord[];
   },
 };

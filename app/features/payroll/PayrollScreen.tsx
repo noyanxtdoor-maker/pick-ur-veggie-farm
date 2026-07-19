@@ -5,7 +5,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {CalendarCheck, HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {payrollApi} from './api';
+import {payrollApi, type AttendanceRecord} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
 import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
@@ -44,10 +44,14 @@ export default function PayrollScreen() {
 
   // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
   // how they check an employee's history instead of clicking into their own nonexistent pay record).
-  const [tab, setTab] = useState<'roster' | 'history'>('roster');
+  const [tab, setTab] = useState<'roster' | 'history' | 'attendance'>('roster');
   const [histEmpId, setHistEmpId] = useState('');
   const [histWages, setHistWages] = useState<WagePayment[]>([]);
   const [histAdvances, setHistAdvances] = useState<CashAdvance[]>([]);
+
+  // ── P2PR1: attendance ──
+  const [attnDate, setAttnDate] = useState(new Date().toISOString().slice(0, 10));
+  const [attendance, setAttendance] = useState<AttendanceRecord[] | null>(null);
 
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
@@ -56,12 +60,14 @@ export default function PayrollScreen() {
     if (branchId) {
       payrollApi.fetchAdvances(companyId, branchId).then(setAdvances).catch(() => setAdvances([]));
       payrollApi.fetchWages(companyId, branchId).then(setWages).catch(() => setWages([]));
+      const from = new Date(new Date(attnDate).getTime() - 29 * 86400000).toISOString().slice(0, 10);
+      payrollApi.listAttendance(companyId, branchId, null, from, attnDate).then(setAttendance).catch(() => setAttendance([]));
     }
     if (histEmpId) {
       payrollApi.fetchEmployeeWages(companyId, histEmpId).then(setHistWages).catch(() => setHistWages([]));
       payrollApi.fetchEmployeeAdvances(companyId, histEmpId).then(setHistAdvances).catch(() => setHistAdvances([]));
     }
-  }, [companyId, canRead, branchId, histEmpId]);
+  }, [companyId, canRead, branchId, histEmpId, attnDate]);
   useEffect(reload, [reload, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
 
   const empName = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e.name])), [employees]);
@@ -181,6 +187,17 @@ export default function PayrollScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Advance failed', 'error'); } finally { setBusy(false); }
   }
 
+  // P2PR1: mark one employee's attendance for the selected date. Upsert — clicking a different
+  // status for the same employee/date corrects the existing record, never creates a duplicate.
+  async function markAttendance(employeeId: string, status: AttendanceRecord['status']) {
+    if (!branchId) return;
+    setBusy(true);
+    try {
+      await payrollApi.recordAttendance(branchId, employeeId, attnDate, status);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not record attendance', 'error'); } finally { setBusy(false); }
+  }
+
   async function submitWage() {
     if (!companyId || !branchId || !wageEmp) return;
     setBusy(true);
@@ -215,7 +232,7 @@ export default function PayrollScreen() {
       />
 
       <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
-        {([['roster', 'Roster & Disbursements', Users2], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
+        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
             className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
             <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -247,6 +264,74 @@ export default function PayrollScreen() {
               <EmployeeHistoryTables wages={histWages} advances={histAdvances} />
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {tab === 'attendance' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-farm-green"><CalendarCheck className="h-5 w-5" aria-hidden /> Mark Attendance</h3>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="attn-date">Date</label>
+                <input id="attn-date" type="date" value={attnDate} onChange={(e) => setAttnDate(e.target.value)} className="min-h-11 rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm font-semibold" />
+              </div>
+            </div>
+            {employees === null ? (
+              <Skeleton rows={3} />
+            ) : employees.filter((e) => e.status === 'Active').length === 0 ? (
+              <EmptyState title="No active workers to mark" hint="Hire a worker from the Roster tab first." />
+            ) : (
+              <ul className="mt-4 divide-y divide-farm-accent-soft">
+                {employees.filter((e) => e.status === 'Active').map((e) => {
+                  const today = (attendance ?? []).find((a) => a.employee_id === e.id && a.work_date === attnDate);
+                  return (
+                    <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                      <span className="font-bold text-farm-green">{e.name} <span className="font-mono text-[10px] text-farm-muted">{e.employee_code}</span></span>
+                      <div className="flex gap-1.5">
+                        {(['Present', 'Half Day', 'Absent'] as const).map((status) => (
+                          <button key={status} type="button" disabled={busy} onClick={() => void markAttendance(e.id, status)}
+                            className={cn('rounded-full border px-3 py-1 text-xs font-bold transition',
+                              today?.status === status
+                                ? status === 'Absent' ? 'border-farm-danger bg-farm-danger text-white' : 'border-farm-green bg-farm-green text-white'
+                                : 'border-farm-accent-soft text-farm-muted hover:bg-farm-accent-soft')}>
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-base font-extrabold text-farm-green">Recent Attendance <span className="text-xs font-normal text-farm-muted">(last 30 days)</span></h3>
+            {attendance === null || attendance.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No attendance recorded in this window yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-farm-accent-soft text-left font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Date</th><th className="pb-2">Worker</th><th className="pb-2">Status</th><th className="pb-2">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft font-semibold">
+                    {[...attendance].sort((a, b) => b.work_date.localeCompare(a.work_date)).map((a) => (
+                      <tr key={a.id}>
+                        <td className="py-2 font-mono">{a.work_date}</td>
+                        <td className="py-2 font-bold text-farm-ink">{a.employee_name}</td>
+                        <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', a.status === 'Absent' ? 'bg-red-50 text-farm-danger' : a.status === 'Half Day' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{a.status}</span></td>
+                        <td className="py-2 text-farm-muted">{a.notes ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
       ) : null}
 
