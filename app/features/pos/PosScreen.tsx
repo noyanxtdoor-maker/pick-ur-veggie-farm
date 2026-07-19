@@ -62,7 +62,7 @@ export default function PosScreen() {
   // limit, statement of account). Reusing it here, not building a second "vendor" concept.
   const canPickCustomer = has('customer.read');
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [preorderCustomerId, setPreorderCustomerId] = useState('');
+  const [pickedCustomerId, setPickedCustomerId] = useState('');
   const reload = useCallback(() => {
     if (!companyId || !branchId) return;
     posApi.fetchProducts(companyId).then(setProducts).catch(() => setProducts([]));
@@ -178,13 +178,15 @@ export default function PosScreen() {
         customerName: customerName.trim() || undefined,
       });
       // Attribution only (posts no journal, changes no amount — same non-money-mutating RPC the
-      // Customers screen already uses) — links a Pre-order sale to a registered wholesale buyer so
-      // their AR standing and statement of account pick it up, without touching the sale RPC itself.
-      if (saleKind === 'preorder' && preorderCustomerId && !result.provisional) {
-        await customersApi.assignInvoice(companyId, result.invoice.id, preorderCustomerId).catch((e) => notify(e instanceof Error ? e.message : 'Could not link customer to this sale', 'error'));
+      // Customers screen already uses) — links a sale (cash or pre-order) to a registered wholesale
+      // buyer so their AR standing and statement of account pick it up, without touching the sale
+      // RPC itself. Shared across both tabs (owner 2026-07-19) — a cash sale to a repeat buyer is
+      // just as worth tracking as an unpaid one.
+      if (pickedCustomerId && !result.provisional) {
+        await customersApi.assignInvoice(companyId, result.invoice.id, pickedCustomerId).catch((e) => notify(e instanceof Error ? e.message : 'Could not link customer to this sale', 'error'));
       }
       setLastSale(result);
-      setBasket([]); setCash(''); setNote(''); setCustomerName(''); setPreorderCustomerId(''); setDeliveryFee(''); setPreDelivery(false); setApplyDiscount(true); setSaleKind('paid'); setPayAccountId('');
+      setBasket([]); setCash(''); setNote(''); setCustomerName(''); setPickedCustomerId(''); setDeliveryFee(''); setPreDelivery(false); setApplyDiscount(true); setSaleKind('paid'); setPayAccountId('');
       setPane('receipt');
       if (result.provisional) triggerSync();
       reload();
@@ -466,6 +468,16 @@ export default function PosScreen() {
                 <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted" htmlFor="pos-customer">Customer name (optional)</label>
                 <input id="pos-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Aling Sandra" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
+              {/* Owner directive (2026-07-19): the registered-buyer picker was Pre-order-only; a cash
+                  sale to a repeat wholesale customer had no way to link their AR/statement of account
+                  either. Now shared across both tabs, same as customer name above. */}
+              {canPickCustomer && customers.length > 0 ? (
+                <div className="mb-3">
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted">Registered wholesale buyer (optional)</label>
+                  <SelectField value={pickedCustomerId} onChange={setPickedCustomerId} placeholder="Not linked — walk-in / one-off" options={customers.map((c) => ({value: c.id, label: c.name}))} />
+                  <p className="mt-1 text-[10px] text-farm-muted">Different from a Buy Stock vendor — this tracks a repeat buyer who resells your produce, so their outstanding balance shows up in Customers &amp; Credit.</p>
+                </div>
+              ) : null}
               <label className="mb-3 flex min-h-10 cursor-pointer items-center justify-between rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 px-3 font-bold text-farm-ink">
                 <span className="flex items-center gap-2"><input type="checkbox" checked={applyDiscount} onChange={(e) => setApplyDiscount(e.target.checked)} className="h-4 w-4 accent-farm-green" /> Include 10% Discount</span>
                 {applyDiscount ? <span className="tabular text-farm-green">− {formatPeso(discountNum)}</span> : null}
@@ -502,13 +514,6 @@ export default function PosScreen() {
                   <p className="rounded-lg border border-farm-accent-soft bg-farm-bg p-2 text-[11px] font-semibold text-farm-muted">
                     No weighing or numpad needed here — for negotiated wholesale, add lines with <strong className="text-farm-green">Skip Weigh (Bulk Flat Price)</strong> and issue the receipt. Cash is collected later via <strong className="text-farm-green">Mark Paid</strong> in the journal.
                   </p>
-                  {canPickCustomer && customers.length > 0 ? (
-                    <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase text-farm-muted">Registered wholesale buyer (optional)</label>
-                      <SelectField value={preorderCustomerId} onChange={setPreorderCustomerId} placeholder="Not linked — walk-in / one-off" options={customers.map((c) => ({value: c.id, label: c.name}))} />
-                      <p className="mt-1 text-[10px] text-farm-muted">Different from a Buy Stock vendor — this tracks a repeat buyer who resells your produce, so their outstanding balance shows up in Customers &amp; Credit.</p>
-                    </div>
-                  ) : null}
                   <div className="rounded-xl border border-farm-accent-soft bg-farm-accent-soft/40 p-3 text-sm">
                     <label className="flex min-h-10 cursor-pointer items-center justify-between font-bold text-farm-ink">
                       <span className="flex items-center gap-2"><input type="checkbox" checked={preDelivery} onChange={(e) => {setPreDelivery(e.target.checked); if (!e.target.checked) setDeliveryFee('');}} className="h-4 w-4 accent-farm-green" /> Add Delivery Fee</span>
