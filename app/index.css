@@ -38,6 +38,14 @@ html[data-theme='dark'] {
   --color-farm-muted: #a3b0a5;
   --color-farm-ink: #e4e8e4;
 }
+/* Mobile font shrink (owner backlog item, 2026-07-19): Tailwind's text-* utilities are rem-based, so a
+   single root font-size scale-down shrinks every screen at once instead of hand-tuning each one. iOS
+   Safari auto-zooms the viewport when a focused form field's COMPUTED font-size is under 16px — a real,
+   easy-to-miss gotcha — so inputs are pinned back to 16px regardless of the root scale. */
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+  input, select, textarea { font-size: 16px; }
+}
 html[data-theme='cream'] {
   --color-farm-green: #b45309;
   --color-farm-green-500: #d97706;
