@@ -5,7 +5,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {CalendarCheck, CalendarX, HandCoins, History, Link2, ListChecks, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {CalendarCheck, CalendarX, HandCoins, History, Link2, ListChecks, Timer, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType} from './api';
+import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType, type OvertimeRequest} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
 import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
@@ -44,7 +44,7 @@ export default function PayrollScreen() {
 
   // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
   // how they check an employee's history instead of clicking into their own nonexistent pay record).
-  const [tab, setTab] = useState<'roster' | 'history' | 'attendance' | 'leave'>('roster');
+  const [tab, setTab] = useState<'roster' | 'history' | 'attendance' | 'leave' | 'overtime'>('roster');
   const [histEmpId, setHistEmpId] = useState('');
   const [histWages, setHistWages] = useState<WagePayment[]>([]);
   const [histAdvances, setHistAdvances] = useState<CashAdvance[]>([]);
@@ -56,11 +56,15 @@ export default function PayrollScreen() {
   // ── P2PR2: leave requests ──
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[] | null>(null);
 
+  // ── P2PR3: overtime requests ──
+  const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[] | null>(null);
+
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
     payrollApi.fetchEmployees(companyId).then(setEmployees).catch(() => setEmployees([]));
     payrollApi.fetchPositions(companyId).then(setPositions).catch(() => setPositions([]));
     payrollApi.listLeaveRequests(companyId, null, null, null).then(setLeaveRequests).catch(() => setLeaveRequests([]));
+    payrollApi.listOvertimeRequests(companyId, null, null, null).then(setOvertimeRequests).catch(() => setOvertimeRequests([]));
     if (branchId) {
       payrollApi.fetchAdvances(companyId, branchId).then(setAdvances).catch(() => setAdvances([]));
       payrollApi.fetchWages(companyId, branchId).then(setWages).catch(() => setWages([]));
@@ -237,6 +241,39 @@ export default function PayrollScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not decide leave request', 'error'); } finally { setBusy(false); }
   }
 
+  // ── P2PR3: overtime requests — file (manager, on behalf of any employee) ──
+  const [otFileOpen, setOtFileOpen] = useState(false);
+  const [ofEmpId, setOfEmpId] = useState('');
+  const [ofDate, setOfDate] = useState('');
+  const [ofHours, setOfHours] = useState('');
+  const [ofReason, setOfReason] = useState('');
+
+  async function submitOvertimeRequest() {
+    if (!branchId || !ofEmpId || !ofDate || !(parseFloat(ofHours) > 0)) return;
+    setBusy(true);
+    try {
+      await payrollApi.requestOvertime(branchId, ofEmpId, ofDate, parseFloat(ofHours), ofReason.trim() || null);
+      notify('Overtime request filed');
+      setOtFileOpen(false); setOfEmpId(''); setOfDate(''); setOfHours(''); setOfReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not file overtime request', 'error'); } finally { setBusy(false); }
+  }
+
+  // ── P2PR3: overtime requests — decide (approve, or reject with a required reason) ──
+  const [decidingOvertime, setDecidingOvertime] = useState<{id: string; approve: boolean} | null>(null);
+  const [decideOtReason, setDecideOtReason] = useState('');
+
+  async function submitOvertimeDecision() {
+    if (!decidingOvertime) return;
+    setBusy(true);
+    try {
+      await payrollApi.decideOvertimeRequest(decidingOvertime.id, decidingOvertime.approve, decideOtReason.trim() || null);
+      notify(decidingOvertime.approve ? 'Overtime request approved' : 'Overtime request rejected');
+      setDecidingOvertime(null); setDecideOtReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not decide overtime request', 'error'); } finally { setBusy(false); }
+  }
+
   async function submitWage() {
     if (!companyId || !branchId || !wageEmp) return;
     setBusy(true);
@@ -268,12 +305,14 @@ export default function PayrollScreen() {
             </div>
           ) : tab === 'leave' && canManage ? (
             <Button onClick={() => {setLfEmpId(''); setLfType('Vacation'); setLfStart(''); setLfEnd(''); setLfReason(''); setLeaveFileOpen(true);}}><CalendarX size={18} aria-hidden /> File Leave Request</Button>
+          ) : tab === 'overtime' && canManage ? (
+            <Button onClick={() => {setOfEmpId(''); setOfDate(''); setOfHours(''); setOfReason(''); setOtFileOpen(true);}}><Timer size={18} aria-hidden /> File Overtime Request</Button>
           ) : undefined
         }
       />
 
       <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
-        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
+        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['overtime', 'Overtime', Timer], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
             className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
             <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -422,6 +461,62 @@ export default function PayrollScreen() {
                         <td className="py-2 font-mono">{l.start_date} → {l.end_date}</td>
                         <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', l.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : l.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{l.status}</span></td>
                         <td className="py-2 text-farm-muted">{l.decider_name ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === 'overtime' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><Timer className="h-5 w-5" aria-hidden /> Pending Overtime Requests</h3>
+            {overtimeRequests === null ? (
+              <Skeleton rows={3} />
+            ) : overtimeRequests.filter((o) => o.status === 'Pending').length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No pending overtime requests.</p>
+            ) : (
+              <ul className="divide-y divide-farm-accent-soft">
+                {overtimeRequests.filter((o) => o.status === 'Pending').map((o) => (
+                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <div>
+                      <p className="font-bold text-farm-green">{o.employee_name} <span className="rounded-full bg-farm-accent-soft px-2 py-0.5 text-[10px] font-bold text-farm-green">{o.hours}h</span></p>
+                      <p className="text-xs text-farm-muted">{o.work_date}{o.reason ? ` — ${o.reason}` : ''}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setDecidingOvertime({id: o.id, approve: true})} className="rounded-lg bg-farm-green px-3 py-1.5 text-xs font-bold text-white hover:bg-farm-green-700">Approve</button>
+                      <button onClick={() => setDecidingOvertime({id: o.id, approve: false})} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-farm-danger hover:bg-red-100">Reject</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-base font-extrabold text-farm-green">Overtime History</h3>
+            {overtimeRequests === null || overtimeRequests.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No overtime requests filed yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-farm-accent-soft text-left font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Worker</th><th className="pb-2">Date</th><th className="pb-2 text-right">Hours</th><th className="pb-2">Status</th><th className="pb-2">Decided By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft font-semibold">
+                    {[...overtimeRequests].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((o) => (
+                      <tr key={o.id}>
+                        <td className="py-2 font-bold text-farm-ink">{o.employee_name}</td>
+                        <td className="py-2 font-mono">{o.work_date}</td>
+                        <td className="tabular py-2 text-right">{o.hours}h</td>
+                        <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', o.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : o.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{o.status}</span></td>
+                        <td className="py-2 text-farm-muted">{o.decider_name ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -764,6 +859,69 @@ export default function PayrollScreen() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* File Overtime Request modal (P2PR3) */}
+      <Dialog.Root open={otFileOpen} onOpenChange={setOtFileOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="text-xl font-bold text-farm-green">File Overtime Request</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-5 text-xs text-farm-muted">Files on the worker&apos;s behalf. A second request for the same worker on the same date is not allowed.</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Worker</label>
+                <SelectField value={ofEmpId} onChange={setOfEmpId} placeholder="Pick a worker" options={(employees ?? []).filter((e) => e.status === 'Active').map((e) => ({value: e.id, label: e.name}))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="of-date">Date</label>
+                  <input id="of-date" type="date" value={ofDate} onChange={(e) => setOfDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="of-hours">Hours</label>
+                  <input id="of-hours" value={ofHours} onChange={(e) => setOfHours(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="e.g. 2.5" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="of-reason">Reason (optional)</label>
+                <input id="of-reason" value={ofReason} onChange={(e) => setOfReason(e.target.value)} placeholder="e.g. harvest push" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setOtFileOpen(false)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitOvertimeRequest()} disabled={busy || !ofEmpId || !ofDate || !(parseFloat(ofHours) > 0)}>{busy ? 'Filing…' : 'File Request'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Decide overtime request modal — approve (note optional) or reject (reason required) */}
+      <Dialog.Root open={decidingOvertime !== null} onOpenChange={(o) => {if (!o) {setDecidingOvertime(null); setDecideOtReason('');}}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green">
+              <Timer className="h-5 w-5" aria-hidden /> {decidingOvertime?.approve ? 'Approve' : 'Reject'} Overtime Request
+            </Dialog.Title>
+            <p className="mb-4 mt-1 text-xs text-farm-muted">{decidingOvertime?.approve ? 'A payroll manager other than the beneficiary must decide — this is enforced server-side.' : 'A reason is required to reject.'}</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="decide-ot-reason">{decidingOvertime?.approve ? 'Note (optional)' : 'Reason'}</label>
+                <input id="decide-ot-reason" value={decideOtReason} onChange={(e) => setDecideOtReason(e.target.value)} placeholder={decidingOvertime?.approve ? 'e.g. approved, extra harvest day' : 'e.g. not authorized in advance'} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => {setDecidingOvertime(null); setDecideOtReason('');}} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitOvertimeDecision()} disabled={busy || (decidingOvertime?.approve === false && !decideOtReason.trim())}>
+                {busy ? 'Saving…' : decidingOvertime?.approve ? 'Approve' : 'Reject'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
@@ -780,12 +938,16 @@ function MyPayroll({companyId}: {companyId?: string}) {
   const [wages, setWages] = useState<WagePayment[]>([]);
   const [myPositionLabel, setMyPositionLabel] = useState<string>('—');
   const [myLeave, setMyLeave] = useState<LeaveRequest[]>([]);
+  const [myOvertime, setMyOvertime] = useState<OvertimeRequest[]>([]);
 
   const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
 
   const reloadMyLeave = useCallback(() => {
     if (companyId) payrollApi.listLeaveRequests(companyId, null, null, null).then(setMyLeave).catch(() => setMyLeave([]));
+  }, [companyId]);
+  const reloadMyOvertime = useCallback(() => {
+    if (companyId) payrollApi.listOvertimeRequests(companyId, null, null, null).then(setMyOvertime).catch(() => setMyOvertime([]));
   }, [companyId]);
 
   useEffect(() => {
@@ -801,9 +963,10 @@ function MyPayroll({companyId}: {companyId?: string}) {
           setMyPositionLabel(positions.find((p) => p.id === mine.position_id)?.label ?? '—');
         }
         reloadMyLeave();
+        reloadMyOvertime();
       }
     }).catch(() => setMe(null));
-  }, [companyId, reloadMyLeave]);
+  }, [companyId, reloadMyLeave, reloadMyOvertime]);
 
   // ── self-service leave filing ──
   const [reqOpen, setReqOpen] = useState(false);
@@ -824,6 +987,25 @@ function MyPayroll({companyId}: {companyId?: string}) {
       setReqOpen(false); setReqType('Vacation'); setReqStart(''); setReqEnd(''); setReqReason('');
       reloadMyLeave();
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not file leave request', 'error'); } finally { setReqBusy(false); }
+  }
+
+  // ── self-service overtime filing ──
+  const [otReqOpen, setOtReqOpen] = useState(false);
+  const [otReqBranchId, setOtReqBranchId] = useState('');
+  const [otReqDate, setOtReqDate] = useState('');
+  const [otReqHours, setOtReqHours] = useState('');
+  const [otReqReason, setOtReqReason] = useState('');
+  const [otReqBusy, setOtReqBusy] = useState(false);
+
+  async function submitMyOvertimeRequest() {
+    if (!me || !otReqBranchId || !otReqDate || !(parseFloat(otReqHours) > 0)) return;
+    setOtReqBusy(true);
+    try {
+      await payrollApi.requestOvertime(otReqBranchId, me.id, otReqDate, parseFloat(otReqHours), otReqReason.trim() || null);
+      notify('Overtime request filed');
+      setOtReqOpen(false); setOtReqDate(''); setOtReqHours(''); setOtReqReason('');
+      reloadMyOvertime();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not file overtime request', 'error'); } finally { setOtReqBusy(false); }
   }
 
   return (
@@ -872,9 +1054,71 @@ function MyPayroll({companyId}: {companyId?: string}) {
             )}
           </Card>
 
+          <Card>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-farm-green"><Timer className="h-4 w-4" aria-hidden /> My Overtime Requests</h3>
+              <Button onClick={() => {setOtReqBranchId(branches?.[0]?.id ?? ''); setOtReqDate(''); setOtReqHours(''); setOtReqReason(''); setOtReqOpen(true);}}>Request Overtime</Button>
+            </div>
+            {myOvertime.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No overtime requests filed yet.</p>
+            ) : (
+              <ul className="divide-y divide-farm-accent-soft text-sm">
+                {myOvertime.map((o) => (
+                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                    <div>
+                      <span className="font-bold text-farm-green">{o.hours}h</span>{' '}
+                      <span className="font-mono text-xs text-farm-muted">{o.work_date}</span>
+                    </div>
+                    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', o.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : o.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{o.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           <EmployeeHistoryTables wages={wages} advances={advances} wageTitle="My Wage History" advanceTitle="My Cash Advances" />
         </>
       )}
+
+      {/* Self-service overtime request modal */}
+      <Dialog.Root open={otReqOpen} onOpenChange={setOtReqOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <Dialog.Title className="text-xl font-bold text-farm-green">Request Overtime</Dialog.Title>
+              <Dialog.Close className="rounded p-1 text-farm-muted hover:text-farm-ink" aria-label="Close"><X size={20} aria-hidden /></Dialog.Close>
+            </div>
+            <p className="mb-5 text-xs text-farm-muted">Files under your own name — a payroll manager (not you) will decide it.</p>
+            <div className="space-y-4 text-sm">
+              {(branches?.length ?? 0) > 1 ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Branch</label>
+                  <SelectField value={otReqBranchId} onChange={setOtReqBranchId} options={(branches ?? []).map((b) => ({value: b.id, label: b.name}))} />
+                </div>
+              ) : null}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-of-date">Date</label>
+                  <input id="my-of-date" type="date" value={otReqDate} onChange={(e) => setOtReqDate(e.target.value)} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-of-hours">Hours</label>
+                  <input id="my-of-hours" value={otReqHours} onChange={(e) => setOtReqHours(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="e.g. 2.5" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-center text-sm font-bold" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="my-of-reason">Reason (optional)</label>
+                <input id="my-of-reason" value={otReqReason} onChange={(e) => setOtReqReason(e.target.value)} placeholder="e.g. harvest push" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setOtReqOpen(false)} disabled={otReqBusy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitMyOvertimeRequest()} disabled={otReqBusy || !otReqBranchId || !otReqDate || !(parseFloat(otReqHours) > 0)}>{otReqBusy ? 'Filing…' : 'File Request'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Self-service leave request modal */}
       <Dialog.Root open={reqOpen} onOpenChange={setReqOpen}>

@@ -1659,3 +1659,39 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   Sick row, not silently attributed to whoever happened to submit the HTTP request), and confirmed 3
   separate `audit_events` rows (2 inserts + 1 approval update) — the generic audit trigger firing
   correctly on every write path, including the self-service one.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): payroll overtime request
+  tracking shipped — slice 3 of 6** (one migration; git pushed; app deployed to Vercel production;
+  migration queued for the owner — now the 9th). **Authority**: docs/21_Human_Resources_Payroll_
+  Architecture/21.09_Overtime_and_Holiday_Pay_System.md — its full enterprise spec also covers
+  automatic overtime detection (actual time-out vs. an assigned shift schedule), holiday-type
+  classification (regular/special/rest-day/company holidays), company-configurable rate multipliers/
+  night differentials that must vary "based on country or company policy," and "audit protection"
+  blocking edits after payroll processing. **All four explicitly deferred**, same honesty pattern as
+  P2PR1/P2PR2: automatic detection needs a per-employee assigned-shift concept the Scheduling module
+  doesn't have; rate multipliers are real unstated configuration surface, not something to guess at;
+  and this app has no payroll-period-close concept at all, so there is no "after processing" state to
+  protect. This migration tracks **hours and an approval decision only** — no peso amount is computed
+  or stored for the overtime, matching the exact "payroll connection deferred" decision already
+  recorded twice. New `overtime_requests` table (single-date, not a range) with a new data-integrity
+  rule: an employee cannot hold two Pending/Approved requests for the same work_date.
+  `payroll_request_overtime()`/`payroll_decide_overtime_request()`/`list_overtime_requests()` are a
+  near-exact structural copy of P2PR2's leave RPCs (same zero-permission self-service filing, same
+  "beneficiary-not-decider" self-approval rule — not a literal requester-!=-decider check — same
+  reject-requires-reason, same force-substituted self-view). Reuses `payroll.manage`/`payroll.read` —
+  no new permission key. New migration `supabase/migrations/20260720120000_p2pr3_payroll_overtime.sql`.
+  New guard `p2pr3-payroll-overtime-security.sql` (16 assertions: manager files for an employee + self-
+  file with zero permission, same-date-duplicate denial, hours-bounds denial (zero and >24h), no-
+  permission-and-not-self denial, self-approval-by-beneficiary denied even though a different manager
+  filed the request, a different manager approving succeeds, double-decision denial, reject-without-
+  reason denial then succeeds with one, broad list vs. force-restricted self-view, cross-tenant denial,
+  grant shape) — wired into `package.json`/`ci.yml`. Full battery re-verified clean after a fresh
+  reset: **38 guard files, 0 defects**, 98 unit tests, `tsc`, `vite build`, static+drift guards. **LIVE
+  browser E2E against the real local Postgres, fresh company, two distinct real users**: owner filed a
+  3-hour overtime request for a linked worker from the new Overtime tab — appeared in the Pending queue
+  and Overtime History; owner approved it — queue emptied, History showed "Approved" with "Decided By:
+  e2eowner3" (confirmed identical via a direct DB query, plus 2 audit_events rows: insert + approve-
+  update); signed out, signed back in as the linked worker (zero payroll permission) — the "My Payroll"
+  self view already showed the approved 3-hour request in a new "My Overtime Requests" card; the worker
+  self-filed a NEW 1.5-hour request for a different date with zero payroll permission — it appeared
+  immediately as Pending alongside the earlier Approved entry, proving the self-service write path
+  works end to end for overtime exactly as it does for leave.

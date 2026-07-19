@@ -192,6 +192,9 @@ jobs:
       - name: P2PR2 payroll leave security tests (overlap denial, self-approval-by-beneficiary denial, reject-requires-reason, self-view, cross-tenant denial)
         run: npm run guard:p2pr2
 
+      - name: P2PR3 payroll overtime security tests (same-date-duplicate denial, hours bounds, self-approval-by-beneficiary denial, reject-requires-reason, self-view, cross-tenant denial)
+        run: npm run guard:p2pr3
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

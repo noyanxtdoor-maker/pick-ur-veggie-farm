@@ -59,6 +59,23 @@ export interface LeaveRequest {
   created_at: string;
 }
 
+// P2PR3: employee overtime-hours requests. Real-mode only, same reasoning as AttendanceRecord.
+export interface OvertimeRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  branch_id: string;
+  branch_name: string;
+  work_date: string;
+  hours: number;
+  reason: string | null;
+  status: LeaveStatus;
+  decided_by: string | null;
+  decider_name: string | null;
+  decision_reason: string | null;
+  created_at: string;
+}
+
 export const payrollApi = {
   async fetchPositions(companyId: string): Promise<Position[]> {
     if (MOCK_MODE) return offlineDB.positions.where('company_id').equals(companyId).toArray();
@@ -288,5 +305,31 @@ export const payrollApi = {
     const {data, error} = await supabase.rpc('list_leave_requests', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_status: status});
     if (error) throw new Error(error.message);
     return (data ?? []) as LeaveRequest[];
+  },
+
+  // P2PR3: file a Pending overtime-hours request. payroll.manage (any employee) OR the linked
+  // employee filing their own (zero-permission self-service).
+  async requestOvertime(branchId: string, employeeId: string, workDate: string, hours: number, reason: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Overtime tracking is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_request_overtime', {
+      p_branch_id: branchId, p_employee_id: employeeId, p_work_date: workDate, p_hours: hours, p_reason: reason,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  // P2PR3: approve or reject a Pending overtime request. payroll.manage-gated; the decider cannot be
+  // the request's own beneficiary (self-approval denied). Rejecting requires a reason.
+  async decideOvertimeRequest(requestId: string, approve: boolean, reason: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Overtime tracking is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_decide_overtime_request', {p_request_id: requestId, p_approve: approve, p_reason: reason});
+    if (error) throw new Error(error.message);
+  },
+
+  // Read overtime requests (optionally filtered). Same dual-access shape as listLeaveRequests.
+  async listOvertimeRequests(companyId: string, branchId: string | null = null, employeeId: string | null = null, status: LeaveStatus | null = null): Promise<OvertimeRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_overtime_requests', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_status: status});
+    if (error) throw new Error(error.message);
+    return (data ?? []) as OvertimeRequest[];
   },
 };
