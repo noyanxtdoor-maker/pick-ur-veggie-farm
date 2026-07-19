@@ -5,7 +5,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
-import {Activity, ArrowRight, Building2, Mailbox, Plus, ShoppingCart, TrendingUp, UserPlus} from 'lucide-react';
+import {Activity, ArrowRight, Building2, ClipboardList, Mailbox, Plus, ShoppingCart, TrendingUp, UserPlus, Wallet} from 'lucide-react';
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {supabase} from '../core/supabase/client';
 import {offlineDB} from '../core/offline/db';
@@ -17,10 +17,13 @@ import {MOCK_MODE} from '../core/mock/mock';
 import {posApi} from '../features/pos/api';
 import {inventoryApi} from '../features/inventory/api';
 import {authApi} from '../features/auth/api';
+import {payrollApi} from '../features/payroll/api';
+import {projectsApi} from '../features/projects/api';
 import {summarizeSales, type PeriodDays, type SalesReport} from '../features/pos/report';
 import {ActionTile, Card, cn, PageHeader, StatCard} from '../components/ui';
-import {ErrorState, StatusBadge} from '../components/feedback';
+import {EmptyState, ErrorState, StatusBadge} from '../components/feedback';
 import {formatPeso} from '../features/pos/money';
+import type {Employee, Project, WagePayment} from '../types/db';
 
 const PERIODS: Array<{days: PeriodDays; label: string}> = [
   {days: 1, label: 'Today'},
@@ -52,6 +55,37 @@ export default function Dashboard() {
       .then(setLowStock)
       .catch(() => setLowStock(null));
   }, [companyId]);
+
+  // Owner directive (2026-07-19): a branch member with no accounting.read (Employee tier, by default)
+  // was seeing full branch revenue/receivables/discounts and every cashier's sales history below —
+  // the underlying RLS is branch-membership-gated, not role-gated, so nothing stopped it client-side.
+  // accounting.read is this app's existing "can see money" signal (already gates the Accounting module
+  // + the POS journal's CSV export) — reusing it here keeps this permission-driven, not a hardcoded
+  // role name, so it tracks whatever the owner has actually granted via the Roles tab. Below that gate,
+  // the dashboard shows only what's genuinely theirs to see: stock alerts, their own pay record, and
+  // the branch's active projects — never branch-wide money.
+  const canSeeFinancials = has('accounting.read');
+  const canSeeAnyPayroll = has('payroll.read'); // mirrors PayrollScreen's MyPayroll gate — only render "my wage" when RLS actually narrows fetchEmployees() to just this user's own linked row
+  const [myEmployee, setMyEmployee] = useState<Employee | null | undefined>(undefined); // undefined=loading, null=not linked
+  const [myWages, setMyWages] = useState<WagePayment[]>([]);
+  const [activeProjects, setActiveProjects] = useState<Project[] | null>(null);
+  const branches = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).filter((b) => b.status === 'Active').toArray() : []), [companyId]);
+  useEffect(() => {
+    if (!companyId || canSeeFinancials) return;
+    if (!canSeeAnyPayroll) {
+      payrollApi.fetchEmployees(companyId).then(async (rows) => {
+        const mine = rows[0] ?? null; // RLS returns at most the caller's own linked row when payroll.read is absent
+        setMyEmployee(mine);
+        if (mine) setMyWages(await payrollApi.fetchEmployeeWages(companyId, mine.id).catch(() => []));
+      }).catch(() => setMyEmployee(null));
+    }
+  }, [companyId, canSeeFinancials, canSeeAnyPayroll]);
+  useEffect(() => {
+    if (!companyId || canSeeFinancials || !branches || branches.length === 0) return;
+    Promise.all(branches.map((b) => projectsApi.fetchProjects(companyId, b.id)))
+      .then((rows) => setActiveProjects(rows.flat().filter((p) => p.status === 'In Progress')))
+      .catch(() => setActiveProjects([]));
+  }, [companyId, canSeeFinancials, branches]);
 
   const loadReport = (cid: string) => {
     setReportError(null);
@@ -88,20 +122,26 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Home Dashboard" subtitle={company ? `${company.name} · ${company.company_code}` : 'Your farm at a glance'} />
 
-      {/* Operational KPIs (prototype Home Dashboard; voided excluded, receivables = open balance) */}
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard
-          label="Daily Sales Volume"
-          value={formatPeso(summary?.todayVolume ?? 0)}
-          hint={summary && summary.todayPendingSync > 0 ? `today · ${scopeHint} · ${summary.todayPendingSync} pending sync` : `today · ${scopeHint}`}
-        />
-        <StatCard label="Market Orders" value={summary?.todayOrders ?? 0} hint="sales today" />
-        <StatCard label="Top Crop Today" value={summary?.topProductToday ?? '—'} hint={summary?.topProductToday ? 'by sales value' : 'no sales yet'} />
-        <StatCard
-          label="Outstanding Receivables"
-          value={formatPeso(summary?.receivablesTotal ?? 0)}
-          hint={summary?.receivablesCount ? `${summary.receivablesCount} unpaid pre-order${summary.receivablesCount === 1 ? '' : 's'}` : 'no open pre-orders'}
-        />
+      {/* Operational KPIs (prototype Home Dashboard; voided excluded, receivables = open balance) —
+          revenue/receivables are accounting.read-gated (below); Low Stock stays visible either way,
+          it's operational, not financial. */}
+      <div className={cn('mb-4 grid gap-4', canSeeFinancials ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2')}>
+        {canSeeFinancials ? (
+          <>
+            <StatCard
+              label="Daily Sales Volume"
+              value={formatPeso(summary?.todayVolume ?? 0)}
+              hint={summary && summary.todayPendingSync > 0 ? `today · ${scopeHint} · ${summary.todayPendingSync} pending sync` : `today · ${scopeHint}`}
+            />
+            <StatCard label="Market Orders" value={summary?.todayOrders ?? 0} hint="sales today" />
+            <StatCard label="Top Crop Today" value={summary?.topProductToday ?? '—'} hint={summary?.topProductToday ? 'by sales value' : 'no sales yet'} />
+            <StatCard
+              label="Outstanding Receivables"
+              value={formatPeso(summary?.receivablesTotal ?? 0)}
+              hint={summary?.receivablesCount ? `${summary.receivablesCount} unpaid pre-order${summary.receivablesCount === 1 ? '' : 's'}` : 'no open pre-orders'}
+            />
+          </>
+        ) : null}
         <button onClick={() => navigate('/inventory')} className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500">
           <StatCard
             label="Low Stock Alerts"
@@ -111,7 +151,55 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {reportError ? (
+      {!canSeeFinancials ? (
+        <div className="mb-6 grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-6">
+            <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet size={20} aria-hidden /> My Pay</h2>
+            {myEmployee === undefined ? (
+              <p className="text-base text-farm-muted">Loading…</p>
+            ) : myEmployee === null ? (
+              <EmptyState title="No staff profile linked yet" hint="Ask a manager to link your app account to your staff record — your wage history appears here once they do." />
+            ) : (
+              <>
+                <dl className="mb-3 grid grid-cols-2 gap-3 text-base">
+                  <div><dt className="text-farm-muted">Daily rate</dt><dd className="tabular text-xl font-black text-farm-green">{formatPeso(myEmployee.daily_rate)}</dd></div>
+                  <div><dt className="text-farm-muted">Advance to repay</dt><dd className={cn('tabular text-xl font-black', myEmployee.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(myEmployee.advance_balance)}</dd></div>
+                </dl>
+                <h3 className="mb-1 text-sm font-black uppercase tracking-wider text-farm-muted">Recent wage payments</h3>
+                {myWages.length > 0 ? (
+                  <ul className="divide-y divide-farm-accent-soft">
+                    {myWages.slice(0, 5).map((w) => (
+                      <li key={w.id} className="flex items-center justify-between py-1.5 text-base">
+                        <span className="font-semibold text-farm-ink">{w.pay_period}</span>
+                        <span className="text-farm-muted">{new Date(w.created_at).toLocaleDateString('en-PH')} · <span className="font-bold text-farm-green">{formatPeso(w.net)}</span></span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="py-2 text-base text-farm-muted">No wage payments recorded yet.</p>
+                )}
+              </>
+            )}
+          </Card>
+          <Card className="lg:col-span-6">
+            <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-farm-green"><ClipboardList size={20} aria-hidden /> Active Projects</h2>
+            {activeProjects === null ? (
+              <p className="text-base text-farm-muted">Loading…</p>
+            ) : activeProjects.length > 0 ? (
+              <ul className="divide-y divide-farm-accent-soft">
+                {activeProjects.map((p) => (
+                  <li key={p.id} className="py-1.5 text-base">
+                    <span className="font-semibold text-farm-ink">{p.name}</span>
+                    {p.end_date ? <span className="ml-2 text-farm-muted">due {new Date(p.end_date).toLocaleDateString('en-PH')}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-2 text-base text-farm-muted">No active projects right now.</p>
+            )}
+          </Card>
+        </div>
+      ) : reportError ? (
         <Card className="mb-6"><ErrorState message={`Sales report failed: ${reportError}`} onRetry={companyId ? () => loadReport(companyId) : undefined} /></Card>
       ) : (
         <>

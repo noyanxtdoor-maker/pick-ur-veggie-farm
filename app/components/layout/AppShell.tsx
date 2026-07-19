@@ -76,6 +76,10 @@ function visibleNav<T extends {perms?: readonly PermissionKey[]}>(items: readonl
 // the top bar instead of a bottom-bar button. Preference is per-device (usePref), validated against the
 // real module list. `sheetOpen`/`setSheetOpen` are owned by AppShell so the top bar's trigger and this
 // sheet share one source of truth despite living in visually separate DOM subtrees.
+// Breakpoint widened md(768px)->lg(1024px) (owner 2026-07-19): the phone-style bar + top-bar
+// hamburger/profile were switching to the desktop sidebar at tablet width — any tablet or a phone held
+// in landscape (both comfortably ≥768px logical width) lost the quick-access buttons entirely and fell
+// into a layout with no equivalent replacement below lg. Now only genuine desktop widths get the sidebar.
 const ALL_NAV = [...CORE_MODULES, ORG_LINK] as const;
 const MOBILE_NAV_DEFAULT = '/dashboard,/pos,/inventory,/operations,/payroll';
 const MOBILE_NAV_SLOTS = 5;
@@ -97,7 +101,7 @@ function MobileNav({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen:
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-farm-accent-soft bg-farm-card pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Mobile">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-farm-accent-soft bg-farm-card pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Mobile">
         {slotItems.map((m) => {
           const Icon = m.icon;
           return (
@@ -117,7 +121,7 @@ function MobileNav({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen:
       </nav>
 
       {sheetOpen ? (
-        <div className="fixed inset-0 z-30 md:hidden" role="dialog" aria-label="All sections">
+        <div className="fixed inset-0 z-30 lg:hidden" role="dialog" aria-label="All sections">
           <button className="absolute inset-0 bg-black/40" aria-label="Close" onClick={() => setSheetOpen(false)} />
           <div className="absolute inset-x-0 bottom-14 max-h-[70vh] overflow-auto rounded-t-2xl border-t border-farm-accent-soft bg-farm-card p-4 pb-6 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
@@ -182,7 +186,7 @@ function NavRail() {
   const modules = visibleNav(CORE_MODULES, has);
   const showOrgLink = ORG_LINK.perms.some(has);
   return (
-    <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-farm-card p-5 md:flex">
+    <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-farm-card p-5 lg:flex">
       <div className="space-y-5">
         <div className="flex items-center gap-3 border-b border-farm-accent-soft pb-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-farm-green text-sm font-black text-white shadow-sm">PV</div>
@@ -317,19 +321,19 @@ function TopBar({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v
             NavRail's own Profile link, and every section visible directly) — no need to duplicate them
             in the top bar there, confirmed with the owner (four buttons is fine once the view is wide
             enough to space them out). */}
-        <NavLink to="/profile" className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg text-farm-green md:hidden" title="My Profile" aria-label="My Profile">
+        <NavLink to="/profile" className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg text-farm-green lg:hidden" title="My Profile" aria-label="My Profile">
           <UserCircle size={18} aria-hidden />
         </NavLink>
         <button
           onClick={() => setSheetOpen(!sheetOpen)}
-          className={cn('flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg md:hidden', sheetOpen ? 'text-farm-green' : 'text-farm-muted')}
+          className={cn('flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-farm-accent-soft bg-farm-bg lg:hidden', sheetOpen ? 'text-farm-green' : 'text-farm-muted')}
           aria-expanded={sheetOpen}
           aria-label="More sections"
           title="More sections"
         >
           <Menu size={18} aria-hidden />
         </button>
-        <div className="hidden min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-ink md:inline-flex">
+        <div className="hidden min-h-12 items-center gap-2 rounded-xl border border-farm-accent-soft bg-farm-bg px-3 font-semibold text-farm-ink lg:inline-flex">
           <span className="h-2 w-2 animate-pulse rounded-full bg-farm-green" aria-hidden />
           <span>Station: <strong className="font-mono text-farm-green">{terminalId}</strong></span>
         </div>
@@ -465,8 +469,8 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar sheetOpen={mobileSheetOpen} setSheetOpen={setMobileSheetOpen} />
         {!online ? <OfflineBanner pending={pending} /> : null}
-        {/* pb-24 on phones clears the fixed bottom nav bar */}
-        <main className="flex-1 overflow-auto p-4 pb-24 md:p-8">
+        {/* pb-24 clears the fixed bottom nav bar — stays through tablet width now that the nav does too */}
+        <main className="flex-1 overflow-auto p-4 pb-24 lg:p-8">
           <div className="mx-auto w-full max-w-7xl animate-fade-in">
             <Suspense fallback={<Loading />}>
               <Outlet />
