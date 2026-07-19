@@ -66,7 +66,17 @@ guard it hardest (deny-override actually blocks a role-granted key; overrides ne
   rank check on UPDATE only (self-management can't escalate — the only mutable columns are
   assignment_status/expires_at) while still requiring `membership.manage`. Check your own self-suspend
   path before assuming rank-gating is a pure add.
-- **#6 (invite link):** `app/features/organization/invitations/invitations.tsx` — copies
-  `${origin}/accept?token=${token}` (a full clickable URL), not the bare token.
+- **#6 (invite link):** ~~`app/features/organization/invitations/invitations.tsx` — copies
+  `${origin}/accept?token=${token}` (a full clickable URL), not the bare token.~~ **STALE as of
+  2026-07-19 — Invitations was removed from Repo A entirely on 2026-07-13** (owner decision, see
+  STATUS.md's 2026-07-13 entries): `invite_user`/`accept_invitation` EXECUTE revoked (kept, not
+  dropped — never-hard-delete), and `invitations.tsx`/`AcceptInvitation.tsx` plus their routes/nav tab
+  deleted outright. Row #6 above (and this fix note) describe a feature that no longer exists in Repo A
+  — if you're weighing whether to build real invite-email delivery for row #6's original "wire
+  `inviteUserByEmail` later" TODO, know that we ended up ripping the whole feature out instead (a real
+  bug in `accept_invitation()` — a same-browser admin testing their own invite link silently
+  self-attached the invitation — was the immediate trigger; self-signup + admin approval was already the
+  well-tested path and Invitations was the newer, more confusing, bug-prone one). This is not a
+  recommendation to do the same in your repo — just flagging that this specific fix note is dead.
 - **#7 (top-bar sign-out):** shipped 2026-07-10; a stale line of Settings-screen copy referencing the
   removed button was also cleaned up 2026-07-12 (`app/features/settings/SettingsScreen.tsx`).
