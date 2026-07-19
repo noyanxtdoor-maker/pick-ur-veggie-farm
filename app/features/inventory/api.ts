@@ -175,7 +175,7 @@ export const inventoryApi = {
         await offlineDB.equipmentAssets.put({
           id: uuidv7(), company_id: companyId, branch_id: branchId, asset_code: `EQ-${uuidv7().slice(-8)}`,
           name: input.itemName.trim(), purchase_date: input.purchaseDate, purchase_cost: round2(input.totalCost),
-          condition: 'Good', created_at: now, updated_at: now,
+          condition: 'Good', useful_life_months: null, salvage_value: 0, created_at: now, updated_at: now,
         });
       }
       return;
@@ -410,6 +410,18 @@ export const inventoryApi = {
   async writeoffBatch(batchId: string, reason: string): Promise<void> {
     if (!reason.trim()) throw new Error('A reason is required.');
     const {error} = await supabase.rpc('inventory_writeoff_batch', {p_batch_id: batchId, p_reason: reason.trim()});
+    if (error) throw new Error(error.message);
+  },
+
+  // P2ED1: set/correct an asset's straight-line depreciation inputs. salvage_value must be <=
+  // purchase_cost. Estimated book value is computed client-side (see estimatedBookValue in
+  // InventoryScreen.tsx) — a pure display estimate, no GL entry is ever posted from it.
+  async setDepreciation(assetId: string, usefulLifeMonths: number | null, salvageValue: number): Promise<void> {
+    if (usefulLifeMonths !== null && usefulLifeMonths <= 0) throw new Error('Useful life must be a positive number of months.');
+    if (salvageValue < 0) throw new Error('Salvage value cannot be negative.');
+    const {error} = await supabase.rpc('equipment_set_depreciation', {
+      p_asset_id: assetId, p_useful_life_months: usefulLifeMonths, p_salvage_value: salvageValue,
+    });
     if (error) throw new Error(error.message);
   },
 

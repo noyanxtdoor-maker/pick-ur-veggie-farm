@@ -1538,3 +1538,36 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   (unrelated to the write-off) stayed `Available`, and a SHRINKAGE journal line posted for exactly
   ₱300.00 (6 units × the batch's own ₱50 unit cost, not the item's average or the original purchase
   price).
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): equipment depreciation / asset
+  book-value tracking shipped** (one migration; git pushed; app deployed to Vercel production;
+  migration queued for the owner — now the 6th). P2-M3A's own header already flagged this as
+  deferred. **Scope decision, stated up front in the migration**: this tracks depreciation INPUTS
+  (useful life in months, salvage value) and exposes a DERIVED, always-current estimated book value —
+  it does NOT post periodic depreciation journal entries (Dr Depreciation Expense / Cr Accumulated
+  Depreciation). That would need a contra-asset account and a monthly-closing/scheduled-invocation
+  mechanism that doesn't exist anywhere in this app (no cron infrastructure at all) — a real,
+  separate accounting-subsystem decision (C7 §4), not something to quietly bolt on here. New
+  `equipment_book_value()` (pure SQL, straight-line, floors at salvage_value, returns unchanged
+  purchase_cost when unconfigured — same "derived, never stored" philosophy as `material_available`)
+  and `equipment_set_depreciation()` (equipment.manage-gated; salvage_value must be <= purchase_cost).
+  Reused the existing `equipment.manage` permission — no new key (C1 §4). The existing
+  `equipment_assets_audit` trigger already captures every write automatically, so no manual audit
+  insert was needed in the new RPC. **A second real bug caught by a guard on a fresh reset, same root
+  cause as yesterday's**: `equipment_assets.asset_code` generation had carried the EXACT SAME
+  millisecond-collision flaw P2U1 fixed for `inventory_items.item_code` — `substr(uuidv7(),1,8)` is
+  entirely the non-random timestamp portion, so P2U1's fix never touched this second occurrence in
+  the same function body, and three equipment purchases in one guard script (same millisecond)
+  collided exactly as predicted. Fixed with the identical tail-8-hex-chars fix, folded into this
+  migration since it was blocking the new guard's own fixture setup. New migration
+  `supabase/migrations/20260720090000_p2ed1_equipment_depreciation.sql`. New guard `p2ed1-equipment-
+  depreciation-security.sql` (11 assertions: half-life book value math, full-depreciation floors
+  exactly at salvage_value, unconfigured assets book at unchanged cost, salvage-exceeds-cost denial,
+  non-positive-useful-life denial, no-equipment.manage denial, unknown-asset denial, cross-tenant
+  denial via `has_permission`'s own company-membership check, grant shape) — wired into
+  `package.json`/`ci.yml`. Full battery re-verified clean after a fresh reset: 35 guards, 98 unit
+  tests, tsc, build, static+drift. **LIVE browser E2E against the real local Postgres**: bought a real
+  ₱12,000 water pump as Equipment, backdated its purchase_date 6 months via direct DB update (to
+  avoid waiting real time), set a 12-month useful life with zero salvage — the Equipment tab's new
+  "Est. Book Value" column immediately showed exactly ₱6,000.00 (half of purchase cost, matching the
+  6-of-12-months elapsed), confirmed identical via a direct `equipment_book_value()` query against the
+  server, not just trusting the UI's own client-side estimate.

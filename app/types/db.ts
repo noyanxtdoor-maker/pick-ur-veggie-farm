@@ -370,6 +370,8 @@ export interface EquipmentAsset {
   purchase_date: string | null;
   purchase_cost: number;
   condition: 'Good' | 'Needs Maintenance' | 'Broken' | 'Retired';
+  useful_life_months: number | null; // P2ED1: straight-line depreciation period; null = not configured
+  salvage_value: number; // P2ED1: estimated residual value at end of useful_life_months
   created_at: string;
   updated_at: string;
 }

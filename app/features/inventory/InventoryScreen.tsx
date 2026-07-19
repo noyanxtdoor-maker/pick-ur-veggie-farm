@@ -154,6 +154,11 @@ export default function InventoryScreen() {
   const [checkInspector, setCheckInspector] = useState('');
   const [checkNotes, setCheckNotes] = useState('');
 
+  // P2ED1: depreciation inputs editor
+  const [depAsset, setDepAsset] = useState<EquipmentAsset | null>(null);
+  const [depLifeMonths, setDepLifeMonths] = useState('');
+  const [depSalvage, setDepSalvage] = useState('0');
+
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const itemById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
   const usageRows = useMemo(() => movements.filter((m) => m.movement_type === 'AdjustmentDecrease'), [movements]);
@@ -396,10 +401,40 @@ export default function InventoryScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Checklist failed', 'error'); } finally { setBusy(false); }
   }
 
+  function openDepreciation(a: EquipmentAsset) {
+    setDepAsset(a);
+    setDepLifeMonths(a.useful_life_months != null ? String(a.useful_life_months) : '');
+    setDepSalvage(String(a.salvage_value));
+  }
+
+  async function submitDepreciation() {
+    if (!depAsset) return;
+    const life = depLifeMonths.trim() === '' ? null : parseInt(depLifeMonths, 10);
+    const salvage = parseFloat(depSalvage) || 0;
+    setBusy(true);
+    try {
+      await inventoryApi.setDepreciation(depAsset.id, life, salvage);
+      notify('Depreciation inputs saved');
+      setDepAsset(null);
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Save failed', 'error'); } finally { setBusy(false); }
+  }
+
   const lastChecked = (assetId: string) => {
     const l = logs.find((x) => x.equipment_id === assetId);
     return l ? new Date(l.performed_date).toLocaleDateString('en-PH') : 'Never';
   };
+
+  // P2ED1: pure client-side mirror of equipment_book_value() — straight-line, never posted to the
+  // GL, purely a display estimate. Null useful_life_months or purchase_date -> unchanged purchase_cost.
+  function estimatedBookValue(a: EquipmentAsset): number {
+    if (!a.useful_life_months || !a.purchase_date) return a.purchase_cost;
+    const purchased = new Date(a.purchase_date);
+    const now = new Date();
+    const elapsedMonths = Math.max((now.getFullYear() - purchased.getFullYear()) * 12 + (now.getMonth() - purchased.getMonth()), 0);
+    const fraction = Math.min(elapsedMonths / a.useful_life_months, 1);
+    return round2(a.purchase_cost - fraction * (a.purchase_cost - a.salvage_value));
+  }
 
   if (!canPurchase && !canAdjust && !canEquip && !canViewReports) {
     return (
@@ -719,6 +754,7 @@ export default function InventoryScreen() {
                     <th className="pb-3">Equipment Name</th>
                     <th className="pb-3">Purchase Date</th>
                     <th className="pb-3 text-right">Cost</th>
+                    <th className="pb-3 text-right">Est. Book Value</th>
                     <th className="pb-3">Last Checked</th>
                     <th className="pb-3 text-right">Action</th>
                   </tr>
@@ -737,20 +773,35 @@ export default function InventoryScreen() {
                       <td className="py-3 font-bold text-farm-green">{a.name}</td>
                       <td className="tabular py-3 text-xs">{a.purchase_date ?? '—'}</td>
                       <td className="tabular py-3 text-right font-black">{formatPeso(a.purchase_cost)}</td>
+                      <td className="py-3 text-right">
+                        <span className="tabular font-bold text-farm-ink">{formatPeso(estimatedBookValue(a))}</span>
+                        {a.useful_life_months == null ? (
+                          <span className="block text-[10px] text-farm-muted">not configured</span>
+                        ) : null}
+                      </td>
                       <td className="py-3 font-mono text-xs text-farm-muted">{lastChecked(a.id)}</td>
                       <td className="py-3 text-right">
-                        <button
-                          disabled={!canEquip}
-                          onClick={() => {setCheckAsset(a); setCheckWorking(a.condition !== 'Broken'); setCheckMaint(false); setCheckInspector(''); setCheckNotes('');}}
-                          className="rounded-lg border border-farm-accent bg-farm-bg px-3 py-1.5 text-xs font-black text-farm-green transition hover:bg-farm-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Fill Checklist
-                        </button>
+                        <span className="inline-flex gap-1.5">
+                          <button
+                            disabled={!canEquip}
+                            onClick={() => openDepreciation(a)}
+                            className="rounded-lg border border-farm-accent bg-farm-bg px-3 py-1.5 text-xs font-black text-farm-green transition hover:bg-farm-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Depreciation
+                          </button>
+                          <button
+                            disabled={!canEquip}
+                            onClick={() => {setCheckAsset(a); setCheckWorking(a.condition !== 'Broken'); setCheckMaint(false); setCheckInspector(''); setCheckNotes('');}}
+                            className="rounded-lg border border-farm-accent bg-farm-bg px-3 py-1.5 text-xs font-black text-farm-green transition hover:bg-farm-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Fill Checklist
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   ))}
                   {equipment.length === 0 ? (
-                    <tr><td colSpan={6} className="py-12 text-center text-sm italic text-farm-muted">No equipment registered. Purchase pumps or spades and mark them as Equipment.</td></tr>
+                    <tr><td colSpan={7} className="py-12 text-center text-sm italic text-farm-muted">No equipment registered. Purchase pumps or spades and mark them as Equipment.</td></tr>
                   ) : null}
                 </tbody>
               </table>
@@ -1133,6 +1184,37 @@ export default function InventoryScreen() {
               <Button variant="secondary" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Button>
               <Button className="flex-1" onClick={() => void submitTransfer()} disabled={busy || !xferItemId || !xferToBranchId || !(parseFloat(xferQty) > 0)}>
                 {busy ? 'Transferring…' : 'TRANSFER STOCK'}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* P2ED1: Depreciation inputs modal */}
+      <Dialog.Root open={depAsset !== null} onOpenChange={(o) => {if (!o) setDepAsset(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="text-center text-lg font-bold text-farm-green">Depreciation Inputs</Dialog.Title>
+            <p className="mb-5 mt-1 text-center text-xs text-farm-muted">Straight-line estimate for: <span className="font-bold underline">{depAsset?.name}</span> — never posted to the books, display only.</p>
+            <div className="space-y-4 text-sm">
+              <p className="flex items-center justify-between rounded-xl border border-farm-accent-soft bg-farm-bg p-3 text-xs font-semibold">
+                <span>Purchase Cost:</span><span className="font-extrabold text-farm-green">{formatPeso(depAsset?.purchase_cost ?? 0)}</span>
+              </p>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="dep-life">Useful Life (months, optional)</label>
+                <input id="dep-life" value={depLifeMonths} onChange={(e) => setDepLifeMonths(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" placeholder="e.g. 60 for 5 years" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+                <p className="mt-1 text-[10px] text-farm-muted">Leave blank to stop tracking depreciation — book value will show the full purchase cost.</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="dep-salvage">Salvage Value (₱)</label>
+                <input id="dep-salvage" value={depSalvage} onChange={(e) => setDepSalvage(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className="tabular min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-right text-sm font-bold" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => setDepAsset(null)} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitDepreciation()} disabled={busy || (depAsset != null && parseFloat(depSalvage || '0') > depAsset.purchase_cost)}>
+                {busy ? 'Saving…' : 'SAVE'}
               </Button>
             </div>
           </Dialog.Content>
