@@ -1261,3 +1261,48 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   challenge): enroll → sign out → sign in → correctly redirected to challenge → valid code accepted →
   landed on dashboard → disable cleanly reverts. **Not yet pushed to production** — no migration needed,
   just the app deploy. tsc/vitest(94/94)/build all clean throughout.
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (start): void self-approval rank-gating,
+  Buy Stock "bought by" attribution, realtime publication gap, POS Direct Cash picker parity**
+  (commits `535a06f`, `5900275`, `fb660e4`, `cd795f3`). **(1) Void self-approval** — owner reported
+  being blocked from approving their own void request ("you cannot approve your own void request —
+  ask another admin+") even as the real owner. P2N2's separation-of-duties check was a blanket
+  `actor = requested_by → deny`, no rank exemption. Added a `pos.void.self` permission key and
+  rank-gated the check the same way P1M.2 already exempts owner instant-revoke:
+  `actor_rank(company) >= 30` (co_owner/owner) bypasses the block outright; below that, an
+  operator/employee can still self-approve only if explicitly granted `pos.void.self`. Guard
+  rewritten: SAD2 now asserts admin self-approval **succeeds** (previously asserted it must fail —
+  the old assertion encoded the bug the owner hit), new SAD5/SAD6 cover the grant-gated operator
+  case both ways. **(2) Buy Stock "bought by" attribution** — owner's concern: an admin-or-below
+  with `inventory.purchase` access can record a purchase on the owner's behalf, but nothing captured
+  *who actually bought it* versus who recorded it, making manual audit impossible when buying is
+  delegated. Added `purchase_receivings.bought_by text`, evolved `inventory_record_purchase` 12→13
+  args (`p_bought_by` appended last, default null — existing call sites unaffected), and a narrow
+  `inventory_set_purchase_bought_by` RPC (same `inventory.purchase` gate, same-branch-member,
+  audited with previous/new value) so the field stays correctable after the fact. **Also brought
+  back the per-transaction Purchase Summary ledger** (Date/Item/Source/Amount/Bought By), lost in an
+  earlier redesign in favor of aggregate-only tables — the "Bought By" cell is directly editable
+  in-place (click → type → blur to save), matching the owner's ask for an easy manual-audit trail.
+  **(3) P1K.1 — realtime publication gap** — owner asked to confirm live cross-device auto-sync
+  actually works; while auditing found a real bug: `ApprovalsScreen.tsx` subscribes to
+  `postgres_changes` on `void_requests`, but P1K's original migration never added that table to the
+  `supabase_realtime` publication — a subscription to an unpublished table reports `SUBSCRIBED` but
+  silently never fires, so approving/rejecting a void on one session never live-refreshed another
+  session's Approvals screen. Fixed with `alter publication supabase_realtime add table
+  void_requests`. New `guard:p1k` proves publication membership matches every client subscription
+  (`invoices`, `user_branch_roles`, `users`, `void_requests`) but — same disclosed limitation as
+  P1K's original entry — cannot prove live event delivery locally (a known Supabase CLI Realtime
+  container quirk); a two-browser-tab test on the real production site remains the authoritative
+  proof. **(4) POS Direct Cash Clearance gains the same "Registered wholesale buyer" picker** the
+  Pre-order tab already had — a cash sale to a repeat wholesale buyer is just as worth tracking in
+  Customers & Credit as an unpaid one, and there was no principled reason the picker was
+  Pre-order-only. Moved the picker into the section both tabs share and dropped the `saleKind`
+  check from `commitSale()`'s customer-linking condition. Live-verified end to end on a fresh test
+  company (Docker reset): created a product, created a customer, ran a **Direct Cash** sale with
+  the buyer selected, confirmed the resulting invoice appears on that customer's statement
+  (`₱135.00`, `Paid`) — proving the shared linkage path fires correctly for both sale kinds, not
+  just the pre-order path that was already covered. tsc/vitest(94/94)/build clean for all four.
+  **Migrations for (1)–(3) are local-only — not yet pushed to production.** Remaining ~20 items on
+  the owner's mega-list (receipt paper sizes, app icons, mobile font sizing, vendor-bill-to-specific-
+  invoice, server-synced settings, real unit conversion, backup re-import, deeper accounting
+  reports, and more) are still queued; see the owner's original message for the full list and the
+  Team-B handoff-documentation follow-up (3 missing handoffs + 2 stale-note fixes) still pending.
