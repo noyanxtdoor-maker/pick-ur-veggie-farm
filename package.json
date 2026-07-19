@@ -52,6 +52,7 @@
     "guard:t3-1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/t3-1-vendors-and-ledger-security.sql",
     "guard:t3-2": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/t3-2-purchase-vendor-link-security.sql",
     "guard:p2o1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2o1-anon-rpc-lockdown-security.sql",
+    "guard:p1k": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p1k-realtime-publication-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {

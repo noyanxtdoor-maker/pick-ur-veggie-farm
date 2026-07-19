@@ -1,0 +1,19 @@
+-- Migration P1K.1 — add void_requests to the supabase_realtime publication (owner 2026-07-19:
+-- "confirm live auto-sync between two people's screens actually works... never produced a live
+-- update in testing").
+--
+-- Real bug found while auditing this: ApprovalsScreen.tsx subscribes to postgres_changes on
+-- void_requests (app/core/offline/realtime.ts's useRealtimeRefresh, wired in at
+-- ApprovalsScreen.tsx:143), but P1K's original migration (20260713150000) only ever added
+-- user_branch_roles, users, and invoices to the supabase_realtime publication — void_requests was
+-- never added. Supabase Realtime only broadcasts postgres_changes events for tables actually in
+-- the publication; a client-side subscription to a table that isn't there reports SUBSCRIBED (the
+-- channel connects fine) but silently never fires. So today, approving/rejecting a void request on
+-- one session never live-refreshes another session's Approvals screen — exactly the kind of gap
+-- the owner is asking about, and a genuine partial explanation for "never produced a live update."
+-- P1K's own STATUS.md entry already disclosed that the REST of realtime (user_branch_roles/users/
+-- invoices) was never proven end-to-end locally either (a local Supabase CLI Realtime container
+-- quirk blocked verification, unrelated to migration/client correctness) — see the new guard below,
+-- which proves what CAN be proven locally (the publication structurally matches every table the
+-- client actually subscribes to) without depending on that quirky local event-delivery path.
+alter publication supabase_realtime add table public.void_requests;
