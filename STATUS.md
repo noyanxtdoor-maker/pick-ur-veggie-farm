@@ -1322,3 +1322,50 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   deeper accounting reports, and more) are still queued; see the owner's original message for the
   full list and the Team-B handoff-documentation follow-up (3 missing handoffs + 2 stale-note fixes)
   still pending.
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (continued): 7 more items shipped, all
+  app-only, deployed to production; one new migration still local-only** (commits `eebadeb`,
+  `53a2342`, `023829e`, `2e761bc`, `4f41fdd`, `f93f1fe`, `c80954d`). A local-only audit (the planned
+  parallel-agent workflow hit an account-wide session usage cap and returned nothing — redone by hand
+  with direct Grep/Read) found several items already built or much closer to done than believed;
+  each is fixed at the actual gap, not rebuilt from scratch. **(1) Vendor payment → specific
+  invoice(s)** — `vendor_payment_record` already accepted arbitrary per-invoice allocations; only the
+  UI auto-FIFO'd (`VendorsScreen.tsx` comment said as much). Payment dialog now lists open invoices
+  with an editable apply-amount per row (+ an opt-in "Fill oldest-first" convenience button); the RPC's
+  own allocation/overrun checks stay the real backstop, so this shipped as a pure UI change with no
+  migration. **(2) Projects "Restricted" visibility — a real latent bug, not a missing feature.** The
+  `visibility` column has existed since P2M7A and its own migration header admits enforcement was
+  deferred, but the SELECT RLS policy never actually read the column — every `project.read` holder saw
+  every project regardless of the flag. Fixed by gating Restricted rows on `project.manage` (the
+  permission P2M7A already substitutes for a per-project manager list); `project_tasks` inherits the
+  fix through its parent-project join. New migration
+  `supabase/migrations/20260719150000_p2m7a_1_project_restricted_visibility.sql` — **local-only, not
+  yet applied to production** (same credential-handling constraint as the earlier 4-migration batch;
+  needs the owner to run it via the Supabase Dashboard SQL Editor). Guard extended with 4 new
+  assertions (Restricted hidden from a same-branch `project.read`-only member, visible to
+  `project.manage`, tasks inherit the gate, Public regresses clean) — full 31-guard battery + drift
+  clean after a fresh reset. **(3) Receipt paper sizes** — the printed slip took whatever width the
+  print driver's default page gave it; added a device Settings toggle (58mm/80mm) and `@media print`
+  width rules keyed off it. **(4) Real PNG app icons** — only SVGs existed, so iOS "Add to Home
+  Screen" fell back to a screenshot thumbnail instead of a real icon (iOS Safari does not honor an SVG
+  apple-touch-icon). Rasterized the existing design at 192/512 (any + maskable) and 180
+  (apple-touch-icon) via **.NET WPF off-screen rendering** — no new npm dependency; chosen after a
+  browser-canvas-to-base64-to-file approach proved unreliable (manual transcription of a multi-KB
+  base64 string silently truncated to ~10% of its length — caught by decoding and checking file size,
+  not by `file`'s header-only validation, which reported a "valid" 192×192 PNG on the truncated data).
+  **(5) Systematic mobile font shrink** — a single `html { font-size: 15px }` under the mobile
+  breakpoint shrinks every Tailwind rem-based utility at once; form inputs pinned to 16px regardless
+  (iOS Safari auto-zooms a focused field whose computed font-size drops below that — easy to miss).
+  **(6) Scheduling reminders** — the last missing Scheduling sub-item (time ranges/who-sees-what/
+  week-day views were already built, confirmed by audit). Client-side Notification API only, no push
+  infrastructure exists or is planned; fires 15 min before a timed event while the tab is open, opt-in
+  via a bell toggle that requests browser notification permission. **(7) Team-B handoffs** — wrote the
+  3 that were missing (void approval, vendors/AP, payroll bonus — handoffs 008/009/010) and struck a
+  stale invite-email fix note in handoff 002 (references a file deleted when Invitations was removed
+  2026-07-13). Checked the owner's reported "stale Batch-1-hasn't-shipped note" too — did not find it;
+  both STATUS.md and handoff 005 already correctly show Batch 1 shipped 2026-07-17, so no fix was
+  needed there (reported honestly rather than manufacturing a change). tsc/vitest(94/94)/build clean
+  throughout; git pushed and app deployed to Vercel production for all of this except item (2)'s
+  migration. Continuing top-to-bottom through the remaining large items (server-synced settings, real
+  unit conversion, backup re-import, deeper accounting reports, profit-by-category, purchase-order
+  approval, expiration+stock-transfers, equipment depreciation, payroll build-out, Buy Stock receipt
+  photo).
