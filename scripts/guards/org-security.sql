@@ -49,7 +49,7 @@ do $$ declare v_role uuid; v_membership uuid; begin
     select '11111111-1111-1111-1111-111111111111', v_role, id from public.permissions where permission_key='user.read';
   insert into public.branches (company_id, branch_code, name)
     values ('11111111-1111-1111-1111-111111111111','BR-A2','Branch A2');                                    -- branch.manage
-  update public.companies set name='Company A (edited)' where id='11111111-1111-1111-1111-111111111111';    -- company.manage
+  update public.companies set name='Company A (edited)', tax_rate=12.00 where id='11111111-1111-1111-1111-111111111111';    -- company.manage (P2S1: tax_rate too)
   set local role postgres;
   insert into public.users (id, auth_user_id, display_name) values
     ('10000000-0000-0000-0000-00000000000c','0c000000-0000-0000-0000-00000000000c','Invitee') on conflict do nothing;
@@ -65,6 +65,28 @@ do $$ declare v_role uuid; v_membership uuid; begin
   set local role postgres;
   if not exists (select 1 from public.user_branch_roles where id = v_membership) then raise exception 'DEFECT org: membership not created'; end if;
   raise notice 'PASS org: workflow — owner managed org + granted a membership directly; grantee isolated to company A with exactly the worker permission set';
+end $$;
+
+-- P2S1: tax_rate is company.manage-editable (same grant shape as name), and its saved value round-trips.
+do $$ declare v_rate numeric; begin
+  set local role postgres;
+  select tax_rate into v_rate from public.companies where id='11111111-1111-1111-1111-111111111111';
+  if v_rate <> 12.00 then raise exception 'DEFECT p2s1: tax_rate did not save (got %)', v_rate; end if;
+  raise notice 'PASS p2s1: company.manage-editable tax_rate saved and readable (12.00)';
+end $$;
+-- a member with only user.read (no company.manage) cannot edit tax_rate — the column grant is blanket
+-- to `authenticated` (same shape as `name`), so enforcement is the RLS USING clause: a non-qualifying
+-- actor's UPDATE matches 0 rows, not a Postgres-level permission exception (unlike company_code below,
+-- which has no column grant at all and DOES raise insufficient_privilege).
+do $$ declare n int; begin set local role authenticated; set local request.jwt.claims='{"sub":"0c000000-0000-0000-0000-00000000000c"}';
+  update public.companies set tax_rate=99.00 where id='11111111-1111-1111-1111-111111111111';
+  get diagnostics n = row_count;
+  if n<>0 then raise exception 'DEFECT p2s1: non-company.manage member edited tax_rate (% rows)', n; end if;
+  set local role postgres;
+  if (select tax_rate from public.companies where id='11111111-1111-1111-1111-111111111111') = 99.00 then
+    raise exception 'DEFECT p2s1: tax_rate was changed despite 0-row report';
+  end if;
+  raise notice 'PASS p2s1: tax_rate edit denied without company.manage (0 rows, RLS-blocked)';
 end $$;
 
 -- P1I: invite_user/accept_invitation are retired but not dropped (never-hard-delete) — prove EXECUTE is

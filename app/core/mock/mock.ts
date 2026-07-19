@@ -52,7 +52,7 @@ export async function seedMockData(): Promise<void> {
   const now = new Date().toISOString();
   const expires = new Date(Date.now() + 7 * 86_400_000).toISOString();
 
-  const company: Company = {id: DEMO.companyId, company_code: 'DEMO-CO', name: 'Demo Farm Co.', base_currency_code: 'PHP', status: 'Active', created_at: now, updated_at: now};
+  const company: Company = {id: DEMO.companyId, company_code: 'DEMO-CO', name: 'Demo Farm Co.', base_currency_code: 'PHP', tax_rate: 0, status: 'Active', created_at: now, updated_at: now};
   const branches: Branch[] = [
     {id: DEMO.branchA, company_id: DEMO.companyId, branch_code: 'BR-A1', name: 'North Field', status: 'Active', created_at: now, updated_at: now},
     {id: DEMO.branchB, company_id: DEMO.companyId, branch_code: 'BR-A2', name: 'South Field', status: 'Active', created_at: now, updated_at: now},

@@ -15,6 +15,7 @@ export interface Company {
   company_code: string; // immutable identifier
   name: string;
   base_currency_code: string; // immutable, default 'PHP'
+  tax_rate: number; // P2S1: company-wide sales/VAT tax rate (%), company.manage-editable, server-synced
   status: CompanyStatus; // service_role-only — not owner-editable
   created_at: string;
   updated_at: string;

@@ -51,7 +51,7 @@ export default function CompanyScreen() {
 function CompanyForm({company, canManage, onSaved, notify}: {company: Company; canManage: boolean; onSaved: () => void; notify: (m: string) => void}) {
   const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<CompanyEditInput>({
     resolver: zodResolver(companyEditSchema),
-    defaultValues: {name: company.name},
+    defaultValues: {name: company.name, tax_rate: company.tax_rate},
   });
   const [confirm, setConfirm] = useState<CompanyEditInput | null>(null);
 
@@ -66,20 +66,24 @@ function CompanyForm({company, canManage, onSaved, notify}: {company: Company; c
           <Field label="Company name" htmlFor="cname" error={errors.name?.message}>
             <TextInput id="cname" disabled={!canManage} {...register('name')} />
           </Field>
-          <Button type="submit" disabled={!canManage || isSubmitting}>Save name</Button>
+          <Field label="Tax rate (%)" htmlFor="ctax" error={errors.tax_rate?.message}>
+            <TextInput id="ctax" type="number" step="0.01" min="0" max="100" disabled={!canManage} {...register('tax_rate')} />
+          </Field>
+          <p className="text-sm text-farm-muted">Shared across every device and cashier terminal for this company — not a per-device preference.</p>
+          <Button type="submit" disabled={!canManage || isSubmitting}>Save</Button>
           {!canManage ? <p className="text-base text-farm-muted">You need the company.manage permission to edit.</p> : null}
         </form>
       </Card>
       <ConfirmDialog
         open={confirm !== null}
-        title="Save company name?"
-        description="Update the company display name."
+        title="Save company settings?"
+        description="Update the company profile — applies to every device."
         confirmLabel="Save"
         onCancel={() => setConfirm(null)}
         onConfirm={async () => {
           if (confirm) {
             await companyApi.update(company, confirm);
-            notify('Company name update queued');
+            notify('Company settings update queued');
           }
           setConfirm(null);
           onSaved();

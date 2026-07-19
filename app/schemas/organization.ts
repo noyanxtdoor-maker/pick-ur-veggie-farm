@@ -16,6 +16,7 @@ const name120 = z.string().trim().min(1, 'Required').max(120, 'Max 120 character
 
 export const companyEditSchema = z.object({
   name: name120,
+  tax_rate: z.coerce.number().min(0, 'Must be 0–100').max(100, 'Must be 0–100'),
 });
 export type CompanyEditInput = z.infer<typeof companyEditSchema>;
 
