@@ -195,6 +195,9 @@ jobs:
       - name: P2PR3 payroll overtime security tests (same-date-duplicate denial, hours bounds, self-approval-by-beneficiary denial, reject-requires-reason, self-view, cross-tenant denial)
         run: npm run guard:p2pr3
 
+      - name: P2PR4 wage disbursement approval security tests (separation of duties, balanced journal, reject-requires-reason, re-validate-at-approval-time, cross-tenant denial)
+        run: npm run guard:p2pr4
+
       - name: Schema-drift guard
         run: npm run guard:drift
 

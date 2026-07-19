@@ -1695,3 +1695,60 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   self-filed a NEW 1.5-hour request for a different date with zero payroll permission — it appeared
   immediately as Pending alongside the earlier Approved entry, proving the self-service write path
   works end to end for overtime exactly as it does for leave.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): wage disbursement approval
+  workflow shipped — slice 4 of 6, and the money-path item of the six** (one migration; git pushed;
+  app deployed to Vercel production; migration queued for the owner — now the 9th). **Authority**:
+  docs/21_Human_Resources_Payroll_Architecture/21.13_Payroll_Approval_Workflow.md describes a full
+  BATCH payroll-run pipeline (HR prepares a period → system validates missing-attendance/duplicate-
+  employee/excessive-overtime/duplicate-period → management approves the whole run → payroll locks →
+  payment recorded) — this app has no period/draft/lock concept anywhere, so that entire state
+  machine is explicitly NOT built. What ships is the concrete thing "an approval workflow" asks for:
+  separation of duties on the ONE existing money-moving action, `payroll_disburse_wage`, mirroring
+  the P2N2 void-approval precedent exactly rather than inventing a new pattern. "Disburse Wage" is
+  now "Request Disbursement" — filing still requires `payroll.manage` (unlike P2PR2/P2PR3, this is
+  NOT opened to a lesser tier; payroll amounts are sensitive) — and a NEW "Disbursements" tab holds
+  the Pending queue, gated on `payroll.manage`, for a **different** payroll.manage holder to approve
+  or reject. Approving executes the disbursement atomically (no separate later "fulfill" step — a
+  wage amount has no fulfillment variance the way a purchase-order estimate does) and inlines the
+  exact same posting logic as `payroll_disburse_wage` (Dr Wages Expense / Cr Cash(net) / Cr Employee
+  Advances(deduction)), the same "inline, don't call" discipline P2N2 established, so the APPROVER
+  (not the requester) is correctly recorded as the acting user on every journal/audit row.
+  `payroll_disburse_wage` itself is unchanged and its grant is not revoked — same as `pos_void_sale`
+  after P2N2 — but the app UI no longer calls it directly. **A genuinely new safety property, not
+  present in P2PO1's analogous request/approve/fulfill flow**: the outstanding cash-advance balance
+  is RE-VALIDATED fresh at approval time, not trusted from file time, since time can pass between a
+  request being filed and decided and another disbursement could shrink the same employee's
+  advance balance in between — proven live in the guard, not just asserted (see below). **A real bug
+  found while building this, flagged separately for its own fix rather than touched here (out of
+  P2PR4's own scope — it lives in `payroll_disburse_wage`, unrelated pre-existing code)**: when a
+  disbursement's deduction exactly equals gross (net pay = ₱0 — the whole wage goes to repaying an
+  advance), the function crashes with a `journal_lines` check-constraint violation, because it always
+  inserts a Cash line even when net is 0, producing an invalid `(debit=0, credit=0)` row — the
+  EMPLOYEE_ADVANCES line already correctly guards on `if v_ded > 0`, but the CASH line has no
+  matching `if v_net > 0` guard. Confirmed live via the guard's own SAD8 fixture (a 1-day/₱500-rate
+  disbursement with a full ₱500 deduction crashed; 2 days worked with the same deduction, net=₱500,
+  succeeded) — spawned as its own background task rather than fixed inline, since it's pre-existing
+  T3.3/P2M5A code with no relationship to this migration's actual additions. New migration
+  `supabase/migrations/20260720130000_p2pr4_payroll_disbursement_approval.sql`. New guard `p2pr4-
+  payroll-disbursement-approval-security.sql` (15 assertions: file + audit, no-payroll.manage denial,
+  self-approval-by-requester denied, a different manager approves with correct gross/net/balanced
+  journal, double-decision denial, reject-requires-reason then succeeds with no money moved,
+  deduction-exceeds-advance denied at file time, zero-days denied, Inactive-employee denied, **the
+  re-validate-at-approval-time property** (a request is filed while valid, the SAME advance is then
+  fully consumed by a separate direct `payroll_disburse_wage` call, and approval of the original
+  request correctly fails), cross-tenant denial, grant shape) — wired into `package.json`/`ci.yml`.
+  Full battery re-verified clean after a fresh reset: **39 guard files, 0 defects**, 98 unit tests,
+  `tsc`, `vite build`, static+drift guards. **LIVE browser E2E against the real local Postgres, fresh
+  company, two distinct real users** (an owner and a second admin granted `payroll.manage` — and,
+  after a genuine finding mid-session, ALSO `payroll.read`, since the whole manager PayrollScreen has
+  always gated on `payroll.read` alone, not `payroll.manage` — a pre-existing characteristic of this
+  screen, not a regression this migration introduced, but a fact worth recording since a real owner
+  delegating payroll authority through the Roles tab needs to grant both keys together): owner filed
+  a disbursement request for a real employee from the Roster tab — appeared in the new Disbursements
+  tab's Pending queue; owner tried to approve their OWN request — denied with a live 403 from
+  `payroll_approve_disbursement_request` (confirmed via the network panel, not just the UI staying on
+  the Pending state); signed out, signed back in as the second admin, approved it — the queue emptied
+  and History showed "Approved"/"Decided By: e2eadmin4"; a direct DB query confirmed the resulting
+  `wage_payments` row (gross=net=₱550, no deduction), a balanced journal (debit=credit=₱550), and —
+  the detail that actually proves the inlined-not-called design works — `wage_payments.created_by`
+  equals the APPROVER's own user id, not the original requester's, exactly as intended.

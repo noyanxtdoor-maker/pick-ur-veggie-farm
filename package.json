@@ -59,6 +59,7 @@
     "guard:p2pr1": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2pr1-payroll-attendance-security.sql",
     "guard:p2pr2": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2pr2-payroll-leave-security.sql",
     "guard:p2pr3": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2pr3-payroll-overtime-security.sql",
+    "guard:p2pr4": "psql \"postgresql://postgres:postgres@127.0.0.1:56322/postgres\" -v ON_ERROR_STOP=1 -f scripts/guards/p2pr4-payroll-disbursement-approval-security.sql",
     "guard:drift": "node scripts/guards/check-drift.mjs"
   },
   "dependencies": {

@@ -15,7 +15,7 @@ import {Button, Card, PageHeader, cn} from '../../components/ui';
 import {EmptyState, Skeleton, useToast} from '../../components/feedback';
 import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
-import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType, type OvertimeRequest} from './api';
+import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType, type OvertimeRequest, type DisbursementRequest} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
 import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
@@ -44,7 +44,7 @@ export default function PayrollScreen() {
 
   // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
   // how they check an employee's history instead of clicking into their own nonexistent pay record).
-  const [tab, setTab] = useState<'roster' | 'history' | 'attendance' | 'leave' | 'overtime'>('roster');
+  const [tab, setTab] = useState<'roster' | 'history' | 'attendance' | 'leave' | 'overtime' | 'disbursements'>('roster');
   const [histEmpId, setHistEmpId] = useState('');
   const [histWages, setHistWages] = useState<WagePayment[]>([]);
   const [histAdvances, setHistAdvances] = useState<CashAdvance[]>([]);
@@ -59,12 +59,16 @@ export default function PayrollScreen() {
   // ── P2PR3: overtime requests ──
   const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[] | null>(null);
 
+  // ── P2PR4: disbursement requests ──
+  const [disbursementRequests, setDisbursementRequests] = useState<DisbursementRequest[] | null>(null);
+
   const reload = useCallback(() => {
     if (!companyId || !canRead) return;
     payrollApi.fetchEmployees(companyId).then(setEmployees).catch(() => setEmployees([]));
     payrollApi.fetchPositions(companyId).then(setPositions).catch(() => setPositions([]));
     payrollApi.listLeaveRequests(companyId, null, null, null).then(setLeaveRequests).catch(() => setLeaveRequests([]));
     payrollApi.listOvertimeRequests(companyId, null, null, null).then(setOvertimeRequests).catch(() => setOvertimeRequests([]));
+    payrollApi.listDisbursementRequests(companyId, null, null).then(setDisbursementRequests).catch(() => setDisbursementRequests([]));
     if (branchId) {
       payrollApi.fetchAdvances(companyId, branchId).then(setAdvances).catch(() => setAdvances([]));
       payrollApi.fetchWages(companyId, branchId).then(setWages).catch(() => setWages([]));
@@ -274,15 +278,39 @@ export default function PayrollScreen() {
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not decide overtime request', 'error'); } finally { setBusy(false); }
   }
 
+  // P2PR4: "Disburse Wage" now files a REQUEST (separation of duties — a different payroll.manage
+  // holder must approve before cash actually moves), matching the void-approval precedent exactly.
+  // payroll_disburse_wage itself is unchanged and still exists server-side, but the app no longer
+  // calls it directly from here.
   async function submitWage() {
-    if (!companyId || !branchId || !wageEmp) return;
+    if (!branchId || !wageEmp) return;
     setBusy(true);
     try {
-      await payrollApi.disburseWage(companyId, branchId, wageEmp, wPeriod, wDaysForSubmit, wDedNum, wNotes, wBonusNum);
-      notify(`Wage disbursed to ${wageEmp.name} — net ${formatPeso(wNet)}`);
+      await payrollApi.requestDisbursement(branchId, wageEmp.id, wPeriod, wDaysForSubmit, wDedNum, wNotes, wBonusNum);
+      notify(`Disbursement request filed for ${wageEmp.name} — awaiting a different manager's approval`);
       setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWBonus('0'); setWPeriod(''); setWNotes('');
       reload();
-    } catch (e) { notify(e instanceof Error ? e.message : 'Disbursement failed', 'error'); } finally { setBusy(false); }
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not file disbursement request', 'error'); } finally { setBusy(false); }
+  }
+
+  // ── P2PR4: disbursement requests — decide (approve, or reject with a required reason) ──
+  const [decidingDisbursement, setDecidingDisbursement] = useState<{id: string; approve: boolean} | null>(null);
+  const [decideDisbReason, setDecideDisbReason] = useState('');
+
+  async function submitDisbursementDecision() {
+    if (!decidingDisbursement) return;
+    setBusy(true);
+    try {
+      if (decidingDisbursement.approve) {
+        await payrollApi.approveDisbursementRequest(decidingDisbursement.id, decideDisbReason.trim() || null);
+        notify('Disbursement approved — wage paid');
+      } else {
+        await payrollApi.rejectDisbursementRequest(decidingDisbursement.id, decideDisbReason.trim());
+        notify('Disbursement request rejected');
+      }
+      setDecidingDisbursement(null); setDecideDisbReason('');
+      reload();
+    } catch (e) { notify(e instanceof Error ? e.message : 'Could not decide disbursement request', 'error'); } finally { setBusy(false); }
   }
 
   // M5C "My Payroll" self view: without payroll.read, the server's RLS returns ONLY your linked employee
@@ -312,7 +340,7 @@ export default function PayrollScreen() {
       />
 
       <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
-        {([['roster', 'Roster & Disbursements', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['overtime', 'Overtime', Timer], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
+        {([['roster', 'Roster', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['overtime', 'Overtime', Timer], ['disbursements', 'Disbursements', Wallet], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
             className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
             <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -527,6 +555,63 @@ export default function PayrollScreen() {
         </div>
       ) : null}
 
+      {tab === 'disbursements' ? (
+        <div className="animate-fade-in space-y-6">
+          <Card>
+            <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Pending Disbursement Requests</h3>
+            <p className="mb-3 text-xs text-farm-muted">File a request from an employee&apos;s row on the Roster tab. A <em>different</em> payroll manager must approve here before cash actually moves.</p>
+            {disbursementRequests === null ? (
+              <Skeleton rows={3} />
+            ) : disbursementRequests.filter((d) => d.status === 'Pending').length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No pending disbursement requests.</p>
+            ) : (
+              <ul className="divide-y divide-farm-accent-soft">
+                {disbursementRequests.filter((d) => d.status === 'Pending').map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <div>
+                      <p className="font-bold text-farm-green">{d.employee_name} <span className="text-xs font-normal text-farm-muted">— filed by {d.requester_name}</span></p>
+                      <p className="text-xs text-farm-muted">{d.pay_period} · {d.days_worked} day(s){d.bonus_amount > 0 ? ` · +${formatPeso(d.bonus_amount)} bonus` : ''}{d.ca_deduction > 0 ? ` · −${formatPeso(d.ca_deduction)} advance` : ''}{d.notes ? ` — ${d.notes}` : ''}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setDecidingDisbursement({id: d.id, approve: true})} className="rounded-lg bg-farm-green px-3 py-1.5 text-xs font-bold text-white hover:bg-farm-green-700">Approve</button>
+                      <button onClick={() => setDecidingDisbursement({id: d.id, approve: false})} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-farm-danger hover:bg-red-100">Reject</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 text-base font-extrabold text-farm-green">Disbursement Request History</h3>
+            {disbursementRequests === null || disbursementRequests.length === 0 ? (
+              <p className="py-6 text-center text-xs italic text-farm-muted">No disbursement requests filed yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-farm-accent-soft text-left font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Worker</th><th className="pb-2">Pay Period</th><th className="pb-2">Filed By</th><th className="pb-2">Status</th><th className="pb-2">Decided By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft font-semibold">
+                    {[...disbursementRequests].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((d) => (
+                      <tr key={d.id}>
+                        <td className="py-2 font-bold text-farm-ink">{d.employee_name}</td>
+                        <td className="py-2">{d.pay_period}</td>
+                        <td className="py-2 text-farm-muted">{d.requester_name}</td>
+                        <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', d.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : d.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{d.status}</span></td>
+                        <td className="py-2 text-farm-muted">{d.decider_name ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
+
       {tab === 'roster' ? (
       <>
       <Card>
@@ -560,7 +645,7 @@ export default function PayrollScreen() {
                       {e.status === 'Active' ? (
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Disburse Wage</button> : null}
+                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Request Disbursement</button> : null}
                           {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>
@@ -699,8 +784,8 @@ export default function PayrollScreen() {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
-            <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Disburse Wage</Dialog.Title>
-            <p className="mb-4 mt-1 text-xs text-farm-muted"><span className="font-bold text-farm-green">{wageEmp?.name}</span> · {formatPeso(wageEmp?.daily_rate ?? 0)}/day</p>
+            <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Request Wage Disbursement</Dialog.Title>
+            <p className="mb-4 mt-1 text-xs text-farm-muted"><span className="font-bold text-farm-green">{wageEmp?.name}</span> · {formatPeso(wageEmp?.daily_rate ?? 0)}/day · a different payroll manager must approve before this is paid</p>
             <div className="space-y-4 text-sm">
               <div className="flex gap-1.5 rounded-lg bg-farm-bg p-1">
                 {([['days', 'By Days Worked'], ['amount', 'By Exact Amount']] as const).map(([m, label]) => (
@@ -757,12 +842,37 @@ export default function PayrollScreen() {
                 <div className="flex justify-between"><span>{wMode === 'amount' ? 'Base amount' : 'Days × rate'}</span><span className="tabular font-bold">{formatPeso(wBaseGross)}</span></div>
                 {wBonusNum > 0 ? <div className="flex justify-between text-farm-green"><span>+ Bonus</span><span className="tabular font-bold">+{formatPeso(wBonusNum)}</span></div> : null}
                 <div className="flex justify-between text-farm-danger"><span>Deduct advance</span><span className="tabular font-bold">−{formatPeso(wDedNum)}</span></div>
-                <div className="flex justify-between border-t border-dashed border-farm-accent pt-1 font-black text-farm-green"><span>NET PAYOUT</span><span className="tabular">{formatPeso(wNet)}</span></div>
+                <div className="flex justify-between border-t border-dashed border-farm-accent pt-1 font-black text-farm-green"><span>PROJECTED NET PAYOUT</span><span className="tabular">{formatPeso(wNet)}</span></div>
               </div>
             </div>
             <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
               <Button variant="secondary" onClick={() => setWageEmp(null)} disabled={busy}>Cancel</Button>
-              <Button className="flex-1" onClick={() => void submitWage()} disabled={busy || !(wGross > 0) || wDedNum > wGross}>{busy ? 'Paying…' : 'Confirm & Pay'}</Button>
+              <Button className="flex-1" onClick={() => void submitWage()} disabled={busy || !(wGross > 0) || wDedNum > wGross}>{busy ? 'Filing…' : 'File Disbursement Request'}</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Decide disbursement request modal — approve (executes the payment) or reject (reason required) */}
+      <Dialog.Root open={decidingDisbursement !== null} onOpenChange={(o) => {if (!o) {setDecidingDisbursement(null); setDecideDisbReason('');}}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+            <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green">
+              <Wallet className="h-5 w-5" aria-hidden /> {decidingDisbursement?.approve ? 'Approve' : 'Reject'} Disbursement Request
+            </Dialog.Title>
+            <p className="mb-4 mt-1 text-xs text-farm-muted">{decidingDisbursement?.approve ? 'Approving pays the wage immediately. A payroll manager other than the requester must decide — enforced server-side.' : 'A reason is required to reject.'}</p>
+            <div className="space-y-4 text-sm">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="decide-disb-reason">{decidingDisbursement?.approve ? 'Note (optional)' : 'Reason'}</label>
+                <input id="decide-disb-reason" value={decideDisbReason} onChange={(e) => setDecideDisbReason(e.target.value)} placeholder={decidingDisbursement?.approve ? 'e.g. looks correct' : 'e.g. wrong pay period, refile'} className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+              <Button variant="secondary" onClick={() => {setDecidingDisbursement(null); setDecideDisbReason('');}} disabled={busy}>Cancel</Button>
+              <Button className="flex-1" onClick={() => void submitDisbursementDecision()} disabled={busy || (decidingDisbursement?.approve === false && !decideDisbReason.trim())}>
+                {busy ? 'Saving…' : decidingDisbursement?.approve ? 'Approve & Pay' : 'Reject'}
+              </Button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>

@@ -76,6 +76,28 @@ export interface OvertimeRequest {
   created_at: string;
 }
 
+// P2PR4: wage disbursement approval workflow. Real-mode only, same reasoning as AttendanceRecord.
+export interface DisbursementRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  branch_id: string;
+  branch_name: string;
+  pay_period: string;
+  days_worked: number;
+  ca_deduction: number;
+  bonus_amount: number;
+  notes: string | null;
+  status?: LeaveStatus;
+  requested_by: string;
+  requester_name: string;
+  decided_by: string | null;
+  decider_name: string | null;
+  decision_reason: string | null;
+  wage_payment_id?: string | null;
+  created_at: string;
+}
+
 export const payrollApi = {
   async fetchPositions(companyId: string): Promise<Position[]> {
     if (MOCK_MODE) return offlineDB.positions.where('company_id').equals(companyId).toArray();
@@ -331,5 +353,39 @@ export const payrollApi = {
     const {data, error} = await supabase.rpc('list_overtime_requests', {p_company: companyId, p_branch_id: branchId, p_employee_id: employeeId, p_status: status});
     if (error) throw new Error(error.message);
     return (data ?? []) as OvertimeRequest[];
+  },
+
+  // P2PR4: file a Pending wage-disbursement request. payroll.manage + branch-member required —
+  // NOT opened to a lesser tier (payroll amounts are sensitive, unlike leave/overtime filing).
+  async requestDisbursement(branchId: string, employeeId: string, payPeriod: string, daysWorked: number, caDeduction: number, notes: string | null = null, bonusAmount = 0): Promise<void> {
+    if (MOCK_MODE) throw new Error('Disbursement approval is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_request_disbursement', {
+      p_branch_id: branchId, p_employee_id: employeeId, p_pay_period: payPeriod, p_days_worked: daysWorked,
+      p_ca_deduction: caDeduction, p_notes: notes, p_bonus_amount: bonusAmount,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  // P2PR4: approve a Pending disbursement request — executes the disbursement atomically.
+  // payroll.manage + approver != requester (separation of duties, enforced server-side).
+  async approveDisbursementRequest(requestId: string, notes: string | null = null): Promise<void> {
+    if (MOCK_MODE) throw new Error('Disbursement approval is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_approve_disbursement_request', {p_request_id: requestId, p_notes: notes});
+    if (error) throw new Error(error.message);
+  },
+
+  // P2PR4: reject a Pending disbursement request. No money moves. Reason required.
+  async rejectDisbursementRequest(requestId: string, reason: string): Promise<void> {
+    if (MOCK_MODE) throw new Error('Disbursement approval is not available in demo mode.');
+    const {error} = await supabase.rpc('payroll_reject_disbursement_request', {p_request_id: requestId, p_reason: reason});
+    if (error) throw new Error(error.message);
+  },
+
+  // Read disbursement requests (any status, optionally filtered). payroll.manage-gated — no self-view.
+  async listDisbursementRequests(companyId: string, branchId: string | null = null, status: LeaveStatus | null = null): Promise<DisbursementRequest[]> {
+    if (MOCK_MODE) return [];
+    const {data, error} = await supabase.rpc('list_disbursement_requests', {p_company: companyId, p_branch_id: branchId, p_status: status});
+    if (error) throw new Error(error.message);
+    return (data ?? []) as DisbursementRequest[];
   },
 };
