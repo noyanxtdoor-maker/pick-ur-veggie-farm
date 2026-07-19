@@ -1396,3 +1396,25 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   the size of everything shipped in this pass combined, not quick additions. Continuing through them
   one at a time with the same migration+guard+app+verify rigor, but flagging here that this is a
   multi-session scope, not a single-sitting one.
+- **2026-07-19 — Owner mega-directive, top-to-bottom pass (continued): real unit conversion shipped**
+  (commit `cc2bab3`; git pushed, app deployed to Vercel production). `inventory_record_purchase`'s
+  item-creation branch never passed a unit at all — confirmed by reading the code, not just the DB
+  default — so every material/equipment item silently got `base_unit='pcs'` regardless of what it
+  actually was, a genuine "hardcoded to pieces" bug. `base_unit` is now choosable at creation
+  (immutable after — reinterpreting past stock would misstate it), plus an optional per-item
+  `purchase_unit` + `unit_conversion_factor` ("1 sack = 50 kg") drives a real Buy Stock calculator:
+  entering "2 sacks" converts to 100 kg client-side before the RPC ever sees it, so the stock
+  ledger's semantics (always base_unit terms) never changed and all 25 pre-existing inventory guard
+  assertions kept passing unmodified. **Found and fixed a real, deterministic bug while testing, not
+  invented**: the item_code suffix used `substr(uuidv7(),1,8)` — entirely the 48-bit millisecond
+  timestamp, not random at all (confirmed live: three `uuidv7()` calls in one batch shared an
+  identical 12-hex-char prefix) — so two items in the same category created within the same
+  millisecond were *guaranteed* to collide, not just unlikely to. Fixed by taking the tail 8 hex
+  chars instead (confirmed live to differ every call). New migration
+  `supabase/migrations/20260719170000_p2u1_inventory_unit_conversion.sql` — **local-only, not yet
+  applied to production** (3 migrations now queued for the owner: P2M7A.1 Projects visibility,
+  P2S1 tax rate, P2U1 unit conversion). Guard: 3 new assertions in `inventory-security.sql`.
+  Live-verified end to end on a fresh local company: bought 3kg (new item, unit picked in the form),
+  defined the sack conversion, bought "2 sacks" — direct DB query confirmed the ledger recorded
+  exactly 100kg (₱2,500/100 = ₱25/kg unit cost) and total stock summed to 103kg (3+100). Full
+  31-guard battery + drift clean after a fresh reset.
