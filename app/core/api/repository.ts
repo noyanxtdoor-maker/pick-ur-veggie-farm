@@ -41,7 +41,9 @@ export const supabaseSender: Sender = async (item: OutboxItem): Promise<SendResu
       if (error) return classify(error, false);
       if (!data || data.length === 0) {
         // 0 rows → the row changed on the server (or RLS hid it): surface as a conflict, never silent (C1).
-        return {ok: false, retryable: false, error: 'This record changed on the server. Review before re-applying.'};
+        // reason: 'conflict' — the frozen baseUpdatedAt can never match again, so "Retry now" would be
+        // guaranteed to fail forever; the UI needs this to point the user at re-applying instead of retrying.
+        return {ok: false, retryable: false, error: 'This record changed on the server. Review before re-applying.', reason: 'conflict'};
       }
       return {ok: true, result: data[0]};
     }

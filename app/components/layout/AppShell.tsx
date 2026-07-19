@@ -33,7 +33,7 @@ import {MOCK_MODE} from '../../core/mock/mock';
 import {useDarkToggle, usePref} from '../../core/prefs/prefs';
 import {offlineDB, type OutboxItem} from '../../core/offline/db';
 import {hydrateCompany} from '../../core/offline/hydrate';
-import {blockedItems, retryBlocked} from '../../core/offline/queue';
+import {blockedItems, discardBlocked, retryBlocked} from '../../core/offline/queue';
 import type {PermissionKey} from '../../types/db';
 import {Loading, OfflineBanner} from '../feedback';
 import {cn} from '../ui';
@@ -364,8 +364,9 @@ function TopBar({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v
               <button onClick={() => setIssuesOpen(false)} className="rounded-lg bg-farm-accent-soft px-3 py-1.5 text-[11px] font-bold text-farm-green">Close</button>
             </div>
             <p className="mb-3 text-[11px] text-farm-muted">
-              These changes were made on this device but the server rejected them — nothing was lost, but they will
-              never reach anyone else until you retry (or ask for help if the same error keeps happening).
+              These changes were made on this device but the server rejected them — nothing was lost. Each item
+              below explains what to do: retry once the issue clears, or re-apply and discard if it can't clear
+              on its own.
             </p>
             {issues.length === 0 ? (
               <p className="py-4 text-center text-sm text-farm-muted">No issues right now.</p>
@@ -378,12 +379,38 @@ function TopBar({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v
                       <span className="text-[10px] text-farm-muted">{new Date(item.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="mb-2 text-[11px] text-farm-danger">{item.lastError || 'No error detail recorded.'}</p>
-                    <button
-                      onClick={() => { void retryBlocked(item.id).then(() => { loadIssues(); manualSync(); }); }}
-                      className="rounded-lg bg-farm-green px-2.5 py-1 text-[11px] font-bold text-white hover:bg-farm-green-700"
-                    >
-                      Retry now
-                    </button>
+                    {item.reason === 'conflict' ? (
+                      <>
+                        {/* This exact record changed on the server after this device queued its edit — the
+                            frozen baseUpdatedAt can never match again, so a resend would fail identically
+                            forever. Retry is deliberately not offered here (owner report 2026-07-19). */}
+                        <p className="mb-2 text-[11px] text-farm-muted">
+                          Someone else changed this record first. Re-open it, confirm the current values, and
+                          save again — then discard this stuck copy.
+                        </p>
+                        <button
+                          onClick={() => { void discardBlocked(item.id).then(loadIssues); }}
+                          className="rounded-lg bg-farm-accent-soft px-2.5 py-1 text-[11px] font-bold text-farm-muted hover:bg-farm-accent"
+                        >
+                          Discard
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { void retryBlocked(item.id).then(() => { loadIssues(); manualSync(); }); }}
+                          className="rounded-lg bg-farm-green px-2.5 py-1 text-[11px] font-bold text-white hover:bg-farm-green-700"
+                        >
+                          Retry now
+                        </button>
+                        <button
+                          onClick={() => { void discardBlocked(item.id).then(loadIssues); }}
+                          className="rounded-lg bg-farm-accent-soft px-2.5 py-1 text-[11px] font-bold text-farm-muted hover:bg-farm-accent"
+                        >
+                          Discard
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

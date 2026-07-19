@@ -24,6 +24,10 @@ export interface OutboxItem {
   state: OutboxState;
   attempts: number;
   lastError: string | null;
+  // 'conflict' = optimistic-concurrency loss (the frozen request.match.baseUpdatedAt can never match again —
+  // retrying resends the identical stale write and fails forever); undefined = permission/validation/other,
+  // where the same request MAY succeed later if server-side conditions change. Only set when Blocked.
+  reason?: 'conflict';
   result: unknown; // server-returned authoritative result once Completed
   createdAt: number;
   updatedAt: number;

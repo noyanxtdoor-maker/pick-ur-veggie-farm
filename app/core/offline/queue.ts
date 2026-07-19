@@ -13,6 +13,7 @@ export interface SendResult {
   result?: unknown;
   retryable?: boolean;
   error?: string;
+  reason?: 'conflict'; // see OutboxItem.reason — only meaningful when ok is false and retryable is false
 }
 
 export type Sender = (item: OutboxItem) => Promise<SendResult>;
@@ -75,7 +76,7 @@ export async function processOutbox(send: Sender, db: OfflineDB = offlineDB): Pr
       summary.failed++;
     } else {
       // Conflict / permission / validation → needs review, never silently dropped (B5 §7 dead-letter).
-      await setState(db, item.id, 'Blocked', {lastError: res.error ?? 'blocked'});
+      await setState(db, item.id, 'Blocked', {lastError: res.error ?? 'blocked', reason: res.reason});
       summary.blocked++;
     }
   }
@@ -94,7 +95,7 @@ async function setState(
   db: OfflineDB,
   id: string,
   state: OutboxState,
-  patch: Partial<Pick<OutboxItem, 'attempts' | 'lastError' | 'result'>> = {},
+  patch: Partial<Pick<OutboxItem, 'attempts' | 'lastError' | 'result' | 'reason'>> = {},
 ): Promise<void> {
   await db.transaction('rw', db.outbox, async () => {
     const row = await db.outbox.get(id);
@@ -127,5 +128,19 @@ export async function retryBlocked(id: string, db: OfflineDB = offlineDB): Promi
     const row = await db.outbox.get(id);
     if (!row || row.state !== 'Blocked') return;
     await db.outbox.put({...row, state: 'Pending', lastError: null, updatedAt: Date.now()});
+  });
+}
+
+// Found live (2026-07-19, owner report — "Membership Update" stuck in Sync issues, "Retry now" did
+// nothing): retryBlocked() only flips the state back to Pending — it never touches request.match.baseUpdatedAt,
+// which was frozen at enqueue time. For a 'conflict' item that value can never match the server row again
+// (it already changed once), so retry fails identically forever with no way to clear the item. This is the
+// other half: once the user has re-applied the edit through the real form (which enqueues a fresh item with
+// a current baseUpdatedAt), the original stale item can be discarded — it was never going to succeed anyway.
+export async function discardBlocked(id: string, db: OfflineDB = offlineDB): Promise<void> {
+  await db.transaction('rw', db.outbox, async () => {
+    const row = await db.outbox.get(id);
+    if (!row || row.state !== 'Blocked') return;
+    await db.outbox.delete(id);
   });
 }
