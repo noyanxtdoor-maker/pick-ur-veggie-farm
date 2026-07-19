@@ -1,0 +1,26 @@
+-- Migration P2O.1 — anon EXECUTE lockdown sweep (owner 2026-07-19: "lock down the anon-callable
+-- ID-generator function", part of a full anon-RPC audit).
+--
+-- A full sweep of every public function's current anon-EXECUTE grant found the app's governed
+-- RPCs (including archive_user_account) already correctly locked down by earlier hardening passes
+-- (P1J.2, P1M, P1M.1). The one remaining gap: public.uuidv7(), the canonical primary-key ID
+-- generator used as the DEFAULT on nearly every table in this schema, was left with its original
+-- CREATE FUNCTION default grant — EXECUTE to the PUBLIC pseudo-role (`=X/postgres` in \df+), not a
+-- per-role grant to anon specifically. `revoke ... from anon` alone is a no-op against a PUBLIC
+-- grant (anon inherits EXECUTE through PUBLIC regardless of its own grant state) — this is the
+-- mirror-image mistake of P1M.1, which was `revoke ... from public` failing to strip a per-role
+-- anon grant. The fix here must target PUBLIC itself.
+--
+-- The client never calls uuidv7() over RPC (app/core/offline/uuidv7.ts is a separate client-side
+-- generator for offline-created records) and the only thing that actually needed locking down was
+-- anon — but a plain INSERT resolves its DEFAULT expression under the INSERTING role's own
+-- privileges (not the table owner's), so both `authenticated` (this project's fixture-setup
+-- convention, and any authenticated-context insert outside a SECURITY DEFINER RPC) and
+-- `service_role` (legitimate elevated-context writes, e.g. audit_events logging — confirmed by a
+-- full guard-battery run: revoking service_role broke rls-behavior.sql's service_role audit-append
+-- assertion) still need their own direct EXECUTE. Re-grant to both. A stray callable id-generator
+-- has no exploitable value for either role (a UUIDv7 leaks nothing and can't be used to forge or
+-- collide with real rows) — the only role that ever needed excluding was anon, and revoking PUBLIC
+-- + re-granting authenticated + service_role accomplishes exactly that.
+revoke execute on function public.uuidv7() from public;
+grant execute on function public.uuidv7() to authenticated, service_role;
