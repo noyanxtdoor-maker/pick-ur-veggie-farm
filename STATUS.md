@@ -4,7 +4,7 @@
 to review based on what this file marks "Done." **Rule: never round up.** If a flow was not tested end-to-end by
 the agent, or a reviewer has an open issue against it, it is **In Progress** — not Done.
 
-_Last updated: 2026-07-19 · branch `feature/phase-0-foundation` · Repo A only (repos diverged 2026-07-08, see §0)._
+_Last updated: 2026-07-20 · branch `feature/phase-0-foundation` · Repo A only (repos diverged 2026-07-08, see §0)._
 
 **2026-07-17 session addendum (not yet folded into the numbered sections below):** shipped P1O (POS
 product-removal request/approval — see §2 for the new row), a 3-layer Google OAuth sign-in fix + the
@@ -1752,3 +1752,59 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   `wage_payments` row (gross=net=₱550, no deduction), a balanced journal (debit=credit=₱550), and —
   the detail that actually proves the inlined-not-called design works — `wage_payments.created_by`
   equals the APPROVER's own user id, not the original requester's, exactly as intended.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): payroll multiple payout methods
+  shipped — slice 5 of 6** (one migration; git pushed; app deployed to Vercel production; migration
+  queued for the owner — now the 10th). **Authority**: the owner's own backlog item, "multiple payout
+  methods" — a small, well-scoped extension of P2PR4's request/approve path rather than a new
+  subsystem. Reuses B2A's existing `finance_resolve_pay_code(company, branch, account_id)` helper
+  (already the account-validation/resolution path for `pos_record_sale`/`pos_settle_sale`/
+  `approve_void_request`) instead of inventing new account-routing logic, and reuses the client-side
+  `paymentsApi.fetchPickerAccounts()` PosScreen already uses for its own payment-method picker.
+  `payroll_request_disbursement()` gains an 8th arg, `p_financial_account_id uuid default null`
+  (existing 7-arg call sites unaffected), validated at file time via `finance_resolve_pay_code`.
+  `payroll_approve_disbursement_request()` is rewritten to **re-resolve the pay code fresh at approval
+  time** (not reuse whatever was valid at file time) — the same "never trust file-time state"
+  discipline P2PR4 established for the cash-advance balance, now extended to the payout account
+  itself: an account archived between request and decision is caught at approval, not silently paid
+  through a stale reference. `payroll_disburse_wage` itself stays CASH-only and unchanged, same as
+  P2PR4's precedent of leaving the legacy direct RPC in place. **A real bug fixed as an in-scope
+  byproduct, not a new finding**: P2PR4's STATUS entry already flagged that `payroll_disburse_wage`
+  (and its P2PR4-era copy inside `payroll_approve_disbursement_request`) crashes when a disbursement's
+  deduction exactly equals gross (net=₱0), because the Cash journal line was inserted unconditionally
+  even when it would be an invalid `(debit=0, credit=0)` row. Since this migration was already
+  rewriting that exact block to add account-routing, the missing `if v_net > 0` guard (mirroring the
+  EMPLOYEE_ADVANCES line's existing `if v_ded > 0` guard) was added here — `payroll_disburse_wage`
+  itself is untouched and still has the bug, now tracked as its own background task. New migration
+  `supabase/migrations/20260720140000_p2pr5_payroll_payout_methods.sql` (also adds
+  `financial_account_id` to `wage_disbursement_requests` and `wage_payments`, FK-constrained to
+  `(financial_accounts.id, company_id)`). New guard `p2pr5-payroll-payout-methods-security.sql` (10
+  assertions: file + approve with a non-cash account, journal credits the account's own `coa_code`
+  not CASH, the net=0 byproduct fix (full-deduction disbursement now succeeds with exactly 2 balanced
+  journal lines, zero invalid zero/zero rows), null-account defaults to CASH unchanged, Archived-
+  account denied at file time, wrong-branch account denied at file time, **the re-resolve-at-approval-
+  time property** (an account archived AFTER filing but BEFORE decision correctly fails approval),
+  cross-tenant denial, grant shape) — wired into `package.json`/`ci.yml`. Full battery re-verified
+  clean after a fresh reset: **40 guard files, 0 defects**, 98 unit tests, `tsc`, `vite build`,
+  static+drift guards. **A real UX bug found and fixed during live E2E, not a pre-existing issue**:
+  the wage disbursement dialog (`PayrollScreen.tsx`) had never had a `max-height`/`overflow-y-auto`
+  on its `Dialog.Content`, unlike five other dialogs across the app (`CustomersScreen`,
+  `InventoryScreen`, `ApprovalsScreen`, `AccessDialog`, `PosScreen`) that already use the established
+  `max-h-[85vh] ... overflow-y-auto` pattern for exactly this reason. Adding the new Payout Method
+  field pushed the dialog's content height to ~856px, taller than a 720px-tall viewport (a real
+  laptop-class screen size, not an edge case) — with no internal scroll, the "File Disbursement
+  Request" button was rendered entirely below the fold and genuinely unreachable (confirmed via
+  `document.elementFromPoint` returning `null` at the button's coordinates before the fix, and a
+  correctly-clipped/scrollable 612px-tall dialog after). Fixed by applying the same established
+  Tailwind pattern already used elsewhere in the codebase — a one-line className change, no logic
+  touched. **LIVE browser E2E against the real local Postgres, fresh company, two distinct real
+  users**: created a real `financial_accounts` row (`Farm GCash`, Digital Wallet, provider GCash,
+  `coa_code = GCASH_MAIN`); owner filed a disbursement request for a real employee (Arlie Worker)
+  from the Roster tab, selecting "Farm GCash · GCash" from the new Payout Method dropdown — appeared
+  in the Disbursements tab's Pending queue and History showing "Farm GCash (GCash)"/"Farm GCash" as
+  the method; signed out, signed back in as a second admin (granted both `payroll.manage` and
+  `payroll.read`, per the P2PR4-established fixture lesson) — reached the manager UI directly, saw
+  the same pending request, approved it through the confirm dialog; a direct DB query confirmed the
+  resulting `wage_payments.financial_account_id` matches the Farm GCash account id and
+  `created_by` is the approver (`e2eadmin5`), and — the detail that actually proves the account-
+  routing works end to end, not just in the guard's isolated fixture — the journal_entry's lines are
+  Dr `WAGES_EXPENSE` ₱550.00 / Cr `GCASH_MAIN` ₱550.00, never touching the `CASH` account at all.

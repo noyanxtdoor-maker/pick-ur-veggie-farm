@@ -17,8 +17,9 @@ import {SelectField} from '../../components/overlay';
 import {formatPeso, round2} from '../pos/money';
 import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType, type OvertimeRequest, type DisbursementRequest} from './api';
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
+import {paymentsApi} from '../finance/api';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
-import type {CashAdvance, Employee, Position, WagePayment} from '../../types/db';
+import type {CashAdvance, Employee, FinancialAccount, Position, WagePayment} from '../../types/db';
 
 export default function PayrollScreen() {
   const {companyId, has} = usePermissions();
@@ -41,6 +42,13 @@ export default function PayrollScreen() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [busy, setBusy] = useState(false);
   const {user} = useSession();
+
+  // P2PR5: payout-method picker (Cash drawer + this branch's active bank/wallet accounts) — same
+  // API PosScreen already uses for the identical picker on a sale.
+  const [payAccounts, setPayAccounts] = useState<FinancialAccount[]>([]);
+  useEffect(() => {
+    if (companyId && branchId) paymentsApi.fetchPickerAccounts(companyId, branchId).then(setPayAccounts).catch(() => setPayAccounts([]));
+  }, [companyId, branchId]);
 
   // Wage history tab (co-owner+ / anyone with payroll.read — the two are non-payroll roles, so this is
   // how they check an employee's history instead of clicking into their own nonexistent pay record).
@@ -126,6 +134,7 @@ export default function PayrollScreen() {
   const [wBonus, setWBonus] = useState('0');
   const [wPeriod, setWPeriod] = useState('');
   const [wNotes, setWNotes] = useState('');
+  const [wPayAccountId, setWPayAccountId] = useState(''); // P2PR5: '' = cash drawer
 
   const wAmountNum = parseFloat(wAmount) || 0;
   // Amount mode shows the typed figure verbatim as the base (exact, no derived-then-rebuilt rounding
@@ -286,9 +295,9 @@ export default function PayrollScreen() {
     if (!branchId || !wageEmp) return;
     setBusy(true);
     try {
-      await payrollApi.requestDisbursement(branchId, wageEmp.id, wPeriod, wDaysForSubmit, wDedNum, wNotes, wBonusNum);
+      await payrollApi.requestDisbursement(branchId, wageEmp.id, wPeriod, wDaysForSubmit, wDedNum, wNotes, wBonusNum, wPayAccountId || null);
       notify(`Disbursement request filed for ${wageEmp.name} — awaiting a different manager's approval`);
-      setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWBonus('0'); setWPeriod(''); setWNotes('');
+      setWageEmp(null); setWDays('1'); setWMode('days'); setWAmount(''); setWDed('0'); setWBonus('0'); setWPeriod(''); setWNotes(''); setWPayAccountId('');
       reload();
     } catch (e) { notify(e instanceof Error ? e.message : 'Could not file disbursement request', 'error'); } finally { setBusy(false); }
   }
@@ -570,7 +579,7 @@ export default function PayrollScreen() {
                   <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                     <div>
                       <p className="font-bold text-farm-green">{d.employee_name} <span className="text-xs font-normal text-farm-muted">— filed by {d.requester_name}</span></p>
-                      <p className="text-xs text-farm-muted">{d.pay_period} · {d.days_worked} day(s){d.bonus_amount > 0 ? ` · +${formatPeso(d.bonus_amount)} bonus` : ''}{d.ca_deduction > 0 ? ` · −${formatPeso(d.ca_deduction)} advance` : ''}{d.notes ? ` — ${d.notes}` : ''}</p>
+                      <p className="text-xs text-farm-muted">{d.pay_period} · {d.days_worked} day(s) · {d.account_name ? `${d.account_name}${d.account_provider ? ` (${d.account_provider})` : ''}` : 'Cash'}{d.bonus_amount > 0 ? ` · +${formatPeso(d.bonus_amount)} bonus` : ''}{d.ca_deduction > 0 ? ` · −${formatPeso(d.ca_deduction)} advance` : ''}{d.notes ? ` — ${d.notes}` : ''}</p>
                     </div>
                     <div className="flex gap-1.5">
                       <button onClick={() => setDecidingDisbursement({id: d.id, approve: true})} className="rounded-lg bg-farm-green px-3 py-1.5 text-xs font-bold text-white hover:bg-farm-green-700">Approve</button>
@@ -591,7 +600,7 @@ export default function PayrollScreen() {
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-farm-accent-soft text-left font-bold tracking-wider text-farm-muted">
-                      <th className="pb-2">Worker</th><th className="pb-2">Pay Period</th><th className="pb-2">Filed By</th><th className="pb-2">Status</th><th className="pb-2">Decided By</th>
+                      <th className="pb-2">Worker</th><th className="pb-2">Pay Period</th><th className="pb-2">Method</th><th className="pb-2">Filed By</th><th className="pb-2">Status</th><th className="pb-2">Decided By</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-farm-accent-soft font-semibold">
@@ -599,6 +608,7 @@ export default function PayrollScreen() {
                       <tr key={d.id}>
                         <td className="py-2 font-bold text-farm-ink">{d.employee_name}</td>
                         <td className="py-2">{d.pay_period}</td>
+                        <td className="py-2 text-farm-muted">{d.account_name ?? 'Cash'}</td>
                         <td className="py-2 text-farm-muted">{d.requester_name}</td>
                         <td className="py-2"><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', d.status === 'Rejected' ? 'bg-red-50 text-farm-danger' : d.status === 'Pending' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800')}>{d.status}</span></td>
                         <td className="py-2 text-farm-muted">{d.decider_name ?? '—'}</td>
@@ -645,7 +655,7 @@ export default function PayrollScreen() {
                       {e.status === 'Active' ? (
                         <span className="flex justify-end gap-1.5">
                           {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Request Disbursement</button> : null}
+                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes(''); setWPayAccountId('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Request Disbursement</button> : null}
                           {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
                           {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
                         </span>
@@ -783,7 +793,7 @@ export default function PayrollScreen() {
       <Dialog.Root open={wageEmp !== null} onOpenChange={(o) => {if (!o) setWageEmp(null);}}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-farm-card p-6 shadow-xl">
             <Dialog.Title className="flex items-center gap-2 text-xl font-bold text-farm-green"><Wallet className="h-5 w-5" aria-hidden /> Request Wage Disbursement</Dialog.Title>
             <p className="mb-4 mt-1 text-xs text-farm-muted"><span className="font-bold text-farm-green">{wageEmp?.name}</span> · {formatPeso(wageEmp?.daily_rate ?? 0)}/day · a different payroll manager must approve before this is paid</p>
             <div className="space-y-4 text-sm">
@@ -834,6 +844,13 @@ export default function PayrollScreen() {
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-period">Pay Period</label>
                 <input id="w-period" value={wPeriod} onChange={(e) => setWPeriod(e.target.value)} placeholder="e.g. July 1-7" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />
               </div>
+              {payAccounts.length > 0 ? (
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted">Payout Method</label>
+                  <SelectField value={wPayAccountId} onChange={setWPayAccountId}
+                    options={[{value: '', label: 'Cash (drawer)'}, ...payAccounts.map((a) => ({value: a.id, label: `${a.name}${a.provider ? ` · ${a.provider}` : ''}`}))]} />
+                </div>
+              ) : null}
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="w-notes">Notes</label>
                 <input id="w-notes" value={wNotes} onChange={(e) => setWNotes(e.target.value)} placeholder="Regular harvesting cycle pay" className="min-h-12 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 text-sm" />

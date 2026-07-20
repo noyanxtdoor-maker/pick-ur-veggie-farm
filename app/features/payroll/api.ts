@@ -96,6 +96,9 @@ export interface DisbursementRequest {
   decision_reason: string | null;
   wage_payment_id?: string | null;
   created_at: string;
+  financial_account_id: string | null;
+  account_name: string | null;
+  account_provider: string | null;
 }
 
 export const payrollApi = {
@@ -357,11 +360,11 @@ export const payrollApi = {
 
   // P2PR4: file a Pending wage-disbursement request. payroll.manage + branch-member required —
   // NOT opened to a lesser tier (payroll amounts are sensitive, unlike leave/overtime filing).
-  async requestDisbursement(branchId: string, employeeId: string, payPeriod: string, daysWorked: number, caDeduction: number, notes: string | null = null, bonusAmount = 0): Promise<void> {
+  async requestDisbursement(branchId: string, employeeId: string, payPeriod: string, daysWorked: number, caDeduction: number, notes: string | null = null, bonusAmount = 0, financialAccountId: string | null = null): Promise<void> {
     if (MOCK_MODE) throw new Error('Disbursement approval is not available in demo mode.');
     const {error} = await supabase.rpc('payroll_request_disbursement', {
       p_branch_id: branchId, p_employee_id: employeeId, p_pay_period: payPeriod, p_days_worked: daysWorked,
-      p_ca_deduction: caDeduction, p_notes: notes, p_bonus_amount: bonusAmount,
+      p_ca_deduction: caDeduction, p_notes: notes, p_bonus_amount: bonusAmount, p_financial_account_id: financialAccountId,
     });
     if (error) throw new Error(error.message);
   },
