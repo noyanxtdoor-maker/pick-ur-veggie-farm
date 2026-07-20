@@ -1808,3 +1808,58 @@ the scheduling guard battery (15/15). Calendar moved to **Done (pushed)**._
   `created_by` is the approver (`e2eadmin5`), and — the detail that actually proves the account-
   routing works end to end, not just in the guard's isolated fixture — the journal_entry's lines are
   Dr `WAGES_EXPENSE` ₱550.00 / Cr `GCASH_MAIN` ₱550.00, never touching the `CASH` account at all.
+- **2026-07-20 — Owner mega-directive, top-to-bottom pass (continued): formatted payslip shipped —
+  slice 6 of 6, the LAST payroll sub-item** (no new migration; git pushed; app deployed to Vercel
+  production; the pending-migration count stays at 10, since this feature adds zero server-side
+  surface). **Authority audit first**: no dedicated payslip spec exists — `21.05_Employee_Workspace_
+  and_Profile.md` and `21.04_Roles_Permissions_Access_Control.md` both list "Payslips" as one line
+  item among many employee-workspace features (no format detail), `21.11_Payroll_Computation_
+  Workflow.md` describes a full batch payroll-period engine (regular/OT/allowances computed from a
+  configurable pay-period cycle, then LOCKED) that this app has never built and every P2PR1–P2PR4
+  entry already explicitly deferred for the same reason, and `21.14_Payment_Methods_and_Disbursement_
+  Records.md` gives the one concrete, buildable spec: "Payment Record Details" — employee, payroll
+  period, amount, method, reference, date/time, recorded-by, notes — which maps almost one-to-one
+  onto the `wage_payments` row a disbursement approval already produces. **What ships is a formatted,
+  printable payslip for an EXISTING `wage_payments` row — not a payroll-period generation engine.**
+  Zero migration, zero RPC: `fetchWages`/`fetchEmployeeWages` extended to PostgREST-embed two existing
+  FK relationships (`financial_accounts(name, provider)` and `creator:users!wage_payments_created_by_
+  fkey(username)`) so the payslip can show the actual payment-method name and the actual recording
+  user without a new server round trip — reusing infrastructure already on the table (both FKs, and
+  the RLS policies gating them, already existed; P2PR5 only added the `financial_account_id` column
+  itself). **A deliberate, tested design choice**: both embeds degrade gracefully to a generic label
+  (`"Digital / Bank Account"` / `"—"`) rather than erroring when the viewer's RLS blocks the joined
+  row — the self-service linked-employee tier typically lacks `finance.account.read` and `user.read`
+  on someone else's row (the approver), so THEIR OWN payslip legitimately can't name the exact GCash
+  provider or the approver's username the way a payroll manager's copy can; this is accepted, not a
+  bug, and was proven live (below) rather than assumed. Print reuses the exact `@media print` +
+  visibility-isolation-by-id technique the existing POS receipt slip already established
+  (`#pos-slip` → new `#payslip-print`, same pattern, `app/index.css`) — no new dependency, matching
+  C1 §4's "can existing tooling solve this" ladder; `window.print()` is the same call POS's own
+  "Print Slip" button already makes. New "Payslip → View" action added per row on BOTH the manager
+  Wage History tab and the self-service "My Wage History" card (same shared `EmployeeHistoryTables`
+  component, employee/branch context now passed as props). No guard added — no new RLS-sensitive
+  server logic exists to guard; the two embeds ride on RLS policies already covered by
+  `guard:payments`/existing auth guards. Full battery re-verified: `tsc`, 98 unit tests, `vite build`
+  all clean (one `offlineDB.wagePayments` MOCK_MODE literal needed the two new `WagePayment` fields —
+  `created_by`/`financial_account_id`, both previously missing from the TS type despite existing on
+  the table since T3.3/P2PR5 — added as `null`, matching `payroll_disburse_wage`'s CASH-only,
+  unattributed legacy behavior in mock mode). **LIVE browser E2E against the real local Postgres,
+  fresh company, THREE distinct real users** (owner, a second admin, and a zero-permission linked
+  employee — the full self-service chain, not just the manager path): owner filed a GCash-routed
+  disbursement with a ₱50 bonus for a real employee (Bettina Cruz) from the Roster tab; a second
+  admin (granted `payroll.manage`+`payroll.read`) approved it; opened the new payslip from the
+  manager's Wage History tab — correctly showed the full breakdown (1 day × ₱600 base, +₱50 bonus,
+  ₱650 gross, ₱650 net), **"Payment Method: Farm GCash (GCash)"** and **"Recorded By: e2eadmin6"**
+  (the approver, not the requester — proving the `creator` embed resolves the same way P2PR4's
+  inlined-posting discipline already established server-side); signed out, signed back in as a THIRD
+  user — a zero-permission employee linked to Bettina Cruz — opened the identical payslip from "My
+  Wage History": same breakdown figures, but **"Payment Method: Digital / Bank Account"** and
+  **"Recorded By: —"**, confirmed via `document.getElementById('payslip-print').textContent` (not
+  just the accessibility tree, which visually collapsed the empty value) — the exact graceful-
+  degradation behavior the design intended, live-proven rather than assumed. Print button clicked in
+  both sessions — correctly invoked the browser's native print dialog (same as POS's own working
+  "Print Slip" button; no JS console errors either time).
+
+**All six payroll sub-items (P2PR1–P2PR6) are now complete.** 10 migrations remain queued for the
+owner to push to production via the Supabase Dashboard SQL Editor (see task #140) — never pushed by
+the agent directly, per the standing credential-handling safety rule.

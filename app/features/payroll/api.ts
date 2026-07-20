@@ -200,7 +200,7 @@ export const payrollApi = {
       const rows = await offlineDB.wagePayments.where('company_id').equals(companyId).filter((w) => w.employee_id === employeeId).toArray();
       return rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
     }
-    const {data, error} = await supabase.from('wage_payments').select('*').eq('company_id', companyId).eq('employee_id', employeeId).order('created_at', {ascending: false}).limit(300);
+    const {data, error} = await supabase.from('wage_payments').select('*, financial_accounts(name, provider), creator:users!wage_payments_created_by_fkey(username)').eq('company_id', companyId).eq('employee_id', employeeId).order('created_at', {ascending: false}).limit(300);
     if (error) throw new Error(error.message);
     return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net), bonus_amount: Number(w.bonus_amount)}));
   },
@@ -253,7 +253,7 @@ export const payrollApi = {
       const rows = await offlineDB.wagePayments.where('company_id').equals(companyId).filter((w) => w.branch_id === branchId).toArray();
       return rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
     }
-    const {data, error} = await supabase.from('wage_payments').select('*').eq('company_id', companyId).eq('branch_id', branchId).order('created_at', {ascending: false}).limit(300);
+    const {data, error} = await supabase.from('wage_payments').select('*, financial_accounts(name, provider), creator:users!wage_payments_created_by_fkey(username)').eq('company_id', companyId).eq('branch_id', branchId).order('created_at', {ascending: false}).limit(300);
     if (error) throw new Error(error.message);
     return ((data ?? []) as WagePayment[]).map((w) => ({...w, days_worked: Number(w.days_worked), daily_rate: Number(w.daily_rate), gross: Number(w.gross), ca_deducted: Number(w.ca_deducted), net: Number(w.net), bonus_amount: Number(w.bonus_amount)}));
   },
@@ -274,6 +274,7 @@ export const payrollApi = {
         id: idem, company_id: companyId, branch_id: branchId, employee_id: employee.id,
         pay_period: payPeriod.trim() || 'Cycle', days_worked: daysWorked, daily_rate: employee.daily_rate,
         gross, ca_deducted: round2(caDeduction), net: round2(gross - caDeduction), bonus_amount: bonus, notes: notes.trim() || null,
+        created_by: null, financial_account_id: null,
         created_at: new Date().toISOString(),
       });
       return;

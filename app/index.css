@@ -113,6 +113,11 @@ h1, h2, h3, h4 {
   #pos-slip { position: absolute; left: 0; top: 0; width: 100%; max-width: none; }
   #pos-slip.receipt-58mm { width: 58mm; font-size: 10px; }
   #pos-slip.receipt-80mm { width: 80mm; font-size: 11px; }
+  /* P2PR6 payslip: same isolate-by-id technique as #pos-slip above, full-page letter/A4 layout
+     (not a thermal-width slip) since a payslip is handed to or filed by the employee, not printed
+     at the register. */
+  #payslip-print, #payslip-print * { visibility: visible; }
+  #payslip-print { position: absolute; left: 0; top: 0; width: 100%; max-width: none; }
 }
 @page { size: auto; margin: 4mm; }
 

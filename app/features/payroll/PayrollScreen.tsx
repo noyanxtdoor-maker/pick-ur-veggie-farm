@@ -5,7 +5,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import * as Dialog from '@radix-ui/react-dialog';
-import {CalendarCheck, CalendarX, HandCoins, History, Link2, ListChecks, Timer, Users2, UserPlus, Wallet, X} from 'lucide-react';
+import {CalendarCheck, CalendarX, FileText, HandCoins, History, Link2, ListChecks, Printer, Timer, Users2, UserPlus, Wallet, X} from 'lucide-react';
 import {offlineDB} from '../../core/offline/db';
 import {hydrateBranches} from '../../core/offline/hydrate';
 import {useSync} from '../../core/offline/sync';
@@ -19,7 +19,7 @@ import {payrollApi, type AttendanceRecord, type LeaveRequest, type LeaveType, ty
 import {membershipsApi, type MemberRow} from '../organization/memberships/memberships';
 import {paymentsApi} from '../finance/api';
 import {MOCK_MODE, DEMO} from '../../core/mock/mock';
-import type {CashAdvance, Employee, FinancialAccount, Position, WagePayment} from '../../types/db';
+import type {Branch, CashAdvance, Employee, FinancialAccount, Position, WagePayment} from '../../types/db';
 
 export default function PayrollScreen() {
   const {companyId, has} = usePermissions();
@@ -378,7 +378,9 @@ export default function PayrollScreen() {
                   <p className={cn('tabular text-xl font-black', histEmp.advance_balance > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(histEmp.advance_balance)}</p>
                 </div>
               </Card>
-              <EmployeeHistoryTables wages={histWages} advances={histAdvances} />
+              <EmployeeHistoryTables wages={histWages} advances={histAdvances} branches={branches}
+                employeeName={histEmp.name} employeeCode={histEmp.employee_code}
+                positionLabel={histEmp.position_id ? (positionLabel.get(histEmp.position_id) ?? '—') : '—'} />
             </>
           ) : null}
         </div>
@@ -1203,7 +1205,8 @@ function MyPayroll({companyId}: {companyId?: string}) {
             )}
           </Card>
 
-          <EmployeeHistoryTables wages={wages} advances={advances} wageTitle="My Wage History" advanceTitle="My Cash Advances" />
+          <EmployeeHistoryTables wages={wages} advances={advances} wageTitle="My Wage History" advanceTitle="My Cash Advances"
+            branches={branches} employeeName={me.name} employeeCode={me.employee_code} positionLabel={myPositionLabel} />
         </>
       )}
 
@@ -1297,7 +1300,11 @@ function MyPayroll({companyId}: {companyId?: string}) {
 // Wage + cash-advance history tables — shared by MyPayroll (self view) and the Wage History tab
 // (co-owner+ looking up any employee: co-owner/owner aren't waged themselves, so this is how they
 // check what an admin-and-below worker has been paid, per owner directive 2026-07-17).
-function EmployeeHistoryTables({wages, advances, wageTitle = 'Wage History', advanceTitle = 'Cash Advances'}: {wages: WagePayment[]; advances: CashAdvance[]; wageTitle?: string; advanceTitle?: string}) {
+function EmployeeHistoryTables({wages, advances, wageTitle = 'Wage History', advanceTitle = 'Cash Advances', branches, employeeName, employeeCode, positionLabel}: {
+  wages: WagePayment[]; advances: CashAdvance[]; wageTitle?: string; advanceTitle?: string;
+  branches?: Branch[]; employeeName: string; employeeCode: string; positionLabel: string;
+}) {
+  const [payslipWage, setPayslipWage] = useState<WagePayment | null>(null);
   return (
     <>
       <Card>
@@ -1305,10 +1312,21 @@ function EmployeeHistoryTables({wages, advances, wageTitle = 'Wage History', adv
         {wages.length === 0 ? <p className="py-6 text-center text-xs italic text-farm-muted">No wages recorded yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
-              <thead><tr className="border-b border-farm-accent-soft text-left text-xs font-bold text-farm-muted"><th className="pb-2">Period</th><th className="pb-2 text-right">Days</th><th className="pb-2 text-right">Gross</th><th className="pb-2 text-right">Advance deducted</th><th className="pb-2 text-right">Net received</th></tr></thead>
+              <thead><tr className="border-b border-farm-accent-soft text-left text-xs font-bold text-farm-muted"><th className="pb-2">Period</th><th className="pb-2 text-right">Days</th><th className="pb-2 text-right">Gross</th><th className="pb-2 text-right">Advance deducted</th><th className="pb-2 text-right">Net received</th><th className="pb-2 text-right">Payslip</th></tr></thead>
               <tbody className="divide-y divide-farm-accent-soft">
                 {wages.map((w) => (
-                  <tr key={w.id}><td className="py-2 font-semibold">{w.pay_period}</td><td className="tabular py-2 text-right">{w.days_worked}</td><td className="tabular py-2 text-right">{formatPeso(w.gross)}</td><td className="tabular py-2 text-right text-farm-danger">−{formatPeso(w.ca_deducted)}</td><td className="tabular py-2 text-right font-black text-farm-green">{formatPeso(w.net)}</td></tr>
+                  <tr key={w.id}>
+                    <td className="py-2 font-semibold">{w.pay_period}</td>
+                    <td className="tabular py-2 text-right">{w.days_worked}</td>
+                    <td className="tabular py-2 text-right">{formatPeso(w.gross)}</td>
+                    <td className="tabular py-2 text-right text-farm-danger">−{formatPeso(w.ca_deducted)}</td>
+                    <td className="tabular py-2 text-right font-black text-farm-green">{formatPeso(w.net)}</td>
+                    <td className="py-2 text-right">
+                      <button onClick={() => setPayslipWage(w)} className="inline-flex items-center gap-1 rounded-lg border border-farm-accent-soft px-2 py-1 text-[10px] font-bold text-farm-green hover:bg-farm-accent-soft" aria-label={`View payslip for ${w.pay_period}`}>
+                        <FileText className="h-3 w-3" aria-hidden /> View
+                      </button>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -1325,6 +1343,48 @@ function EmployeeHistoryTables({wages, advances, wageTitle = 'Wage History', adv
           </ul>
         )}
       </Card>
+
+      <Dialog.Root open={payslipWage !== null} onOpenChange={(o) => {if (!o) setPayslipWage(null);}}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-farm-card p-6 shadow-xl">
+            {payslipWage ? (
+              <>
+                <div id="payslip-print" className="space-y-4 text-sm text-farm-ink">
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-widest text-farm-muted">PickUrVeggie Farm</p>
+                    <p className="text-[11px] text-farm-muted">{branches?.find((b) => b.id === payslipWage.branch_id)?.name ?? 'Branch'}</p>
+                    <h3 className="mt-1 text-lg font-black text-farm-green">Payslip</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-y border-dashed border-farm-accent-soft py-3 text-xs">
+                    <div><p className="font-bold uppercase text-farm-muted">Employee</p><p className="font-semibold">{employeeName} <span className="font-mono text-farm-muted">{employeeCode}</span></p></div>
+                    <div><p className="font-bold uppercase text-farm-muted">Position</p><p className="font-semibold">{positionLabel}</p></div>
+                    <div><p className="font-bold uppercase text-farm-muted">Pay Period</p><p className="font-semibold">{payslipWage.pay_period}</p></div>
+                    <div><p className="font-bold uppercase text-farm-muted">Date Paid</p><p className="font-semibold">{new Date(payslipWage.created_at).toLocaleDateString('en-PH', {year: 'numeric', month: 'short', day: 'numeric'})}</p></div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between"><span>{payslipWage.days_worked} day(s) × {formatPeso(payslipWage.daily_rate)}</span><span className="tabular font-semibold">{formatPeso(round2(payslipWage.gross - payslipWage.bonus_amount))}</span></div>
+                    {payslipWage.bonus_amount > 0 ? <div className="flex justify-between text-farm-green"><span>+ Bonus / Incentive</span><span className="tabular font-semibold">+{formatPeso(payslipWage.bonus_amount)}</span></div> : null}
+                    <div className="flex justify-between border-t border-farm-accent-soft pt-1.5 font-bold"><span>Gross Pay</span><span className="tabular">{formatPeso(payslipWage.gross)}</span></div>
+                    {payslipWage.ca_deducted > 0 ? <div className="flex justify-between text-farm-danger"><span>− Cash Advance Deduction</span><span className="tabular font-semibold">−{formatPeso(payslipWage.ca_deducted)}</span></div> : null}
+                    <div className="flex justify-between rounded-lg bg-emerald-50/60 px-2 py-2 text-base font-black text-farm-green"><span>NET PAY</span><span className="tabular">{formatPeso(payslipWage.net)}</span></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-dashed border-farm-accent-soft pt-3 text-xs">
+                    <div><p className="font-bold uppercase text-farm-muted">Payment Method</p><p className="font-semibold">{payslipWage.financial_accounts ? `${payslipWage.financial_accounts.name}${payslipWage.financial_accounts.provider ? ` (${payslipWage.financial_accounts.provider})` : ''}` : payslipWage.financial_account_id ? 'Digital / Bank Account' : 'Cash'}</p></div>
+                    <div><p className="font-bold uppercase text-farm-muted">Recorded By</p><p className="font-semibold">{payslipWage.creator?.username ?? '—'}</p></div>
+                  </div>
+                  {payslipWage.notes ? <p className="border-t border-dashed border-farm-accent-soft pt-3 text-xs text-farm-muted"><span className="font-bold uppercase">Notes</span> — {payslipWage.notes}</p> : null}
+                  <p className="pt-2 text-center text-[9px] text-farm-muted">Generated from PickUrVeggie ERP payroll records — not a legal government payslip form.</p>
+                </div>
+                <div className="mt-5 flex gap-2 border-t border-farm-accent-soft pt-4">
+                  <Button variant="secondary" onClick={() => setPayslipWage(null)}>Close</Button>
+                  <Button className="flex-1" onClick={() => window.print()}><Printer className="h-4 w-4" aria-hidden /> Print</Button>
+                </div>
+              </>
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

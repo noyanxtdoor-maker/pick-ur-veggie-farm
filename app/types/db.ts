@@ -501,7 +501,14 @@ export interface WagePayment {
   net: number;
   bonus_amount: number; // T3.3: optional bonus/incentive already folded into gross — tracked separately for audit-trail honesty
   notes: string | null;
+  created_by: string | null;
+  financial_account_id: string | null; // P2PR5: null = cash drawer
   created_at: string;
+  // P2PR6 payslip: embedded via PostgREST FK relationship, not extra round trips — null when RLS
+  // blocks the viewer's read of the joined row (e.g. a self-service employee without finance.account.read
+  // or user.read), degrading gracefully rather than erroring the whole query.
+  financial_accounts?: {name: string; provider: string | null} | null;
+  creator?: {username: string | null} | null;
 }
 
 // ── Scheduling / Calendar (P2-M6A/M6B) — branch-owned farm calendar (20.19). No GL. ──
