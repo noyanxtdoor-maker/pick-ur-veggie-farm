@@ -7,7 +7,6 @@ import {useNavigate} from 'react-router-dom';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {Activity, ArrowRight, Building2, ClipboardList, Mailbox, Plus, ShoppingCart, TrendingUp, UserPlus, Wallet} from 'lucide-react';
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
-import {supabase} from '../core/supabase/client';
 import {offlineDB} from '../core/offline/db';
 import {hydrateBranches, hydrateCompany} from '../core/offline/hydrate';
 import {useRealtimeRefresh} from '../core/offline/realtime';
@@ -35,7 +34,6 @@ export default function Dashboard() {
   const {companyId, has} = usePermissions();
   const {refreshTick} = useSync();
   const navigate = useNavigate();
-  const [members, setMembers] = useState<number | null>(null);
   const [pending, setPending] = useState<number | null>(null);
   const [report, setReport] = useState<SalesReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -44,7 +42,6 @@ export default function Dashboard() {
   useEffect(() => {if (companyId) hydrateBranches(companyId);}, [companyId]);
   useEffect(() => {if (companyId) hydrateCompany(companyId);}, [companyId]);
   const company = useLiveQuery(async () => (companyId ? offlineDB.companies.get(companyId) : undefined), [companyId]);
-  const branchCount = useLiveQuery(async () => (companyId ? offlineDB.branches.where('company_id').equals(companyId).count() : 0), [companyId], 0);
 
   // Low-Stock tile (M3B — the prototype KPI reserved in M2D): materials at/below their reorder level.
   const [lowStock, setLowStock] = useState<number | null>(null);
@@ -107,13 +104,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!companyId) return;
     if (MOCK_MODE) {
-      offlineDB.memberships.where('company_id').equals(companyId).count().then(setMembers);
       authApi.listPendingUsers().then((rows) => setPending(rows.length));
       return;
     }
     if (has('membership.read')) {
-      supabase.from('user_branch_roles').select('*', {count: 'exact', head: true}).eq('company_id', companyId)
-        .then(({count}) => setMembers(count ?? 0)).then(undefined, () => setMembers(null));
       authApi.listPendingUsers().then((rows) => setPending(rows.length)).catch(() => setPending(null));
     }
   }, [companyId, has, refreshTick]); // refreshTick: manual sync (top-bar wifi tap)
@@ -125,7 +119,7 @@ export default function Dashboard() {
       {/* Operational KPIs (prototype Home Dashboard; voided excluded, receivables = open balance) —
           revenue/receivables are accounting.read-gated (below); Low Stock stays visible either way,
           it's operational, not financial. */}
-      <div className={cn('mb-4 grid gap-4', canSeeFinancials ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2')}>
+      <div className={cn('mb-3 grid gap-2 sm:gap-3', canSeeFinancials ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2')}>
         {canSeeFinancials ? (
           <>
             <StatCard
@@ -204,11 +198,11 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Trend + period breakdowns */}
-          <div className="mb-4 grid gap-4 lg:grid-cols-12">
+          <div className="mb-3 grid gap-3 lg:grid-cols-12">
             <Card className="lg:col-span-7">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-farm-green"><TrendingUp size={20} aria-hidden /> 7-Day Sales Volume Trend</h2>
-              <p className="mb-3 text-base text-farm-muted">Daily receipts, {scopeHint}</p>
-              <div className="h-64 w-full">
+              <h2 className="flex items-center gap-2 text-base font-bold text-farm-green"><TrendingUp size={18} aria-hidden /> 7-Day Sales Volume Trend</h2>
+              <p className="mb-2 text-xs text-farm-muted">Daily receipts, {scopeHint}</p>
+              <div className="h-40 w-full sm:h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={summary?.trend7d ?? []} margin={{top: 10, right: 10, left: -10, bottom: 0}}>
                     <defs>
@@ -232,16 +226,16 @@ export default function Dashboard() {
             </Card>
 
             <Card className="lg:col-span-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-xl font-bold text-farm-green">Sales Insights</h2>
-                <div className="flex rounded-xl border border-farm-accent bg-farm-bg p-1" role="group" aria-label="Report period">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-base font-bold text-farm-green">Sales Insights</h2>
+                <div className="flex rounded-xl border border-farm-accent bg-farm-bg p-0.5" role="group" aria-label="Report period">
                   {PERIODS.map((p) => (
                     <button
                       key={p.days}
                       onClick={() => setPeriod(p.days)}
                       aria-pressed={period === p.days}
                       className={cn(
-                        'min-h-9 rounded-lg px-3 text-sm font-bold transition-colors',
+                        'min-h-8 rounded-lg px-2.5 text-xs font-bold transition-colors',
                         period === p.days ? 'bg-farm-green text-white' : 'text-farm-muted hover:text-farm-green',
                       )}
                     >
@@ -250,7 +244,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              <dl className="space-y-2 text-base">
+              <dl className="space-y-1 text-xs">
                 <div className="flex justify-between"><dt className="text-farm-muted">Paid sales</dt><dd className="font-bold text-farm-ink">{summary?.paid.count ?? 0} · {formatPeso(summary?.paid.total ?? 0)}</dd></div>
                 <div className="flex justify-between"><dt className="text-farm-muted">Pre-orders (unpaid)</dt><dd className="font-bold text-farm-ink">{summary?.preorder.count ?? 0} · {formatPeso(summary?.preorder.total ?? 0)}</dd></div>
                 <div className="flex justify-between"><dt className="text-farm-muted">Retail / Wholesale</dt><dd className="font-bold text-farm-ink">{formatPeso(summary?.retail.total ?? 0)} / {formatPeso(summary?.wholesale.total ?? 0)}</dd></div>
@@ -260,85 +254,78 @@ export default function Dashboard() {
                 <div className="flex justify-between"><dt className="text-farm-muted">Discounts given</dt><dd className="font-bold text-farm-ink">{formatPeso(summary?.discountGiven ?? 0)}</dd></div>
                 <div className="flex justify-between"><dt className="text-farm-muted">Delivery fees</dt><dd className="font-bold text-farm-ink">{formatPeso(summary?.deliveryFees ?? 0)}</dd></div>
               </dl>
-              <h3 className="mb-1 mt-4 text-sm font-black uppercase tracking-wider text-farm-muted">Top vegetables</h3>
+              <h3 className="mb-1 mt-3 text-[10px] font-black uppercase tracking-wider text-farm-muted">Top vegetables</h3>
               {summary && summary.topProducts.length > 0 ? (
                 <ul className="divide-y divide-farm-accent-soft">
                   {summary.topProducts.map((p) => (
-                    <li key={p.name} className="flex items-center justify-between py-1.5 text-base">
+                    <li key={p.name} className="flex items-center justify-between py-1 text-xs">
                       <span className="font-semibold text-farm-ink">{p.name}</span>
                       <span className="text-farm-muted">{p.kg.toFixed(2)} kg · <span className="font-bold text-farm-green">{formatPeso(p.peso)}</span></span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="py-2 text-base text-farm-muted">No sales in this period.</p>
+                <p className="py-2 text-xs text-farm-muted">No sales in this period.</p>
               )}
             </Card>
           </div>
 
           {/* Recent stream + branch/cashier breakdowns */}
-          <div className="mb-6 grid gap-4 lg:grid-cols-12">
+          <div className="mb-3 grid gap-3 lg:grid-cols-12">
             <Card className="lg:col-span-7">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-farm-green"><Activity size={20} aria-hidden /> Recent Sales</h2>
-                <button onClick={() => navigate('/pos')} className="flex items-center gap-1 text-base font-bold text-farm-green hover:underline">
-                  View Journal <ArrowRight size={16} aria-hidden />
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-base font-bold text-farm-green"><Activity size={18} aria-hidden /> Recent Sales</h2>
+                <button onClick={() => navigate('/pos')} className="flex items-center gap-1 text-xs font-bold text-farm-green hover:underline">
+                  View Journal <ArrowRight size={14} aria-hidden />
                 </button>
               </div>
               {recent.length > 0 ? (
                 <ul className="divide-y divide-dashed divide-farm-accent-soft">
                   {recent.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <li key={s.id} className="flex items-center justify-between gap-3 py-1.5">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-bold text-farm-ink">
+                        <p className="truncate text-xs font-bold text-farm-ink">
                           {s.lines.length > 0 ? s.lines.map((l) => `${l.name} (${l.weight_kg}kg)`).join(', ') : `Slip ${s.invoice_number ?? '(pending)'}`}
                         </p>
-                        <p className="text-sm text-farm-muted">Slip #{s.invoice_number ?? '—'} · {new Date(s.created_at).toLocaleString()}</p>
+                        <p className="text-[10px] text-farm-muted">Slip #{s.invoice_number ?? '—'} · {new Date(s.created_at).toLocaleString()}</p>
                       </div>
-                      <div className="flex flex-shrink-0 items-center gap-3">
-                        <span className="text-base font-black text-farm-green">{formatPeso(s.total)}</span>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <span className="text-xs font-black text-farm-green">{formatPeso(s.total)}</span>
                         <StatusBadge status={s.status} />
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="py-4 text-base text-farm-muted">No sales recorded yet — weigh your first sale to see it here.</p>
+                <p className="py-4 text-xs text-farm-muted">No sales recorded yet — weigh your first sale to see it here.</p>
               )}
             </Card>
 
-            <div className="grid gap-4 lg:col-span-5">
-              <Card>
-                <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-farm-muted">Sales by branch ({PERIODS.find((p) => p.days === period)?.label})</h3>
-                {summary && summary.byBranch.length > 0 ? (
-                  <ul className="divide-y divide-farm-accent-soft">
-                    {summary.byBranch.map((b) => (
-                      <li key={b.branchId} className="flex items-center justify-between py-1.5 text-base">
-                        <span className="font-semibold text-farm-ink">{report?.branchNames[b.branchId] ?? `Branch …${b.branchId.slice(-4)}`}</span>
-                        <span className="text-farm-muted">{b.orders} · <span className="font-bold text-farm-green">{formatPeso(b.total)}</span></span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="py-2 text-base text-farm-muted">No sales in this period.</p>
-                )}
-              </Card>
-              <Card>
-                <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-farm-muted">Sales by cashier ({PERIODS.find((p) => p.days === period)?.label})</h3>
-                {summary && summary.byCashier.length > 0 ? (
-                  <ul className="divide-y divide-farm-accent-soft">
-                    {summary.byCashier.map((c) => (
-                      <li key={c.cashier ?? 'device'} className="flex items-center justify-between py-1.5 text-base">
-                        <span className="font-semibold text-farm-ink">{cashierLabel(c.cashier)}</span>
-                        <span className="text-farm-muted">{c.orders} · <span className="font-bold text-farm-green">{formatPeso(c.total)}</span></span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="py-2 text-base text-farm-muted">No sales in this period.</p>
-                )}
-              </Card>
-            </div>
+            {/* Owner report (2026-07-21): "too long... like a facebook feed" — branch and cashier breakdowns
+                merged into one card (Stitch's own mockup for this screen has neither as separate cards;
+                the deep-dive numbers still live in the full POS journal via "View Journal" above). Data
+                unchanged, just one card's worth of border/padding/heading overhead removed. */}
+            <Card className="lg:col-span-5">
+              <h3 className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-farm-muted">By branch &amp; cashier ({PERIODS.find((p) => p.days === period)?.label})</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <ul className="space-y-1">
+                  {summary && summary.byBranch.length > 0 ? summary.byBranch.map((b) => (
+                    <li key={b.branchId} className="text-xs">
+                      <span className="block truncate font-semibold text-farm-ink">{report?.branchNames[b.branchId] ?? `Branch …${b.branchId.slice(-4)}`}</span>
+                      <span className="text-farm-muted">{b.orders} · <span className="font-bold text-farm-green">{formatPeso(b.total)}</span></span>
+                    </li>
+                  )) : <li className="text-xs text-farm-muted">No sales yet.</li>}
+                </ul>
+                <ul className="space-y-1 border-l border-farm-accent-soft pl-3">
+                  {summary && summary.byCashier.length > 0 ? summary.byCashier.map((c) => (
+                    <li key={c.cashier ?? 'device'} className="text-xs">
+                      <span className="block truncate font-semibold text-farm-ink">{cashierLabel(c.cashier)}</span>
+                      <span className="text-farm-muted">{c.orders} · <span className="font-bold text-farm-green">{formatPeso(c.total)}</span></span>
+                    </li>
+                  )) : <li className="text-xs text-farm-muted">No sales yet.</li>}
+                </ul>
+              </div>
+            </Card>
           </div>
         </>
       )}
@@ -351,16 +338,17 @@ export default function Dashboard() {
           shortcut duplicate. */}
       {has('membership.read') ? (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Owner report (2026-07-21): trimmed from 4 stat cards to 2 — matches Stitch's own "System
+              Status" treatment for this screen (Company + Pending only). Branches/Members counts are one
+              tap away in Organization → Branches/Members, not urgent daily-glance numbers. */}
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:gap-3">
             <StatCard label="Company" value={company ? <StatusBadge status={company.status} /> : '—'} hint={company?.company_code} />
-            <StatCard label="Branches" value={branchCount ?? 0} hint={company?.base_currency_code} />
-            <StatCard label="Members" value={members ?? '—'} />
             <StatCard label="Pending approvals" value={pending ?? '—'} />
           </div>
 
           <Card>
-            <h2 className="mb-3 text-xl font-bold text-farm-green">Quick actions</h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <h2 className="mb-2 text-base font-bold text-farm-green">Quick actions</h2>
+            <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
               <ActionTile label="Weigh a Sale" icon={<ShoppingCart size={28} aria-hidden />} disabled={!has('pos.sell')} onClick={() => navigate('/pos')} />
               <ActionTile label="Open Company" icon={<Building2 size={28} aria-hidden />} onClick={() => navigate('/organization/company')} />
               <ActionTile label="Create Branch" icon={<Plus size={28} aria-hidden />} disabled={!has('branch.manage')} onClick={() => navigate('/organization/branches')} />

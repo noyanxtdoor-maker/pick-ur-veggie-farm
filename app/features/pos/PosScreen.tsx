@@ -691,69 +691,57 @@ export default function PosScreen() {
             <Button variant="secondary" className="w-full" onClick={() => {setJournalDate(''); setJournalType('all'); setJournalStatus('all');}}>Reset Filters</Button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-farm-accent-soft text-left text-xs font-bold tracking-wider text-farm-muted">
-                <th className="pb-3">Datetime</th>
-                <th className="pb-3">Slip #</th>
-                <th className="pb-3">Type</th>
-                <th className="pb-3">Posted By</th>
-                <th className="pb-3">Items / Note</th>
-                <th className="pb-3 text-right">Total</th>
-                <th className="pb-3 text-center">Status</th>
-                <th className="pb-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-farm-accent-soft text-sm">
-              {(invoices ?? [])
-                .filter((t) => (journalDate ? t.created_at.slice(0, 10) === journalDate : true))
-                .filter((t) => (journalType === 'all' ? true : (t.sale_type ?? 'retail') === journalType))
-                .filter((t) => (journalStatus === 'all' ? true : t.status === journalStatus))
-                .map((t) => (
-                  <tr key={t.id} className={cn('hover:bg-farm-bg/40', t.status === 'Voided' && 'text-farm-muted line-through')}>
-                    <td className="tabular py-3 text-xs">{new Date(t.created_at).toLocaleString('en-PH')}</td>
-                    <td className="py-3 font-mono font-bold">{t.invoice_number != null ? `#${String(t.invoice_number).padStart(5, '0')}` : '—'}</td>
-                    <td className="py-3">
-                      <span className={cn('rounded px-2 py-0.5 text-[10px] font-bold uppercase no-underline', (t.sale_type ?? 'retail') === 'retail' ? 'bg-farm-accent-soft text-farm-green' : 'bg-amber-100 text-amber-800')}>
-                        {t.sale_type ?? 'retail'}
-                      </span>
-                    </td>
-                    <td className="py-3 font-mono text-xs">{t.posted_by ?? '—'}</td>
-                    <td className="max-w-xs truncate py-3 text-xs text-farm-muted" title={t.note ?? undefined}>{t.note ? <span className="italic">{t.note}</span> : t.lines.map((l) => l.name).join(', ')}</td>
-                    <td className="tabular py-3 text-right font-bold">{formatPeso(t.total)}</td>
-                    <td className="py-3 text-center">
-                      <span className={cn('rounded px-2 py-0.5 text-xs font-bold no-underline',
-                        t.status === 'Paid' ? 'bg-farm-accent-soft text-farm-green'
-                        : t.status === 'Unpaid' ? 'bg-amber-100 text-amber-800'
-                        : t.status === 'Voided' ? 'bg-red-100 text-farm-danger'
-                        : 'bg-blue-100 text-blue-900')}>
-                        {t.status === 'Unpaid' ? 'Pre-order / Unpaid' : t.status === 'PendingSync' ? 'Pending Sync' : t.status.toUpperCase() === 'VOIDED' ? 'VOID' : t.status}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="flex justify-end gap-1.5">
-                        {t.status === 'Unpaid' && canSettle ? (
-                          <button onClick={() => {setSettleTarget(t); setCash(''); setPayAccountId(''); setPane('settle');}} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100">Mark Paid</button>
-                        ) : null}
-                        {/* P2N2 (2026-07-19): filing is pos.sell-gated (anyone can request); approving is
-                            pos.void-gated on the Approvals screen, by someone other than the requester. */}
-                        {t.status !== 'Voided' && t.status !== 'PendingSync' && canSell ? (
-                          <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Request Void</button>
-                        ) : null}
-                        <button onClick={() => {setLastSale({invoice: t, provisional: false}); setPane('receipt');}} className="rounded border border-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" aria-label={`Print slip #${t.invoice_number ?? ''}`}>
-                          <Printer className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                        {t.status !== 'Voided' && !canSell && !canSettle ? <Lock className="h-3.5 w-3.5 text-farm-accent" aria-hidden /> : null}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              {(invoices ?? []).length === 0 ? (
-                <tr><td colSpan={8} className="py-8 text-center text-sm italic text-farm-muted">No sales recorded on this device yet.</td></tr>
-              ) : null}
-            </tbody>
-          </table>
+        {/* Card list, not a table (owner directive 2026-07-21, mirroring the Stitch mobile-adaptation
+            pass for this exact screen — its own mockup uses a card list here too). Every column and
+            every conditional action button is unchanged from the table version, just re-laid-out. */}
+        <div className="space-y-2">
+          {(invoices ?? [])
+            .filter((t) => (journalDate ? t.created_at.slice(0, 10) === journalDate : true))
+            .filter((t) => (journalType === 'all' ? true : (t.sale_type ?? 'retail') === journalType))
+            .filter((t) => (journalStatus === 'all' ? true : t.status === journalStatus))
+            .map((t) => (
+              <div key={t.id} className={cn('rounded-xl border border-farm-accent-soft bg-farm-card p-3', t.status === 'Voided' && 'opacity-60')}>
+                <div className="mb-1.5 flex items-center justify-between gap-2 border-b border-dashed border-farm-accent-soft pb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn('font-mono text-xs font-bold', t.status === 'Voided' && 'line-through')}>{t.invoice_number != null ? `#${String(t.invoice_number).padStart(5, '0')}` : '—'}</span>
+                    <span className={cn('rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', (t.sale_type ?? 'retail') === 'retail' ? 'bg-farm-accent-soft text-farm-green' : 'bg-amber-100 text-amber-800')}>
+                      {t.sale_type ?? 'retail'}
+                    </span>
+                  </span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-bold uppercase',
+                    t.status === 'Paid' ? 'bg-farm-accent-soft text-farm-green'
+                    : t.status === 'Unpaid' ? 'bg-amber-100 text-amber-800'
+                    : t.status === 'Voided' ? 'bg-red-100 text-farm-danger'
+                    : 'bg-blue-100 text-blue-900')}>
+                    {t.status === 'Unpaid' ? 'Pre-order' : t.status === 'PendingSync' ? 'Pending Sync' : t.status}
+                  </span>
+                </div>
+                <div className={cn('mb-2 flex items-end justify-between gap-2', t.status === 'Voided' && 'line-through')}>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-farm-ink" title={t.note ?? undefined}>{t.note ? <span className="italic">{t.note}</span> : t.lines.map((l) => l.name).join(', ')}</p>
+                    <p className="tabular text-[10px] text-farm-muted">{new Date(t.created_at).toLocaleString('en-PH')} · {t.posted_by ?? '—'}</p>
+                  </div>
+                  <span className="tabular flex-shrink-0 text-sm font-black text-farm-green">{formatPeso(t.total)}</span>
+                </div>
+                <div className="flex justify-end gap-1.5 border-t border-farm-accent-soft pt-1.5">
+                  {t.status === 'Unpaid' && canSettle ? (
+                    <button onClick={() => {setSettleTarget(t); setCash(''); setPayAccountId(''); setPane('settle');}} className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100">Mark Paid</button>
+                  ) : null}
+                  {/* P2N2 (2026-07-19): filing is pos.sell-gated (anyone can request); approving is
+                      pos.void-gated on the Approvals screen, by someone other than the requester. */}
+                  {t.status !== 'Voided' && t.status !== 'PendingSync' && canSell ? (
+                    <button onClick={() => {setVoidTarget(t); setVoidReason('');}} className="rounded px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Request Void</button>
+                  ) : null}
+                  <button onClick={() => {setLastSale({invoice: t, provisional: false}); setPane('receipt');}} className="rounded border border-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" aria-label={`Print slip #${t.invoice_number ?? ''}`}>
+                    <Printer className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  {t.status !== 'Voided' && !canSell && !canSettle ? <Lock className="h-3.5 w-3.5 text-farm-accent" aria-hidden /> : null}
+                </div>
+              </div>
+            ))}
+          {(invoices ?? []).length === 0 ? (
+            <p className="py-8 text-center text-sm italic text-farm-muted">No sales recorded on this device yet.</p>
+          ) : null}
         </div>
       </Card>
 

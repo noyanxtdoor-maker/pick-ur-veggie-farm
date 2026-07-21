@@ -11,20 +11,25 @@ import {offlineDB} from '../offline/db';
 import {uuidv7} from '../offline/uuidv7';
 import type {OutboxItem} from '../offline/db';
 import type {SendResult, Sender} from '../offline/queue';
-import type {Branch, Company, FinishedGood, Invitation, Membership, Permission, PermissionKey, Product, Role} from '../../types/db';
+import type {Branch, Company, Employee, FinishedGood, Invitation, Membership, PosInvoice, Permission, PermissionKey, Product, Role} from '../../types/db';
 
 export const MOCK_MODE: boolean =
   !isSupabaseConfigured || (import.meta.env.VITE_USE_MOCK as string | undefined) === 'true';
 
+// Owner report (2026-07-21): this list had drifted behind types/db.ts's PermissionKey union — 9 keys
+// added by later features (P1C3/P1D/P1O/P2N2.1/P2-M3B/T3.1/P2PO1) were never added here, so the demo
+// owner identity silently couldn't reach Approvals, Vendors, or a handful of other screens in mock
+// mode. Keep this in sync with PermissionKey — the mock owner should always hold the full catalog.
 const ALL_KEYS: PermissionKey[] = [
   'user.read', 'membership.read', 'audit.read', 'company.manage', 'branch.manage',
-  'role.manage', 'user.invite', 'membership.manage', 'crop.manage',
-  'product.manage', 'inventory.opening', 'inventory.adjust', 'pos.sell',
-  'pos.settle', 'pos.void', 'cash.session', 'inventory.purchase', 'equipment.manage',
+  'role.manage', 'user.invite', 'membership.manage', 'membership.approve', 'crop.manage',
+  'product.manage', 'product.remove', 'inventory.opening', 'inventory.adjust', 'pos.sell',
+  'pos.settle', 'pos.void', 'pos.void.self', 'cash.session', 'inventory.purchase', 'inventory.reports.read', 'equipment.manage',
   'accounting.read', 'accounting.manage', 'payroll.read', 'payroll.manage',
   'schedule.read', 'schedule.manage', 'project.read', 'project.manage',
   'customer.read', 'customer.manage', 'schedule.read_private',
-  'finance.account.read', 'finance.account.manage',
+  'finance.account.read', 'finance.account.manage', 'position.manage', 'job_title.manage',
+  'vendor.read', 'vendor.manage', 'purchase_order.request',
 ];
 
 // Fixed, valid-format UUIDs so the create forms (which validate ids as uuid) accept the seeded selections.
@@ -57,13 +62,26 @@ export async function seedMockData(): Promise<void> {
     {id: DEMO.branchA, company_id: DEMO.companyId, branch_code: 'BR-A1', name: 'North Field', status: 'Active', created_at: now, updated_at: now},
     {id: DEMO.branchB, company_id: DEMO.companyId, branch_code: 'BR-A2', name: 'South Field', status: 'Active', created_at: now, updated_at: now},
   ];
+  const coOwnerRole = '00000000-0000-7000-8000-0000000000b3';
+  const adminRole = '00000000-0000-7000-8000-0000000000b4';
   const roles: Role[] = [
     {id: DEMO.ownerRole, company_id: DEMO.companyId, role_key: 'OWNER', description: 'Owner', status: 'Active', rank: 50, created_at: now, updated_at: now},
+    {id: coOwnerRole, company_id: DEMO.companyId, role_key: 'CO_OWNER', description: 'Co-Owner', status: 'Active', rank: 40, created_at: now, updated_at: now},
+    {id: adminRole, company_id: DEMO.companyId, role_key: 'ADMIN', description: 'Administrator', status: 'Active', rank: 30, created_at: now, updated_at: now},
     {id: DEMO.workerRole, company_id: DEMO.companyId, role_key: 'WORKER', description: 'Field worker', status: 'Active', rank: 10, created_at: now, updated_at: now},
   ];
   const permissions: Permission[] = ALL_KEYS.map((k, i) => ({id: `perm-${i}`, permission_key: k, description: k, status: 'Active'}));
+  // Extra demo members (owner report 2026-07-21: "confirm one card per member") — a realistic spread of
+  // roles and statuses so the Approvals card list, role-reassign dropdown, and Revoke/Reactivate/Archive
+  // actions all have something real to show, not just the single seeded owner.
+  const coOwnerUserId = '00000000-0000-7000-8000-0000000000c2';
+  const adminUserId = '00000000-0000-7000-8000-0000000000c3';
+  const revokedUserId = '00000000-0000-7000-8000-0000000000c4';
   const memberships: Membership[] = [
     {id: 'demo-mem-1', user_id: DEMO.userId, company_id: DEMO.companyId, branch_id: DEMO.branchA, role_id: DEMO.ownerRole, assignment_status: 'Active', expires_at: null, created_at: now, updated_at: now},
+    {id: 'demo-mem-2', user_id: coOwnerUserId, company_id: DEMO.companyId, branch_id: DEMO.branchA, role_id: coOwnerRole, assignment_status: 'Active', expires_at: null, created_at: now, updated_at: now},
+    {id: 'demo-mem-3', user_id: adminUserId, company_id: DEMO.companyId, branch_id: DEMO.branchB, role_id: adminRole, assignment_status: 'Active', expires_at: null, created_at: now, updated_at: now},
+    {id: 'demo-mem-4', user_id: revokedUserId, company_id: DEMO.companyId, branch_id: DEMO.branchA, role_id: DEMO.workerRole, assignment_status: 'Expired', expires_at: now, created_at: now, updated_at: now},
   ];
   const invitations: Invitation[] = [
     {id: 'demo-inv-1', company_id: DEMO.companyId, branch_id: DEMO.branchA, role_id: DEMO.workerRole, email: 'invitee@demo.local', token: 'demo-token', status: 'Pending', invited_by: DEMO.userId, accepted_user_id: null, expires_at: expires, created_at: now, updated_at: now},
@@ -90,6 +108,68 @@ export async function seedMockData(): Promise<void> {
     available: 25,
   }));
 
+  // Owner report (2026-07-21): "create a mockup data ... every possible situation/scenario" — a 7-day
+  // spread of sales in every status the app actually renders (Paid retail, Voided, Unpaid pre-order,
+  // wholesale/bulk), so the Dashboard/POS journal/reports read like a real working farm, not an empty
+  // demo shell. day(n) = n days ago at a plausible market hour.
+  const day = (daysAgo: number, hour: number, min: number): string => {
+    const d = new Date(Date.now() - daysAgo * 86_400_000);
+    d.setHours(hour, min, 0, 0);
+    return d.toISOString();
+  };
+  const line = (p: Product, kg: number): PosInvoice['lines'][number] => ({
+    product_id: p.id, finished_goods_batch_id: `00000000-0000-7000-8000-0000000000e${products.indexOf(p) + 1}`,
+    name: p.name, weight_kg: kg, unit_price: Math.round(p.retail_per_kg * 0.9 * 100) / 100, retail_per_kg: p.retail_per_kg,
+    line_total: Math.round(kg * p.retail_per_kg * 0.9 * 100) / 100, cost_per_unit: Math.round(p.retail_per_kg * 0.4 * 100) / 100,
+  });
+  const [lettuce, tomato, carrot, kangkong] = products as [Product, Product, Product, Product];
+  const posInvoices: PosInvoice[] = [
+    {id: '00000000-0000-7000-8000-0000000000g1', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 1,
+      lines: [line(lettuce, 3)], subtotal: 405, discount: 0, delivery_fee: 0, total: 405, retail_total: 450, saved: 45,
+      sale_type: 'retail', posted_by: 'Demo Owner', tender_cash: 500, change_amount: 95, note: null, customer_name: null,
+      status: 'Paid', created_at: day(6, 8, 12)},
+    {id: '00000000-0000-7000-8000-0000000000g2', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 2,
+      lines: [line(tomato, 5)], subtotal: 540, discount: 0, delivery_fee: 0, total: 540, retail_total: 600, saved: 60,
+      sale_type: 'retail', posted_by: 'Arlie Gomez', tender_cash: 540, change_amount: 0, note: null, customer_name: 'Aling Rosa',
+      status: 'Paid', created_at: day(5, 9, 30)},
+    {id: '00000000-0000-7000-8000-0000000000g3', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 3,
+      lines: [line(carrot, 2)], subtotal: 162, discount: 0, delivery_fee: 0, total: 162, retail_total: 180, saved: 18,
+      sale_type: 'retail', posted_by: 'Demo Owner', tender_cash: 200, change_amount: 38, note: 'Cancelled by customer',
+      customer_name: null, status: 'Voided', created_at: day(4, 14, 5)},
+    {id: '00000000-0000-7000-8000-0000000000g4', company_id: DEMO.companyId, branch_id: DEMO.branchB, invoice_number: 4,
+      lines: [line(kangkong, 8), line(lettuce, 2)], subtotal: 702, discount: 70.2, delivery_fee: 50, total: 681.8,
+      retail_total: 780, saved: 148.2, sale_type: 'retail', posted_by: 'Maria Santos', tender_cash: 0, change_amount: 0,
+      note: 'Pre-order for Saturday market', customer_name: 'Mang Tomas Sari-Sari', status: 'Unpaid', created_at: day(3, 7, 40)},
+    {id: '00000000-0000-7000-8000-0000000000g5', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 5,
+      lines: [{...line(lettuce, 0), weight_kg: null, unit_price: 380, line_total: 380}], subtotal: 380, discount: 0,
+      delivery_fee: 0, total: 380, sale_type: 'wholesale', posted_by: 'Demo Owner', tender_cash: 400, change_amount: 20,
+      note: 'Bulk crate — Skip Weigh', customer_name: null, status: 'Paid', created_at: day(2, 6, 55)},
+    {id: '00000000-0000-7000-8000-0000000000g6', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 6,
+      lines: [line(tomato, 4)], subtotal: 432, discount: 0, delivery_fee: 0, total: 432, retail_total: 480, saved: 48,
+      sale_type: 'retail', posted_by: 'Arlie Gomez', tender_cash: 500, change_amount: 68, note: null, customer_name: null,
+      status: 'Paid', created_at: day(1, 10, 15)},
+    {id: '00000000-0000-7000-8000-0000000000g7', company_id: DEMO.companyId, branch_id: DEMO.branchB, invoice_number: 7,
+      lines: [line(carrot, 6)], subtotal: 486, discount: 0, delivery_fee: 0, total: 486, retail_total: 540, saved: 54,
+      sale_type: 'retail', posted_by: 'Maria Santos', tender_cash: 500, change_amount: 14, note: null, customer_name: null,
+      status: 'Paid', created_at: day(0, 7, 20)},
+    {id: '00000000-0000-7000-8000-0000000000g8', company_id: DEMO.companyId, branch_id: DEMO.branchA, invoice_number: 8,
+      lines: [line(kangkong, 3)], subtotal: 162, discount: 0, delivery_fee: 0, total: 162, retail_total: 180, saved: 18,
+      sale_type: 'retail', posted_by: 'Demo Owner', tender_cash: 200, change_amount: 38, note: null, customer_name: null,
+      status: 'Paid', created_at: day(0, 8, 45)},
+  ];
+
+  // Demo payroll roster (feeds Salaries & Payroll with something real — two workers, one with an
+  // outstanding advance so the roster's pill + the Disburse Wage deduction preview both have data).
+  const workerPosition = '00000000-0000-7000-8000-0000000000i1';
+  const employees: Employee[] = [
+    {id: '00000000-0000-7000-8000-0000000000h1', company_id: DEMO.companyId, employee_code: 'EMP-0001', name: 'Ricardo Dela Cruz',
+      position_id: workerPosition, daily_rate: 550, date_hired: day(120, 0, 0).slice(0, 10), status: 'Active', user_id: null,
+      created_at: now, updated_at: now, advance_balance: 500},
+    {id: '00000000-0000-7000-8000-0000000000h2', company_id: DEMO.companyId, employee_code: 'EMP-0002', name: 'Josefina Reyes',
+      position_id: workerPosition, daily_rate: 600, date_hired: day(45, 0, 0).slice(0, 10), status: 'Active', user_id: null,
+      created_at: now, updated_at: now, advance_balance: 0},
+  ];
+
   await offlineDB.companies.put(company);
   await offlineDB.branches.bulkPut(branches);
   await offlineDB.roles.bulkPut(roles);
@@ -98,10 +178,17 @@ export async function seedMockData(): Promise<void> {
   await offlineDB.invitations.bulkPut(invitations);
   await offlineDB.products.bulkPut(products);
   await offlineDB.finishedGoods.bulkPut(finishedGoods);
+  await offlineDB.posInvoices.bulkPut(posInvoices);
+  await offlineDB.employees.bulkPut(employees);
   await offlineDB.meta.bulkPut([
     {key: 'perm-snapshot', value: {companyId: DEMO.companyId, keys: ALL_KEYS}},
     {key: 'active-company', value: DEMO.companyId},
-    {key: 'mock-users', value: [{id: DEMO.userId, display_name: 'Demo Owner'}] satisfies MockUser[]},
+    {key: 'mock-users', value: [
+      {id: DEMO.userId, display_name: 'Demo Owner'},
+      {id: coOwnerUserId, display_name: 'Arlie Gomez'},
+      {id: adminUserId, display_name: 'Maria Santos'},
+      {id: revokedUserId, display_name: 'J. Dela Cruz'},
+    ] satisfies MockUser[]},
   ]);
 }
 
