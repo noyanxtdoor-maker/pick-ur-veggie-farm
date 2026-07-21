@@ -633,42 +633,36 @@ export default function PayrollScreen() {
         ) : employees.length === 0 ? (
           <EmptyState title="No hired workers yet" hint="Click 'Hire Worker' to add farm hands and start paying wages." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-farm-accent-soft text-left text-xs font-bold tracking-wider text-farm-muted">
-                  <th className="pb-3">Worker</th><th className="pb-3">Position</th><th className="pb-3 text-right">Daily Rate</th>
-                  <th className="pb-3 text-right">Undeducted Advance</th><th className="pb-3">Hired</th><th className="pb-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-farm-accent-soft">
-                {employees.map((e) => (
-                  <tr key={e.id} className={cn('hover:bg-farm-bg/30', e.status !== 'Active' && 'opacity-50')}>
-                    <td className="py-3"><span className="font-bold text-farm-green">{e.name}</span> <span className="font-mono text-[10px] text-farm-muted">{e.employee_code}</span></td>
-                    <td className="py-3 font-semibold text-farm-muted">{e.position_id ? (positionLabel.get(e.position_id) ?? '—') : '—'}</td>
-                    <td className="tabular py-3 text-right font-semibold">{formatPeso(e.daily_rate)}/day</td>
-                    <td className="py-3 text-right">
-                      {e.advance_balance > 0
-                        ? <span className="tabular rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-bold text-farm-danger">{formatPeso(e.advance_balance)}</span>
-                        : <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Cleared</span>}
-                    </td>
-                    <td className="py-3 font-mono text-xs text-farm-muted">{e.date_hired}</td>
-                    <td className="py-3 text-right">
-                      {e.status === 'Active' ? (
-                        <span className="flex justify-end gap-1.5">
-                          {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
-                          {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes(''); setWPayAccountId('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Request Disbursement</button> : null}
-                          {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
-                          {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-end gap-2 text-xs italic text-farm-muted">Resigned{canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, true); notify(`${e.name} reactivated`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded px-2 py-1 font-bold text-farm-green not-italic hover:bg-farm-accent-soft">Reactivate</button> : null}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          // Card list, not a table (owner directive 2026-07-21, same mobile-adaptation pass as
+          // Approvals/POS): every field and action below is unchanged from the table version.
+          <div className="space-y-2">
+            {employees.map((e) => (
+              <div key={e.id} className={cn('rounded-xl border border-farm-accent-soft bg-farm-card p-3', e.status !== 'Active' && 'opacity-50')}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span><span className="font-bold text-farm-green">{e.name}</span> <span className="font-mono text-[10px] text-farm-muted">{e.employee_code}</span></span>
+                  {e.advance_balance > 0
+                    ? <span className="tabular flex-shrink-0 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-farm-danger">{formatPeso(e.advance_balance)}</span>
+                    : <span className="flex-shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800">Cleared</span>}
+                </div>
+                <div className="mb-2 grid grid-cols-3 gap-2 text-xs">
+                  <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Position</p><p className="font-semibold text-farm-ink">{e.position_id ? (positionLabel.get(e.position_id) ?? '—') : '—'}</p></div>
+                  <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Daily Rate</p><p className="tabular font-semibold text-farm-ink">{formatPeso(e.daily_rate)}/day</p></div>
+                  <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Hired</p><p className="font-mono text-farm-muted">{e.date_hired}</p></div>
+                </div>
+                {e.status === 'Active' ? (
+                  <div className="flex flex-wrap gap-1.5 border-t border-farm-accent-soft pt-2">
+                    {canManage ? <button onClick={() => {setAdvEmp(e); setAdvAmt(''); setAdvNote('');}} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Log Advance</button> : null}
+                    {canManage ? <button onClick={() => {setWageEmp(e); setWDays('1'); setWMode('days'); setWAmount(''); setWDed(String(e.advance_balance)); setWBonus('0'); setWPeriod(''); setWNotes(''); setWPayAccountId('');}} className="rounded-lg bg-farm-green px-2.5 py-1 text-xs font-bold text-white hover:bg-farm-green-700">Request Disbursement</button> : null}
+                    {canManage ? <button onClick={() => {setLinkEmp(e); setLinkUserId(e.user_id ?? '');}} title={e.user_id ? 'Linked to an app user — self-service payroll view enabled' : 'Link to an app user so they can see their own payroll'} className={cn('rounded-lg border px-2 py-1 text-xs font-bold', e.user_id ? 'border-farm-green bg-farm-accent-soft text-farm-green' : 'border-farm-accent bg-farm-bg text-farm-muted hover:text-farm-green')}><Link2 className="inline h-3.5 w-3.5" aria-hidden /></button> : null}
+                    {canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, false); notify(`${e.name} marked resigned`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded-lg px-2 py-1 text-xs font-semibold text-farm-danger hover:bg-red-50">Resign</button> : null}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 border-t border-farm-accent-soft pt-2 text-xs italic text-farm-muted">
+                    Resigned{canManage ? <button onClick={async () => {setBusy(true); try {await payrollApi.setActive(e, true); notify(`${e.name} reactivated`); reload();} catch (err) {notify(err instanceof Error ? err.message : 'Failed', 'error');} finally {setBusy(false);}}} className="rounded px-2 py-1 font-bold text-farm-green not-italic hover:bg-farm-accent-soft">Reactivate</button> : null}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Card>
