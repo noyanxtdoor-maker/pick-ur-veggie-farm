@@ -1,5 +1,10 @@
-// Shared UI primitives (shadcn-style: Tailwind + owned components). Sized to M1B field tokens:
-// primary target ≥ 56px (min-h-14), body ≥ 18px (text-lg), ≥ medium weight, high contrast (U2).
+// Shared UI primitives (shadcn-style: Tailwind + owned components).
+// Tap targets stay ≥56px (min-h-14) per the M1B field spec (B1) — this app is operated outdoors,
+// sometimes gloved, and that floor is unchanged today. Owner directive (2026-07-21, informed by a
+// Stitch mobile-adaptation pass): the TEXT scale is now tuned for phone-width density — labels/hints/
+// captions run 10-13px, KPI figures ~20px — while interactive button/tile label text keeps a 16px
+// floor (matches this repo's own iOS-zoom-prevention rule for form inputs in index.css, not shrunk
+// further). Desktop (sm:+) sizes up a step from the mobile baseline, same pattern PageHeader already used.
 import type {ButtonHTMLAttributes, ReactNode} from 'react';
 
 export function cn(...parts: Array<string | false | null | undefined>): string {
@@ -25,7 +30,7 @@ export function Button({
     <button
       {...rest}
       className={cn(
-        'inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-5 text-lg font-semibold',
+        'inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold',
         'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'disabled:cursor-not-allowed disabled:opacity-50',
         VARIANT[variant],
@@ -44,9 +49,9 @@ export function Card({className, children}: {className?: string; children: React
 export function StatCard({label, value, hint}: {label: string; value: ReactNode; hint?: string}) {
   return (
     <Card className="flex flex-col gap-1">
-      <span className="text-xs font-black uppercase tracking-wider text-farm-muted">{label}</span>
-      <span className="tabular text-4xl font-black text-farm-ink">{value}</span>
-      {hint ? <span className="text-base text-farm-muted">{hint}</span> : null}
+      <span className="text-[10px] font-black uppercase tracking-wider text-farm-muted">{label}</span>
+      <span className="tabular text-[20px] font-black text-farm-ink">{value}</span>
+      {hint ? <span className="text-[11px] text-farm-muted">{hint}</span> : null}
     </Card>
   );
 }
@@ -63,7 +68,7 @@ export function ActionTile({
       disabled={disabled}
       className={cn(
         'flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-farm-accent bg-farm-accent-soft p-4',
-        'text-lg font-bold text-farm-green transition-colors hover:bg-farm-accent/50',
+        'text-[13px] font-bold text-farm-green transition-colors hover:bg-farm-accent/50',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-farm-green-500',
         'disabled:cursor-not-allowed disabled:opacity-50',
       )}
@@ -85,8 +90,8 @@ export function PageHeader({title, subtitle, action}: {title: string; subtitle?:
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div>
-        <h1 className="text-2xl font-black text-farm-ink sm:text-3xl">{title}</h1>
-        {subtitle ? <p className="mt-1 text-base text-farm-muted sm:text-lg">{subtitle}</p> : null}
+        <h1 className="text-xl font-black text-farm-ink sm:text-2xl">{title}</h1>
+        {subtitle ? <p className="mt-1 text-xs text-farm-muted sm:text-sm">{subtitle}</p> : null}
       </div>
       {action}
     </div>

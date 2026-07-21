@@ -28,6 +28,11 @@ const THEME_META: Record<ThemeId, {name: string; desc: string; swatch: string}> 
 // spec §7). Client state only; turning it off leaves the whole ERP untouched (spec §1 failure mode).
 function CopilotCard() {
   const {notify} = useToast();
+  // Owner report (2026-07-21): the LM Studio server URL + model id were visible to every tier — only
+  // the on/off toggle should be. Reusing `membership.read` as the admin+ proxy (same pattern Dashboard's
+  // org widgets already use — per the P1C 5-tier seed, employee/operator don't hold it, admin+ does).
+  const {has} = usePermissions();
+  const canConfigure = has('membership.read');
   const [enabled, setEnabled] = usePref('copilot_enabled', '1');
   const [lmUrl, setLmUrl] = usePref('copilot_lm_url', 'http://localhost:1234');
   const [model, setModel] = usePref('copilot_model', 'owner-default');
@@ -44,14 +49,18 @@ function CopilotCard() {
             onChange={(e) => {setEnabled(e.target.checked ? '1' : '0'); notify(e.target.checked ? 'Copilot enabled' : 'Copilot off — ERP unaffected');}} />
           Enable Copilot
         </label>
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-url">LM Studio server URL</label>
-          <input id="cp-url" value={lmUrl} onChange={(e) => setLmUrl(e.target.value)} placeholder="http://localhost:1234" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
-        </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-model">Model id <span className="normal-case text-farm-muted/70">(as shown in LM Studio)</span></label>
-          <input id="cp-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. google/gemma-3-4b" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
-        </div>
+        {canConfigure ? (
+          <>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-url">LM Studio server URL</label>
+              <input id="cp-url" value={lmUrl} onChange={(e) => setLmUrl(e.target.value)} placeholder="http://localhost:1234" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase text-farm-muted" htmlFor="cp-model">Model id <span className="normal-case text-farm-muted/70">(as shown in LM Studio)</span></label>
+              <input id="cp-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. google/gemma-3-4b" className="min-h-11 w-full rounded-lg border border-farm-accent-soft bg-farm-bg px-3 font-mono text-xs" />
+            </div>
+          </>
+        ) : null}
       </div>
     </Card>
   );

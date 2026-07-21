@@ -87,9 +87,12 @@ const MOBILE_NAV_SLOTS = 5;
 function MobileNav({sheetOpen, setSheetOpen}: {sheetOpen: boolean; setSheetOpen: (v: boolean) => void}) {
   const {has} = usePermissions();
   const [slotsPref, setSlotsPref] = usePref('mobile_nav', MOBILE_NAV_DEFAULT);
+  // Owner report (2026-07-21): switching the Copilot off in Settings should hide the VeggieGenius entry
+  // itself, not just the config fields — a device-local preference, same as the toggle it mirrors.
+  const [copilotEnabled] = usePref('copilot_enabled', '1');
   const [customizing, setCustomizing] = useState(false);
   useEffect(() => setCustomizing(false), [sheetOpen]); // fresh "All sections" view each time the sheet opens, mirrors the old open-button's reset
-  const nav = visibleNav(ALL_NAV, has);
+  const nav = visibleNav(ALL_NAV, has).filter((m) => m.to !== '/copilot' || copilotEnabled === '1');
   const validPaths = nav.map((m) => m.to as string);
   const slots = slotsPref.split(',').filter((p) => validPaths.includes(p)).slice(0, MOBILE_NAV_SLOTS);
   const slotItems = slots.map((p) => nav.find((m) => m.to === p)!);
@@ -182,8 +185,11 @@ function navClass(isActive: boolean): string {
 function NavRail() {
   const {user} = useSession();
   const {has} = usePermissions();
+  // Owner report (2026-07-21): mirrors MobileNav's copilot_enabled filter below so the desktop rail and
+  // phone nav agree — off means gone from navigation everywhere, not just the Settings config fields.
+  const [copilotEnabled] = usePref('copilot_enabled', '1');
   const name = (user?.email ?? 'operator').split('@')[0] ?? 'operator';
-  const modules = visibleNav(CORE_MODULES, has);
+  const modules = visibleNav(CORE_MODULES, has).filter((m) => m.to !== '/copilot' || copilotEnabled === '1');
   const showOrgLink = ORG_LINK.perms.some(has);
   return (
     <aside className="hidden w-64 flex-col justify-between border-r border-farm-accent-soft bg-farm-card p-5 lg:flex">

@@ -59,25 +59,34 @@ export function useDarkToggle(): [boolean, () => void] {
   return [theme === 'dark', toggle];
 }
 
-/** Reactive string preference backed by localStorage (station config the shell/receipts read back). */
+/** Reactive string preference backed by localStorage (station config the shell/receipts read back).
+ *  Found live (2026-07-21): the browser's `storage` event never fires in the SAME tab that made the
+ *  write (it's cross-tab only, per spec) — so two mounted usePref(key) instances in one tab (e.g. a
+ *  Settings card and the AppShell nav reading the same key) went stale relative to each other until a
+ *  full reload. `useTheme` above already solved this for itself with a same-tab custom window event;
+ *  this generalizes that proven pattern to every usePref key instead of re-solving it one-off per key. */
 export function usePref(key: string, fallback = ''): [string, (v: string) => void] {
   const storageKey = `puv_${key}`;
+  const eventName = `puv-pref-change:${storageKey}`;
   const [value, setValue] = useState<string>(() => localStorage.getItem(storageKey) ?? fallback);
   const set = useCallback(
     (v: string) => {
       localStorage.setItem(storageKey, v);
       setValue(v);
+      window.dispatchEvent(new Event(eventName)); // same-tab: other mounted usePref(key) instances follow
     },
-    [storageKey],
+    [storageKey, eventName],
   );
-  // pick up cross-tab / external writes
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === storageKey) setValue(e.newValue ?? fallback);
-    };
+    const sync = () => setValue(localStorage.getItem(storageKey) ?? fallback);
+    const onStorage = (e: StorageEvent) => { if (e.key === storageKey) sync(); }; // cross-tab
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [storageKey, fallback]);
+    window.addEventListener(eventName, sync); // same-tab, other component instance
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(eventName, sync);
+    };
+  }, [storageKey, eventName, fallback]);
   return [value, set];
 }
 
