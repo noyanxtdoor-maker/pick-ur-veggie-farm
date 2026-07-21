@@ -124,7 +124,7 @@ export default function SettingsScreen() {
         <Card className="lg:col-span-1">
           <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-farm-green"><Palette className="h-5 w-5" aria-hidden /> Appearance</h3>
           <p className="mb-4 text-xs text-farm-muted">Tailor the app for your screen — bright outdoor sun or cozy night shifts. Applies instantly.</p>
-          <div className="space-y-2.5" role="radiogroup" aria-label="Theme">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label="Theme">
             {THEMES.map((id) => {
               const m = THEME_META[id];
               const active = theme === id;
@@ -133,21 +133,22 @@ export default function SettingsScreen() {
                   key={id}
                   role="radio"
                   aria-checked={active}
+                  title={m.desc}
                   onClick={() => setTheme(id)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition',
+                    'flex w-20 shrink-0 flex-col items-center gap-1 rounded-xl border p-2 text-center transition',
                     active ? 'border-farm-green bg-farm-accent-soft ring-2 ring-farm-green' : 'border-farm-accent-soft hover:border-farm-accent',
                   )}
                 >
-                  <span className="h-9 w-9 shrink-0 rounded-lg shadow-sm" style={{backgroundColor: m.swatch}} aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 text-xs font-extrabold text-farm-ink">{m.name} {active ? <Check className="h-3.5 w-3.5 text-farm-green" aria-hidden /> : null}</span>
-                    <span className="mt-0.5 block text-[10px] text-farm-muted">{m.desc}</span>
+                  <span className="relative h-9 w-9 shrink-0 rounded-lg shadow-sm" style={{backgroundColor: m.swatch}} aria-hidden>
+                    {active ? <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-farm-card text-farm-green" aria-hidden /> : null}
                   </span>
+                  <span className="w-full truncate text-[10px] font-extrabold text-farm-ink">{m.name}</span>
                 </button>
               );
             })}
           </div>
+          <p className="mt-2 text-[10px] text-farm-muted">{THEME_META[theme].desc}</p>
         </Card>
 
         <div className="space-y-6 lg:col-span-2">

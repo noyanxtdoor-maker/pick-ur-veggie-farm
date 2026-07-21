@@ -21,7 +21,7 @@ export default function OperationsLayout() {
   const tabs = TABS.filter((t) => t.perms.some(has));
   return (
     <div>
-      <div className="mb-5 flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist" aria-label="Operations">
+      <div className="mb-5 flex flex-nowrap gap-1.5 overflow-x-auto border-b border-farm-accent pb-0.5" role="tablist" aria-label="Operations">
         {tabs.map((t) => {
           const Icon = t.icon;
           return (
@@ -30,12 +30,12 @@ export default function OperationsLayout() {
               to={t.to}
               className={({isActive}) =>
                 cn(
-                  'flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition',
+                  'flex min-h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-t-xl px-4 text-sm font-bold transition',
                   isActive ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green',
                 )
               }
             >
-              <Icon className="h-4 w-4" aria-hidden /> {t.label}
+              <Icon className="h-4 w-4 shrink-0" aria-hidden /> {t.label}
             </NavLink>
           );
         })}

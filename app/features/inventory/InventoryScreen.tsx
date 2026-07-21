@@ -485,13 +485,13 @@ export default function InventoryScreen() {
       </div>
 
       {/* tabs (prototype; P2-M3B: now permission-gated — a tab only renders if the actor holds a key for it) */}
-      <div className="flex flex-wrap gap-2 border-b border-farm-accent pb-0.5" role="tablist">
+      <div className="flex flex-nowrap gap-2 overflow-x-auto border-b border-farm-accent pb-0.5" role="tablist">
         {visibleTabs.map((t) => {
           const Icon = t.icon;
           return (
             <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-              className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-6 text-sm font-bold transition', tab === t.key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-              <Icon className="h-4 w-4" aria-hidden /> {t.label}
+              className={cn('flex min-h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-t-xl px-6 text-sm font-bold transition', tab === t.key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+              <Icon className="h-4 w-4 shrink-0" aria-hidden /> {t.label}
             </button>
           );
         })}

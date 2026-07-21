@@ -348,11 +348,11 @@ export default function PayrollScreen() {
         }
       />
 
-      <div className="flex flex-wrap gap-1.5 border-b border-farm-accent pb-0.5" role="tablist">
+      <div className="flex flex-nowrap gap-1.5 overflow-x-auto border-b border-farm-accent pb-0.5" role="tablist">
         {([['roster', 'Roster', Users2], ['attendance', 'Attendance', CalendarCheck], ['leave', 'Leave', CalendarX], ['overtime', 'Overtime', Timer], ['disbursements', 'Disbursements', Wallet], ['history', 'Wage History', History]] as const).map(([key, label, Icon]) => (
           <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-            className={cn('flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
-            <Icon className="h-4 w-4" aria-hidden /> {label}
+            className={cn('flex min-h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-t-xl px-4 text-sm font-bold transition', tab === key ? 'border-x border-t border-farm-accent bg-farm-card text-farm-green' : 'text-farm-muted hover:bg-farm-card/40 hover:text-farm-green')}>
+            <Icon className="h-4 w-4 shrink-0" aria-hidden /> {label}
           </button>
         ))}
       </div>

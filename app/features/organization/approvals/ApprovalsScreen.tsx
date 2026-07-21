@@ -551,58 +551,65 @@ export default function ApprovalsScreen() {
         ) : rows.filter((m) => m.accountStatus !== 'Archived').length === 0 ? (
           <EmptyState title="No members yet" hint="Assign members from the Members tab or send an invitation." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-farm-accent-soft text-left text-xs font-bold tracking-wider text-farm-muted">
-                  <th className="pb-3">Username</th><th className="pb-3">Job Title</th><th className="pb-3">Assigned Role</th><th className="pb-3">Role Authority</th>
-                  <th className="pb-3">Branch</th><th className="pb-3">Status</th><th className="pb-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-farm-accent-soft">
-                {rows.filter((m) => m.accountStatus !== 'Archived').map((m) => {
-                  const isMe = myUserId !== null && m.user_id === myUserId;
-                  return (
-                    <tr key={m.id} className={cn('hover:bg-farm-bg/30', m.assignment_status !== 'Active' && 'opacity-50')}>
-                      <td className="py-3 font-mono font-bold text-farm-ink">{m.userName} {isMe ? <span className="rounded bg-farm-green px-1.5 py-0.5 text-[9px] font-black text-white">YOU</span> : null}</td>
-                      <td className="py-3 text-xs text-farm-muted">
-                        {canManageJobTitle ? (
-                          <button onClick={() => {setJobTitleTarget(m); setJobTitleValue(m.jobTitle ?? '');}} className="rounded-lg border border-dashed border-farm-accent-soft px-2 py-1 text-left hover:border-farm-accent hover:text-farm-green">{m.jobTitle || 'Set title…'}</button>
-                        ) : (m.jobTitle || '—')}
-                      </td>
-                      <td className="py-3">
-                        {canManage && !isMe && outranksRow(m) && m.assignment_status === 'Active' ? (
-                          <div className="w-36"><SelectField value={m.role_id} onChange={(v) => openReassign(m, v)} options={[{value: m.role_id, label: m.roleKey}, ...assignableRoles.filter((r) => r.id !== m.role_id).map((r) => ({value: r.id, label: r.role_key}))]} /></div>
-                        ) : (
-                          <span className="rounded-full bg-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green">{m.roleKey}</span>
-                        )}
-                      </td>
-                      <td className="py-3 text-xs text-farm-muted">{ROLE_AUTHORITY[m.roleKey.toLowerCase()] ?? 'Custom role — permissions set in the Roles tab'}</td>
-                      <td className="py-3 text-xs font-semibold text-farm-muted">{m.branchName}</td>
-                      <td className="py-3"><StatusBadge status={m.assignment_status} /></td>
-                      <td className="py-3 text-right">
-                        <span className="flex justify-end gap-1.5">
-                          {canManage && !isMe && outranksRow(m) ? (
-                            <button onClick={() => setAccessTarget(m)} disabled={busy} className="rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" title="Set what this person can see and do, per section">Access</button>
-                          ) : null}
-                          {canManage && !isMe && outranksRow(m) ? (
-                            m.assignment_status === 'Active'
-                              ? <button onClick={() => setRevokeTarget(m)} disabled={busy} className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-farm-danger hover:bg-red-100">Revoke</button>
-                              : <button onClick={() => void setStatus(m, 'Active')} disabled={busy} className="rounded-lg px-2.5 py-1 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Reactivate</button>
-                          ) : null}
-                          {/* Owner request (2026-07-18): Archive only once an account is already revoked — an
-                              Active account has Access + Revoke to work with; showing Archive too, before
-                              there's anything to retire beyond what Revoke already covers, was just noise. */}
-                          {canManage && !isMe && outranksRow(m) && m.assignment_status === 'Expired' ? (
-                            <button onClick={() => setArchiveTarget(m)} disabled={busy} className="rounded-lg border border-farm-accent-soft bg-farm-bg px-2.5 py-1 text-xs font-bold text-farm-muted hover:bg-farm-accent-soft" title="Retire this account — revokes any access it still has and hides it from the directory; nothing is deleted">Archive</button>
-                          ) : null}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          // Card list, not a table (owner directive 2026-07-21, mirroring the Stitch mobile-adaptation
+          // pass): a 7-column table has no good mobile answer even with horizontal scroll — one card
+          // per member reads cleanly at every width. Every field and every conditional action button
+          // below is unchanged from the table version, just re-laid-out.
+          <div className="space-y-2">
+            {rows.filter((m) => m.accountStatus !== 'Archived').map((m) => {
+              const isMe = myUserId !== null && m.user_id === myUserId;
+              const canAct = canManage && !isMe && outranksRow(m);
+              return (
+                <div key={m.id} className={cn('rounded-xl border border-farm-accent-soft bg-farm-card p-3', m.assignment_status !== 'Active' && 'opacity-50')}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 font-mono text-sm font-bold text-farm-ink">
+                      {m.userName} {isMe ? <span className="rounded bg-farm-green px-1.5 py-0.5 text-[9px] font-black text-white">YOU</span> : null}
+                    </span>
+                    <StatusBadge status={m.assignment_status} />
+                  </div>
+                  <div className="mb-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-farm-muted">Assigned Role</p>
+                      {canManage && !isMe && outranksRow(m) && m.assignment_status === 'Active' ? (
+                        <SelectField value={m.role_id} onChange={(v) => openReassign(m, v)} options={[{value: m.role_id, label: m.roleKey}, ...assignableRoles.filter((r) => r.id !== m.role_id).map((r) => ({value: r.id, label: r.role_key}))]} />
+                      ) : (
+                        <span className="inline-block rounded-full bg-farm-accent-soft px-2.5 py-1 text-xs font-bold text-farm-green">{m.roleKey}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-farm-muted">Branch</p>
+                      <p className="text-xs font-semibold text-farm-ink">{m.branchName}</p>
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-farm-muted">Job Title</p>
+                    {canManageJobTitle ? (
+                      <button onClick={() => {setJobTitleTarget(m); setJobTitleValue(m.jobTitle ?? '');}} className="rounded-lg border border-dashed border-farm-accent-soft px-2 py-1 text-left text-xs text-farm-muted hover:border-farm-accent hover:text-farm-green">{m.jobTitle || 'Set title…'}</button>
+                    ) : (
+                      <p className="text-xs text-farm-muted">{m.jobTitle || '—'}</p>
+                    )}
+                  </div>
+                  <div className={canAct ? 'mb-2' : undefined}>
+                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-farm-muted">Role Authority</p>
+                    <p className="text-xs text-farm-muted">{ROLE_AUTHORITY[m.roleKey.toLowerCase()] ?? 'Custom role — permissions set in the Roles tab'}</p>
+                  </div>
+                  {/* Owner request (2026-07-18): Archive only once an account is already revoked — an
+                      Active account has Access + Revoke to work with; showing Archive too, before
+                      there's anything to retire beyond what Revoke already covers, was just noise. */}
+                  {canAct ? (
+                    <div className="flex gap-1.5 border-t border-farm-accent-soft pt-2">
+                      <button onClick={() => setAccessTarget(m)} disabled={busy} className="flex-1 rounded-lg border border-farm-accent bg-farm-bg px-2.5 py-1.5 text-xs font-bold text-farm-green hover:bg-farm-accent-soft" title="Set what this person can see and do, per section">Access</button>
+                      {m.assignment_status === 'Active'
+                        ? <button onClick={() => setRevokeTarget(m)} disabled={busy} className="flex-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-farm-danger hover:bg-red-100">Revoke</button>
+                        : <button onClick={() => void setStatus(m, 'Active')} disabled={busy} className="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-farm-green hover:bg-farm-accent-soft">Reactivate</button>}
+                      {m.assignment_status === 'Expired' ? (
+                        <button onClick={() => setArchiveTarget(m)} disabled={busy} className="flex-1 rounded-lg border border-farm-accent-soft bg-farm-bg px-2.5 py-1.5 text-xs font-bold text-farm-muted hover:bg-farm-accent-soft" title="Retire this account — revokes any access it still has and hides it from the directory; nothing is deleted">Archive</button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         )}
         <p className="mt-4 flex items-center gap-1.5 text-[11px] text-farm-muted">

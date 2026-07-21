@@ -534,13 +534,13 @@ export function OrganizationLayout() {
   const tabs = ORG_TABS.filter((t) => !t.perm || has(t.perm));
   return (
     <div>
-      <div className="mb-5 flex flex-wrap gap-2 border-b border-farm-accent-soft pb-2" role="tablist" aria-label="Organization">
+      <div className="mb-5 flex flex-nowrap gap-2 overflow-x-auto border-b border-farm-accent-soft pb-2" role="tablist" aria-label="Organization">
         {tabs.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             className={({isActive}) =>
-              cn('min-h-12 rounded-xl px-4 py-2 text-lg font-bold', isActive ? 'bg-farm-green text-white' : 'bg-farm-card text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')
+              cn('min-h-12 shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-bold', isActive ? 'bg-farm-green text-white' : 'bg-farm-card text-farm-muted hover:bg-farm-accent-soft hover:text-farm-green')
             }
           >
             {t.label}
