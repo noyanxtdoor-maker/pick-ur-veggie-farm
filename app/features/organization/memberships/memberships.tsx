@@ -222,7 +222,7 @@ function AssignMembership({companyId, branchOpts, roleOpts, onDone}: {companyId:
   useEffect(() => {membershipsApi.users().then((u) => setUsers(u.map((x) => ({value: x.id, label: x.display_name})))).catch(() => setUsers([]));}, []);
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-bold">Assign membership</h2>
+      <h2 className="mb-4 text-xl font-bold sm:text-2xl">Assign membership</h2>
       <form className="space-y-4" onSubmit={handleSubmit(async (v) => {if (companyId) {await membershipsApi.assign(companyId, v); notify('Membership queued'); onDone();}})}>
         <Field label="User" error={errors.user_id?.message}><Controller control={control} name="user_id" render={({field}) => (<SelectField value={field.value} onChange={field.onChange} placeholder="Select user" options={users} />)} /></Field>
         <Field label="Branch" error={errors.branch_id?.message}><Controller control={control} name="branch_id" render={({field}) => (<SelectField value={field.value} onChange={field.onChange} placeholder="Select branch" options={branchOpts} />)} /></Field>
@@ -242,7 +242,7 @@ function EditMembership({member, canManage, onDone}: {member: MemberRow; canMana
   const [confirm, setConfirm] = useState<MembershipEditInput | null>(null);
   return (
     <Card>
-      <h2 className="mb-1 text-2xl font-bold">{member.userName}</h2>
+      <h2 className="mb-1 text-xl font-bold sm:text-2xl">{member.userName}</h2>
       <p className="mb-4 text-base text-farm-muted">{member.roleKey} · {member.branchName}</p>
       <form className="space-y-4" onSubmit={handleSubmit((v) => setConfirm(v))}>
         <Field label="Status" error={errors.assignment_status?.message}>

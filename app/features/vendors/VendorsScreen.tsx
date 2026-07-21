@@ -266,7 +266,7 @@ function InvoiceDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-farm-card p-6 shadow-xl">
           <Dialog.Title className="mb-3 flex items-center gap-2 text-lg font-bold text-farm-green"><FileText className="h-5 w-5" aria-hidden /> Record Invoice — {vendor.name}</Dialog.Title>
-          <div className="grid grid-cols-4 gap-2 text-sm">
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <label className="block"><span className="text-xs text-farm-muted">Branch</span><SelectField value={branchId} onChange={setBranchId} placeholder="Branch" options={branches.map((b) => ({value: b.id, label: b.name}))} /></label>
             <label className="block"><span className="text-xs text-farm-muted">Invoice # (required)</span><input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
             <label className="block"><span className="text-xs text-farm-muted">Invoice date</span><input type="date" value={today} onChange={(e) => setToday(e.target.value)} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>

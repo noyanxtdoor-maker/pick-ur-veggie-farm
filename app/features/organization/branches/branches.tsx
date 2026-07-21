@@ -108,7 +108,7 @@ function CreateBranch({companyId, onDone, notify}: {companyId: string | null; on
   const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<BranchCreateInput>({resolver: zodResolver(branchCreateSchema)});
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-bold">New branch</h2>
+      <h2 className="mb-4 text-xl font-bold sm:text-2xl">New branch</h2>
       <form
         className="space-y-4"
         onSubmit={handleSubmit(async (values) => {
@@ -139,7 +139,7 @@ function EditBranch({branch, canManage, onDone, notify}: {branch: Branch; canMan
 
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-bold">{branch.name}</h2>
+      <h2 className="mb-4 text-xl font-bold sm:text-2xl">{branch.name}</h2>
       <form className="space-y-4" onSubmit={handleSubmit((v) => setConfirm(v))}>
         <ReadOnlyField label="Branch code" value={branch.branch_code} />
         <Field label="Name" htmlFor="ename" error={errors.name?.message}>

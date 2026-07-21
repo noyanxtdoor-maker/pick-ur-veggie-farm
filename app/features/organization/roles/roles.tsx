@@ -131,7 +131,7 @@ function CreateRole({companyId, onDone}: {companyId: string | null; onDone: () =
   const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<RoleCreateInput>({resolver: zodResolver(roleCreateSchema)});
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-bold">New role</h2>
+      <h2 className="mb-4 text-xl font-bold sm:text-2xl">New role</h2>
       <form className="space-y-4" onSubmit={handleSubmit(async (v) => {if (companyId) {await rolesApi.create(companyId, v); notify('Role queued'); onDone();}})}>
         <Field label="Role key" htmlFor="rkey" error={errors.role_key?.message}><TextInput id="rkey" placeholder="WORKER" autoCapitalize="characters" {...register('role_key')} /></Field>
         <Field label="Description" htmlFor="rdesc" error={errors.description?.message}><TextInput id="rdesc" placeholder="Field worker" {...register('description')} /></Field>
@@ -152,7 +152,7 @@ function RoleDetail({role, canManage, onChanged}: {role: Role; canManage: boolea
 
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-bold">{role.role_key}</h2>
+      <h2 className="mb-4 text-xl font-bold sm:text-2xl">{role.role_key}</h2>
       <form className="space-y-4" onSubmit={handleSubmit(async (v) => {await rolesApi.update(role, v); notify('Role update queued'); onChanged();})}>
         <ReadOnlyField label="Role key" value={role.role_key} />
         <Field label="Description" htmlFor="ed" error={errors.description?.message}><TextInput id="ed" disabled={!canManage} {...register('description')} /></Field>
