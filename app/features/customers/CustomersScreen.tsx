@@ -180,31 +180,33 @@ export default function CustomersScreen() {
             {statement === null ? <Skeleton rows={3} /> : statement.lines.length === 0 ? (
               <EmptyState title="No sales on record" hint="This customer has no attributed invoices yet." />
             ) : (
-              <table className="w-full border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-farm-accent text-left font-bold tracking-wider text-farm-muted">
-                    <th className="pb-2">Date</th><th className="pb-2">Invoice</th><th className="pb-2">Status</th>
-                    <th className="pb-2 text-right">Amount</th><th className="pb-2 text-right">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-farm-accent-soft">
-                  {statement.lines.map((l) => (
-                    <tr key={l.id}>
-                      <td className="py-2 font-mono">{new Date(l.created_at).toLocaleDateString()}</td>
-                      <td className="py-2">#{l.invoice_number ?? '—'}</td>
-                      <td className={cn('py-2 font-bold', STATUS_TONE[l.status])}>{l.status}</td>
-                      <td className="tabular py-2 text-right">{formatPeso(l.total)}</td>
-                      <td className="tabular py-2 text-right font-bold">{formatPeso(l.running_outstanding)}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[380px] border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-farm-accent text-left font-bold tracking-wider text-farm-muted">
+                      <th className="pb-2">Date</th><th className="pb-2">Invoice</th><th className="pb-2">Status</th>
+                      <th className="pb-2 text-right">Amount</th><th className="pb-2 text-right">Balance</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-farm-green font-black">
-                    <td colSpan={4} className="pt-2">Total outstanding</td>
-                    <td className={cn('tabular pt-2 text-right', statement.outstanding > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(statement.outstanding)}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-farm-accent-soft">
+                    {statement.lines.map((l) => (
+                      <tr key={l.id}>
+                        <td className="py-2 font-mono">{new Date(l.created_at).toLocaleDateString()}</td>
+                        <td className="py-2">#{l.invoice_number ?? '—'}</td>
+                        <td className={cn('py-2 font-bold', STATUS_TONE[l.status])}>{l.status}</td>
+                        <td className="tabular py-2 text-right">{formatPeso(l.total)}</td>
+                        <td className="tabular py-2 text-right font-bold">{formatPeso(l.running_outstanding)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-farm-green font-black">
+                      <td colSpan={4} className="pt-2">Total outstanding</td>
+                      <td className={cn('tabular pt-2 text-right', statement.outstanding > 0 ? 'text-farm-danger' : 'text-farm-green')}>{formatPeso(statement.outstanding)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             )}
           </Dialog.Content>
         </Dialog.Portal>

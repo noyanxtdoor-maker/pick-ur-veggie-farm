@@ -89,50 +89,35 @@ export default function VendorsScreen() {
         ) : vendors.length === 0 ? (
           <EmptyState title="No vendors yet" hint={canManage ? 'Add one with "New Vendor" to start recording bills.' : 'None recorded.'} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-farm-accent-soft text-left text-xs uppercase text-farm-muted">
-                  <th className="px-2 py-2">Code</th>
-                  <th className="px-2 py-2">Name</th>
-                  <th className="px-2 py-2">Contact</th>
-                  <th className="px-2 py-2">Terms</th>
-                  <th className="px-2 py-2 text-right">Invoiced</th>
-                  <th className="px-2 py-2 text-right">Paid</th>
-                  <th className="px-2 py-2 text-right">Outstanding AP</th>
-                  <th className="px-2 py-2">Status</th>
-                  {canManage ? <th className="px-2 py-2"></th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {vendors.map((v) => {
-                  const s = apById.get(v.id);
-                  return (
-                    <tr key={v.id} className="border-b border-farm-accent-soft/50 last:border-0">
-                      <td className="px-2 py-2 font-mono text-xs">{v.vendor_code}</td>
-                      <td className="px-2 py-2 font-semibold text-farm-ink">{v.name}</td>
-                      <td className="px-2 py-2 text-xs text-farm-muted">{v.contact ?? '—'}</td>
-                      <td className="px-2 py-2 text-xs">{v.payment_terms ?? '—'}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{s ? formatPeso(s.total_invoiced) : '—'}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{s ? formatPeso(s.total_paid) : '—'}</td>
-                      <td className="px-2 py-2 text-right tabular-nums font-bold text-farm-danger">{s ? formatPeso(s.outstanding_ap) : '—'}</td>
-                      <td className="px-2 py-2 text-xs">{v.status}</td>
-                      {canManage ? (
-                        <td className="px-2 py-2 text-right">
-                          <span className="inline-flex gap-1">
-                            <button onClick={() => setEditing(v)} title="Edit vendor" className="rounded p-1 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Edit vendor"><Pencil className="h-4 w-4" aria-hidden /></button>
-                            <button onClick={() => setInvoiceFor(v)} title="Record vendor invoice" className="rounded p-1 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Record vendor invoice"><FileText className="h-4 w-4" aria-hidden /></button>
-                            {s && s.outstanding_ap > 0 ? (
-                              <button onClick={() => setPaymentFor(s)} title="Record payment" className="rounded p-1 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Record payment"><Wallet className="h-4 w-4" aria-hidden /></button>
-                            ) : null}
-                          </span>
-                        </td>
+          <div className="space-y-2">
+            {vendors.map((v) => {
+              const s = apById.get(v.id);
+              return (
+                <div key={v.id} className="rounded-xl border border-farm-accent-soft bg-farm-card p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-farm-ink">{v.name} <span className="font-mono text-[10px] text-farm-muted">{v.vendor_code}</span></p>
+                      <p className="text-xs text-farm-muted">{v.contact ?? '—'}{v.payment_terms ? ` · ${v.payment_terms}` : ''}</p>
+                    </div>
+                    <span className="flex-shrink-0 text-xs font-bold text-farm-muted">{v.status}</span>
+                  </div>
+                  <div className="mb-2 grid grid-cols-3 gap-2 text-xs">
+                    <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Invoiced</p><p className="tabular font-semibold text-farm-ink">{s ? formatPeso(s.total_invoiced) : '—'}</p></div>
+                    <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Paid</p><p className="tabular font-semibold text-farm-ink">{s ? formatPeso(s.total_paid) : '—'}</p></div>
+                    <div><p className="mb-0.5 text-[10px] font-bold uppercase text-farm-muted">Outstanding AP</p><p className="tabular font-bold text-farm-danger">{s ? formatPeso(s.outstanding_ap) : '—'}</p></div>
+                  </div>
+                  {canManage ? (
+                    <div className="flex justify-end gap-1 border-t border-farm-accent-soft pt-2">
+                      <button onClick={() => setEditing(v)} title="Edit vendor" className="rounded-lg p-1.5 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Edit vendor"><Pencil className="h-4 w-4" aria-hidden /></button>
+                      <button onClick={() => setInvoiceFor(v)} title="Record vendor invoice" className="rounded-lg p-1.5 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Record vendor invoice"><FileText className="h-4 w-4" aria-hidden /></button>
+                      {s && s.outstanding_ap > 0 ? (
+                        <button onClick={() => setPaymentFor(s)} title="Record payment" className="rounded-lg p-1.5 text-farm-muted hover:bg-farm-bg hover:text-farm-green" aria-label="Record payment"><Wallet className="h-4 w-4" aria-hidden /></button>
                       ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -277,7 +262,8 @@ function InvoiceDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
               <h4 className="text-sm font-bold text-farm-ink">Lines</h4>
               <Button variant="secondary" onClick={addLine}><Plus className="mr-1 h-3.5 w-3.5" aria-hidden /> Add line</Button>
             </div>
-            <table className="w-full text-xs">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-xs">
               <thead><tr className="text-left text-farm-muted"><th className="px-1 py-1">Description</th><th className="px-1 py-1 w-16">Qty</th><th className="px-1 py-1 w-20">Unit ₱</th><th className="px-1 py-1 w-40">Expense Acct</th><th className="px-1 py-1 w-20 text-right">Line ₱</th><th className="px-1 py-1 w-6"></th></tr></thead>
               <tbody>
                 {lines.map((l, i) => (
@@ -300,6 +286,7 @@ function InvoiceDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
               </tbody>
               <tfoot><tr><td colSpan={4} className="px-1 py-1 text-right text-xs font-bold">Total</td><td className="px-1 py-1 text-right tabular-nums font-bold">{total.toFixed(2)}</td><td /></tr></tfoot>
             </table>
+            </div>
           </div>
           <label className="mt-3 block text-sm"><span className="text-xs text-farm-muted">Notes</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-0.5 w-full rounded border border-farm-accent px-2 py-1.5 text-sm" /></label>
           <div className="mt-4 flex gap-2 border-t border-farm-accent-soft pt-4">
@@ -386,7 +373,8 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
             ) : openInvs.length === 0 ? (
               <p className="text-xs text-farm-muted">No open invoices for this vendor.</p>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-xs">
                 <thead><tr className="text-left text-farm-muted"><th className="px-1 py-1">Invoice</th><th className="px-1 py-1">Date</th><th className="px-1 py-1 text-right">Outstanding</th><th className="px-1 py-1 w-24 text-right">Apply ₱</th></tr></thead>
                 <tbody>
                   {openInvs.map((inv) => (
@@ -404,6 +392,7 @@ function PaymentDialog({companyId, vendor, branches, onClose, onSaved, wrap}: {c
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
             <p className={`mt-1 text-right text-xs font-bold ${Math.abs(totalApplied - Number(amount)) > 0.005 ? 'text-farm-danger' : 'text-farm-green'}`}>
               Applied: {formatPeso(totalApplied)} / {formatPeso(Number(amount) || 0)}
